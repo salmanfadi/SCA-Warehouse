@@ -27,54 +27,39 @@ export function useOrders() {
   return useQuery({
     queryKey: ['orders'],
     queryFn: async (): Promise<Order[]> => {
-      // Since 'orders' table doesn't exist, return empty array or use stock_out as orders
-      console.log('Orders table not found, returning empty array');
-      
-      // Alternative: Use stock_out as order data
-      const { data, error } = await supabase
-        .from('stock_out')
-        .select(`
-          id,
-          destination,
-          notes,
-          created_at,
-          status,
-          requested_by,
-          stock_out_details (
-            quantity,
-            product_id
-          )
-        `)
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching stock out data:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to load order data'
-        });
-        throw error;
+        if (error) {
+          console.error('Error fetching orders:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to load orders'
+          });
+          throw error;
+        }
+
+        return (data || []).map((order: any) => ({
+          id: order.id,
+          customer_name: order.customer_name,
+          customer_email: order.customer_email,
+          customer_company: order.customer_company,
+          customer_phone: order.customer_phone || '',
+          inquiry_id: order.inquiry_id || '',
+          status: order.status,
+          order_date: order.order_date || order.created_at,
+          total_amount: order.total_amount || 0,
+          items: order.items || []
+        }));
+      } catch (error) {
+        console.error('Error in useOrders:', error);
+        // Return empty array as fallback
+        return [];
       }
-
-      // Transform stock_out data to match Order interface
-      return (data || []).map((stockOut: any) => ({
-        id: stockOut.id,
-        customer_name: stockOut.destination || 'Unknown Customer',
-        customer_email: 'unknown@example.com',
-        customer_company: stockOut.destination || 'Unknown Company',
-        customer_phone: 'Unknown',
-        inquiry_id: stockOut.id,
-        status: stockOut.status || 'pending',
-        order_date: stockOut.created_at,
-        total_amount: 0,
-        items: (stockOut.stock_out_details || []).map((detail: any) => ({
-          product_id: detail.product_id,
-          product_name: 'Unknown Product',
-          quantity: detail.quantity,
-          requirements: stockOut.notes || ''
-        }))
-      }));
     }
   });
 }

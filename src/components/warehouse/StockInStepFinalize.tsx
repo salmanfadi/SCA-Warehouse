@@ -3,7 +3,7 @@ import { BatchData } from './StockInStepBatches';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, AlertCircle, CheckCircle2, Box as BoxIcon } from 'lucide-react';
-import { StockInRequestData } from '@/types/database';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -195,4 +195,4 @@ const StockInStepFinalize: React.FC<StockInStepFinalizeProps> = ({
   );
 };
 
-export default StockInStepFinalize;
+export default StockInStepFinalize; 

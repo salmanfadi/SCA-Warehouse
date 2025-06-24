@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { executeQuery } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -20,20 +21,23 @@ interface UserProfile {
   role: string;
   active: boolean;
   created_at: string;
+  avatar_url?: string;
 }
 
 const UsersManagement: React.FC = () => {
-  // Fetch users from profiles table
+  // Fetch users from profiles table using available columns
   const { data: users, isLoading, error } = useQuery<UserProfile[]>({
     queryKey: ['users'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, role, active, created_at')
-        .order('created_at', { ascending: false });
+      const { data, error } = await executeQuery('profiles', async (supabase) => {
+        return await supabase
+          .from('profiles')
+          .select('id, full_name, email, role, active, created_at, avatar_url')
+          .order('created_at', { ascending: false });
+      });
 
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 

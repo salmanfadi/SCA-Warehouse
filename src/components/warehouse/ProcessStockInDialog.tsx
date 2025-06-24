@@ -1,236 +1,190 @@
 
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Check, Loader2 } from 'lucide-react';
+import React from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { WarehouseLocationDetails } from '@/types/location';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useStockInBoxes, StockInData } from '@/hooks/useStockInBoxes';
+import { DefaultValuesForm } from '@/components/warehouse/DefaultValuesForm';
+import { BoxesTable } from '@/components/warehouse/BoxesTable';
+import { processStockIn, StockInBox } from '@/utils/stockInProcessor';
 
 interface ProcessStockInDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  stockInRequest: any;
-  onProcess?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedStockIn: StockInData | null;
+  userId: string | undefined;
 }
 
 export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
-  isOpen,
-  onClose,
-  stockInRequest,
-  onProcess
+  open,
+  onOpenChange,
+  selectedStockIn,
+  userId,
 }) => {
-  const { user } = useAuth();
-  const [selectedWarehouse, setSelectedWarehouse] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [notes, setNotes] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [locations, setLocations] = useState<WarehouseLocationDetails[]>([]);
+  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  
+  const {
+    boxesData,
+    defaultValues,
+    setDefaultValues,
+    handleBoxUpdate,
+    applyDefaultsToAll,
+    isMissingRequiredData
+  } = useStockInBoxes(selectedStockIn, open);
 
-  // Fetch warehouses
-  useEffect(() => {
-    const fetchWarehouses = async () => {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (error) {
-        console.error('Error fetching warehouses:', error);
-      } else {
-        setWarehouses(data || []);
-      }
-    };
+  // Fetch warehouses for the dropdown
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('warehouses').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
-    fetchWarehouses();
-  }, []);
-
-  // Fetch locations when warehouse is selected
-  useEffect(() => {
-    const fetchLocations = async () => {
-      if (!selectedWarehouse) {
-        setLocations([]);
-        return;
-      }
-
+  // Fetch warehouse locations based on selected warehouse
+  const { data: locations } = useQuery({
+    queryKey: ['warehouse-locations', defaultValues.warehouse],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('warehouse_locations')
         .select('*')
-        .eq('warehouse_id', selectedWarehouse);
+        .eq('warehouse_id', defaultValues.warehouse)
+        .order('floor')
+        .order('zone');
+        
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!defaultValues.warehouse,
+  });
+
+  // Process stock in mutation
+  const processStockInMutation = useMutation({
+    mutationFn: async (data: { stockInId: string; boxes: typeof boxesData }) => {
+      if (!userId) throw new Error("User ID is required to process stock in");
       
-      if (error) {
-        console.error('Error fetching locations:', error);
-        setLocations([]);
-      } else {
-        setLocations(data || []);
-      }
-    };
-
-    fetchLocations();
-  }, [selectedWarehouse]);
-
-  const handleProcess = async () => {
-    if (!selectedWarehouse || !selectedLocation) {
+      // Transform BoxData to StockInBox
+      const transformedBoxes: StockInBox[] = data.boxes.map(box => ({
+        barcode: box.barcode,
+        quantity: box.quantity,
+        color: box.color,
+        size: box.size,
+        warehouse: box.warehouse_id, // Use warehouse_id as warehouse
+        location: box.location_id    // Use location_id as location
+      }));
+      
+      return processStockIn(data.stockInId, transformedBoxes, userId);
+    },
+    onSuccess: () => {
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      toast({
+        title: 'Stock In Processed',
+        description: 'The stock in has been processed and added to inventory.',
+      });
+    },
+    onError: (error) => {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Please select warehouse and location'
+        title: 'Processing failed',
+        description: error instanceof Error ? error.message : 'Failed to process stock in',
+      });
+    },
+  });
+
+  const handleProcessingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStockIn) return;
+
+    if (isMissingRequiredData()) {
+      toast({
+        variant: 'destructive',
+        title: 'Incomplete data',
+        description: 'Please fill in all required fields for each box.',
       });
       return;
     }
 
-    setIsProcessing(true);
-    try {
-      // Update stock in status to processing
-      const { error: updateError } = await supabase
-        .from('stock_in')
-        .update({
-          status: 'processing',
-          processed_by: user?.id,
-          warehouse_id: selectedWarehouse,
-          processing_started_at: new Date().toISOString(),
-          notes: notes || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', stockInRequest.id);
-
-      if (updateError) throw updateError;
-
-      // Create a processed batch
-      const { data: batchData, error: batchError } = await supabase
-        .from('processed_batches')
-        .insert({
-          product_id: stockInRequest.product_id,
-          processed_by: user?.id,
-          warehouse_id: selectedWarehouse,
-          location_id: selectedLocation,
-          total_boxes: stockInRequest.boxes || 0,
-          total_quantity: stockInRequest.quantity || 0,
-          status: 'processing',
-          source: stockInRequest.source,
-          notes: notes || null,
-          stock_in_id: stockInRequest.id
-        })
-        .select()
-        .single();
-
-      if (batchError) throw batchError;
-
-      toast({
-        title: 'Processing Started',
-        description: 'Stock in request is now being processed'
-      });
-
-      onClose();
-      if (onProcess) onProcess();
-
-    } catch (error) {
-      console.error('Error processing stock in:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to start processing'
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    processStockInMutation.mutate({
+      stockInId: selectedStockIn.id,
+      boxes: boxesData,
+    });
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={isMobile ? "max-w-[95vw] h-[85vh] p-4" : "max-w-3xl"}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Check className="h-5 w-5 text-green-600" />
-            Process Stock In Request
-          </DialogTitle>
+          <DialogTitle>Process Stock In</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              Processing stock in for <strong>{stockInRequest?.product?.name || 'Unknown Product'}</strong>
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Quantity: {stockInRequest?.quantity || 0} | Boxes: {stockInRequest?.boxes || 0}
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="warehouse">Warehouse *</Label>
-            <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select warehouse" />
-              </SelectTrigger>
-              <SelectContent>
-                {warehouses.map((warehouse) => (
-                  <SelectItem key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="location">Location *</Label>
-            <Select value={selectedLocation} onValueChange={setSelectedLocation} disabled={!selectedWarehouse}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id}>
-                    Floor {location.floor} - Zone {location.zone}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="notes">Processing Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Add any notes about the processing..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={isProcessing}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleProcess}
-              disabled={isProcessing || !selectedWarehouse || !selectedLocation}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Start Processing
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
+        {selectedStockIn && (
+          <form onSubmit={handleProcessingSubmit}>
+            <ScrollArea className={isMobile ? "h-[calc(85vh-10rem)]" : "max-h-[70vh]"}>
+              <div className="space-y-4 px-1">
+                <div className="space-y-2">
+                  <div className="font-medium">Product: {selectedStockIn.product?.name}</div>
+                  <div className="text-sm text-gray-500">Total Boxes: {selectedStockIn.boxes}</div>
+                  <div className="text-sm text-gray-500">
+                    Submitted By: {selectedStockIn.submitter ? `${selectedStockIn.submitter.name} (${selectedStockIn.submitter.username})` : 'Unknown'}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Source: {selectedStockIn.source}
+                  </div>
+                  {selectedStockIn.notes && (
+                    <div className="text-sm text-gray-500">
+                      Notes: {selectedStockIn.notes}
+                    </div>
+                  )}
+                </div>
+                
+                <DefaultValuesForm 
+                  defaultValues={defaultValues}
+                  setDefaultValues={setDefaultValues}
+                  applyDefaultsToAll={applyDefaultsToAll}
+                  warehouses={warehouses}
+                  locations={locations}
+                />
+                
+                <BoxesTable 
+                  boxesData={boxesData}
+                  handleBoxUpdate={handleBoxUpdate}
+                  warehouses={warehouses}
+                  locations={locations}
+                />
+              </div>
+            </ScrollArea>
+            
+            <DialogFooter className="mt-6">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={isMissingRequiredData() || processStockInMutation.isPending}
+              >
+                {processStockInMutation.isPending ? 'Processing...' : 'Accept & Process Stock In'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

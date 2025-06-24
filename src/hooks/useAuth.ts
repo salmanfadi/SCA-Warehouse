@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface Profile {
   id: string;
   username?: string;
-  name?: string;
+  full_name?: string;
   role: 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
   active: boolean;
   created_at: string;

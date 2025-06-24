@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { useWarehouses } from '@/hooks/useWarehouses';
@@ -11,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, Plus, Trash2, Check, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { StockInRequestData } from '@/types/database';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -28,28 +27,42 @@ interface LocationType {
   warehouse_id?: string;
 }
 
-// Define the BatchData interface for the batch creation workflow
-export interface BatchData {
+// Define a specific interface for the batch creation form
+export interface BatchFormData {
+  // Core batch data
   id: string;
   warehouse_id: string;
   warehouse_name: string;
   location_id: string;
   location_name: string;
   boxCount: number;
+  quantityPerBox: number;
   color: string;
   size: string;
-  quantityPerBox: number;
   created_at?: string;
-  batchBarcode?: string;   // Optional batch barcode generated in preview step
-  boxBarcodes?: string[];  // Optional array of box barcodes generated in preview step
-  boxes?: BoxData[];       // Optional boxes data for backward compatibility
+  
+  // Barcode related
+  batchBarcode?: string;
+  boxBarcodes?: string[];
+  
+  // Product info for display
+  productName?: string;
+  productSku?: string;
+  
+  // Batch processing
+  batch_number?: string;
+  
+  // For backward compatibility
+  boxes?: BoxData[];
+  barcodes?: string[];
+  quantity_per_box?: number;
 }
 
 interface StockInStepBatchesProps {
   onBack: () => void;
   onContinue: () => void;
-  batches: BatchData[];
-  setBatches: React.Dispatch<React.SetStateAction<BatchData[]>>;
+  batches: BatchFormData[];
+  setBatches: React.Dispatch<React.SetStateAction<BatchFormData[]>>;
   stockIn: StockInRequestData;
   defaultValues: {
     quantity: number;
@@ -390,4 +403,4 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
   );
 }
 
-export default StockInStepBatches;
+export default StockInStepBatches; 

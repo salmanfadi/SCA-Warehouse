@@ -1,7 +1,7 @@
 // @ts-nocheck
 // Edge Function for processing stock-in requests
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.2.3';
 
 // Define CORS headers
 const corsHeaders = {
@@ -45,20 +45,24 @@ function generateBarcode(baseBarcode: string | undefined, boxNumber: number): st
 // Helper function to safely update stock_in status
 async function safeUpdateStockIn(supabase: any, stockInId: string, updates: any) {
   try {
-    // Map the status to the correct timestamp column
-    const timestampField = updates.status === 'processing' 
-      ? 'processing_started_at' 
-      : updates.status === 'completed' 
-        ? 'processing_completed_at' 
-        : updates.status === 'failed'
-          ? 'updated_at'
-          : 'updated_at';
-
+    // Create update data with only the fields that exist in the stock_in table
     const updateData = {
-      ...updates,
-      [timestampField]: new Date().toISOString(),
+      status: updates.status,
       updated_at: new Date().toISOString()
     };
+
+    // Add additional fields if they exist in the updates object
+    if (updates.rejection_reason !== undefined) {
+      updateData.rejection_reason = updates.rejection_reason;
+    }
+
+    if (updates.notes !== undefined) {
+      updateData.notes = updates.notes;
+    }
+
+    if (updates.number_of_boxes !== undefined) {
+      updateData.number_of_boxes = updates.number_of_boxes;
+    }
 
     const { data, error } = await supabase
       .from('stock_in')
@@ -97,30 +101,38 @@ async function cleanupPartialData(
     }
   }
 
-  // Delete any processed boxes
+  // Delete batch_items directly using the batch operation IDs
   if (batchIds.length > 0) {
-    console.log(`Deleting processed boxes for ${batchIds.length} batches...`);
-    const { error: boxError } = await supabase
-      .from('batch_items')
-      .delete()
-      .in('batch_id', batchIds);
+    console.log('Deleting batch items...');
     
-    if (boxError) {
-      console.error('Error cleaning up processed boxes:', boxError);
+    try {
+      // Delete batch_items
+      const { error: batchItemsError } = await supabase
+        .from('batch_items')
+        .delete()
+        .in('batch_id', batchIds);
+      
+      if (batchItemsError) {
+        console.error('Error cleaning up batch_items:', batchItemsError);
+      }
+    } catch (err) {
+      console.error('Exception during batch_items cleanup:', err);
     }
   }
-
-  // Delete any processed batches
-  if (batchIds.length > 0) {
-    console.log(`Deleting ${batchIds.length} processed batches...`);
-    const { error: batchError } = await supabase
+  
+  // Delete processed_batches using stock_in_id
+  try {
+    console.log('Deleting processed batches for stock_in_id:', stockInId);
+    const { error: processedBatchesError } = await supabase
       .from('processed_batches')
       .delete()
-      .in('id', batchIds);
+      .eq('stock_in_id', stockInId);
     
-    if (batchError) {
-      console.error('Error cleaning up processed batches:', batchError);
+    if (processedBatchesError) {
+      console.error('Error cleaning up processed_batches:', processedBatchesError);
     }
+  } catch (err) {
+    console.error('Exception during processed_batches cleanup:', err);
   }
 
   // Delete any inventory items
@@ -136,11 +148,24 @@ async function cleanupPartialData(
     }
   }
 
-  // Reset stock_in status safely
-  console.log('Resetting stock_in status...');
+  // Delete batch_operations
+  if (batchIds.length > 0) {
+    console.log(`Deleting ${batchIds.length} batch operations...`);
+    const { error: batchOpsError } = await supabase
+      .from('batch_operations')
+      .delete()
+      .in('id', batchIds);
+    
+    if (batchOpsError) {
+      console.error('Error cleaning up batch operations:', batchOpsError);
+    }
+  }
+
+  // Reset stock_in status to pending so it can be processed again
+  console.log('Setting stock_in status back to pending...');
   const { error: updateError } = await safeUpdateStockIn(supabase, stockInId, {
-    status: 'failed',
-    error_message: 'Processing failed'
+    status: 'pending',
+    rejection_reason: 'Processing failed. Please try again.'
   });
 
   if (updateError) {
@@ -177,6 +202,7 @@ serve(async (req) => {
   console.log(`[${requestId}] Received request`);
   
   try {
+    // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
@@ -194,451 +220,303 @@ serve(async (req) => {
     }
 
     console.log(`[${requestId}] Creating Supabase client`);
-    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+    const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
-      },
+      }
     });
 
-    // Track all created resources for cleanup
-    const createdBatches: string[] = [];
-    const createdBarcodes: string[] = [];
-    const now = new Date().toISOString();
-
     // Parse the request body
-    let payload: StockInPayload;
-    try {
-      // Get the raw request body
-      const body = await req.text();
-      
-      // Log detailed information about the request
-      console.log(`[${requestId}] Request headers:`, JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
-      console.log(`[${requestId}] Raw body length:`, body.length);
-      console.log(`[${requestId}] First 500 chars of body:`, body.substring(0, 500));
-      
-      // Try to parse the JSON
-      const parsed = await safeJsonParse(body);
-      if (!parsed) {
-        throw new Error('Invalid JSON payload - Could not parse request body');
-      }
-      
-      // Log the structure of the parsed data
-      console.log(`[${requestId}] Parsed data structure:`, 
-        JSON.stringify({
-          has_run_id: !!parsed.run_id,
-          has_stock_in_id: !!parsed.stock_in_id,
-          has_user_id: !!parsed.user_id,
-          has_product_id: !!parsed.product_id,
-          batches_length: Array.isArray(parsed.batches) ? parsed.batches.length : 'not an array',
-          first_batch: parsed.batches && parsed.batches[0] ? 
-            JSON.stringify({
-              has_warehouse_id: !!parsed.batches[0].warehouse_id,
-              has_location_id: !!parsed.batches[0].location_id,
-              boxCount_type: typeof parsed.batches[0].boxCount,
-              boxCount_value: parsed.batches[0].boxCount,
-              quantityPerBox_type: typeof parsed.batches[0].quantityPerBox,
-              quantityPerBox_value: parsed.batches[0].quantityPerBox
-            }) : 'no batches'
-        }, null, 2));
-      
-      // Assign the parsed data to payload
-      payload = parsed as StockInPayload;
-      
-      console.log(`[${requestId}] Processing payload for stock-in:`, payload.stock_in_id);
-    } catch (error) {
-      const errorMsg = 'Invalid request body';
-      console.error(`[${requestId}] ${errorMsg}:`, error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: errorMsg,
-          details: error instanceof Error ? error.message : 'Unknown error',
-          requestId
-        }),
-        { status: 400, headers: corsHeaders }
-      );
+    const requestBody = await req.text();
+    const payload = await safeJsonParse(requestBody);
+    
+    if (!payload) {
+      throw new Error('Invalid JSON payload');
     }
 
+    const { stock_in_id, user_id, product_id, batches } = payload as StockInPayload;
+
+    // Validate required fields
+    if (!stock_in_id || !user_id || !product_id || !batches?.length) {
+      throw new Error('Missing required fields in payload');
+    }
+
+    // Update stock_in status to processing
+    await safeUpdateStockIn(supabase, stock_in_id, {
+      status: 'processing'
+    });
+
+    const batchIds: string[] = [];
+    const barcodes: string[] = [];
+    const now = new Date().toISOString();
+
     try {
-      // Start by marking the stock_in as processing
-      console.log(`[${requestId}] Updating stock_in status to 'processing'...`);
-      const { error: updateStatusError } = await safeUpdateStockIn(supabaseClient, payload.stock_in_id, {
-        status: 'processing',
-        processed_by: payload.user_id
-      });
-
-      if (updateStatusError) {
-        throw new Error(`Failed to update stock_in status: ${updateStatusError.message}`);
-      }
-
       // Process each batch
-      for (const [index, batch] of payload.batches.entries()) {
-        console.log(`[${requestId}] Processing batch ${index + 1}/${payload.batches.length}`);
+      for (const batch of batches) {
+        // Calculate box count and quantity per box
+        const boxCount = batch.boxCount || batch.box_count || 1;
+        const quantityPerBox = batch.quantityPerBox || batch.quantity_per_box || 1;
+        const baseBarcode = batch.base_barcode || `BC-${product_id.substring(0, 8)}-${Date.now()}`;
         
-        // Log the raw batch data for debugging
-        console.log(`[${requestId}] Raw batch data:`, JSON.stringify(batch, null, 2));
-        
-        // Extract batch data
-        const batchBoxCount = typeof batch.boxCount === 'string' ? parseInt(batch.boxCount, 10) : 
-                            Number(batch.boxCount || batch.box_count || 10);
-                            
-        const batchQtyPerBox = typeof batch.quantityPerBox === 'string' ? parseInt(batch.quantityPerBox, 10) : 
-                             Number(batch.quantityPerBox || batch.quantity_per_box || 10);
-        
-        // Calculate total quantity
-        const totalQuantity = batchBoxCount * batchQtyPerBox;
-        
-        // Log the values
-        console.log(`[${requestId}] Using boxCount:`, batchBoxCount);
-        console.log(`[${requestId}] Using qtyPerBox:`, batchQtyPerBox);
-        console.log(`[${requestId}] Calculated totalQuantity:`, totalQuantity);
-        
-        if (isNaN(totalQuantity) || totalQuantity <= 0) {
-          throw new Error(`Invalid quantity calculation: ${batchBoxCount} boxes × ${batchQtyPerBox} items = ${totalQuantity}`);
-        }
-
-        if (batchBoxCount <= 0) {
-          throw new Error(`Invalid box count: ${batchBoxCount}`);
-        }
-
-        if (batchQtyPerBox <= 0) {
-          throw new Error(`Invalid quantity per box: ${batchQtyPerBox}`);
-        }
-
-        console.log(`[${requestId}] Batch data received:`, {
-          box_count: batch.box_count,
-          boxCount: batch.boxCount,
-          quantity_per_box: batch.quantity_per_box,
-          quantityPerBox: batch.quantityPerBox,
-          calculated: {
-            boxCount: batchBoxCount,
-            qtyPerBox: batchQtyPerBox,
-            totalQuantity
-          }
-        });
-
-        // We've already calculated these values above
-        // Using the values we already calculated
-        
-        // Create a processed batch record with all required fields
-        const processedBatchData = {
-          id: crypto.randomUUID(), // Explicitly set the ID
-          batch_number: String(batch.base_barcode || `BATCH-${Date.now()}`),
-          product_id: payload.product_id,
-          quantity_processed: totalQuantity,
-          processed_at: now,
-          processed_by: payload.user_id,
-          status: 'processing',
-          total_boxes: batchBoxCount,
-          total_quantity: totalQuantity, // This is the critical field
-          warehouse_id: batch.warehouse_id,
-          created_at: now,
-          updated_at: now,
-          location_id: batch.location_id || null,
-          stock_in_id: payload.stock_in_id || null,
-          notes: `Processed ${batchBoxCount} boxes with ${batchQtyPerBox} items each`,
-          source: 'stock-in-process',
-          total_items: totalQuantity
-        };
-
-        // Debug log the values
-        console.log(`[${requestId}] Batch calculation: `, {
-          box_count: batchBoxCount,
-          quantity_per_box: batchQtyPerBox,
-          calculated_total: totalQuantity,
-          is_valid: !isNaN(totalQuantity) && totalQuantity > 0
-        });
-
-        console.log(`[${requestId}] Creating processed batch with data:`, JSON.stringify(processedBatchData, null, 2));
-        
-        
-        // First try direct insertion
-        try {
-          const { data: processedBatch, error: batchError } = await supabaseClient
-            .from('processed_batches')
-            .insert(processedBatchData)
-            .select('id, status, total_quantity, total_boxes')
-            .single();
-
-          if (batchError) throw batchError;
-          
-          console.log(`[${requestId}] Successfully created processed batch:`, processedBatch.id);
-          createdBatches.push(processedBatch.id);
-          let batchId = processedBatch.id;
-        } catch (insertError) {
-          console.error(`[${requestId}] Error in direct insert, trying with raw SQL:`, insertError);
-          
-          // Fallback to raw SQL if direct insert fails
-          const { data, error: sqlError } = await supabaseClient.rpc('execute_sql', {
-            query: `
-              INSERT INTO processed_batches (
-                id, batch_number, product_id, quantity_processed, processed_at, 
-                processed_by, status, total_boxes, total_quantity, warehouse_id, 
-                created_at, updated_at, location_id, stock_in_id, notes, source, 
-                total_items
-              ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
-              ) RETURNING id, status, total_quantity, total_boxes
-            `,
-            params: [
-              processedBatchData.id,
-              processedBatchData.batch_number,
-              processedBatchData.product_id,
-              processedBatchData.quantity_processed,
-              processedBatchData.processed_at,
-              processedBatchData.processed_by,
-              processedBatchData.status,
-              processedBatchData.total_boxes,
-              processedBatchData.total_quantity,
-              processedBatchData.warehouse_id,
-              processedBatchData.created_at,
-              processedBatchData.updated_at,
-              processedBatchData.location_id,
-              processedBatchData.stock_in_id,
-              processedBatchData.notes,
-              processedBatchData.source,
-              processedBatchData.total_items
-            ]
-          });
-
-          if (sqlError) {
-            console.error(`[${requestId}] Raw SQL insert failed:`, sqlError);
-            throw new Error(`Failed to create processed batch: ${sqlError.message}`);
-          }
-          
-          console.log(`[${requestId}] Successfully created processed batch via raw SQL:`, data);
-          createdBatches.push(data.id);
-          let batchId = data.id;
-        }
-        
-        let batchId = createdBatches[createdBatches.length - 1];
-
-        // Prepare all boxes, inventory items, and barcodes for batch insert
-        const boxInserts = [];
-        const inventoryInserts = [];
-        const barcodeInserts = [];
-        const boxBarcodes: string[] = [];
-
-        console.log(`[${requestId}] Processing ${batch.boxCount || batch.box_count} boxes for batch ${batchId}`);
-        
-        // Generate all box, inventory, and barcode data first
-        for (let i = 0; i < (batch.boxCount || batch.box_count); i++) {
-          const boxNumber = i + 1;
-          // Generate a base barcode if not provided, using batch ID and product ID as fallback
-          const baseBarcode = batch.base_barcode || `BC-${payload.product_id.substring(0, 8)}-${batchId.substring(0, 4)}`;
-          const boxBarcode = generateBarcode(baseBarcode, boxNumber);
-          const boxId = crypto.randomUUID();
-          
-          // Data for batch_items table (with barcode)
-          const boxData = {
-            id: boxId,
-            batch_id: batchId,
-            barcode: boxBarcode,
-            quantity: batch.quantityPerBox || batch.quantity_per_box,
-            status: 'available',
-            warehouse_id: batch.warehouse_id,
-            location_id: batch.location_id || null,
-            // Removed product_id as it's not in the schema
-            created_at: now,
-            updated_at: now,
-            color: batch.color || null,
-            size: batch.size || null
-          };
-          boxInserts.push(boxData);
-
-          // Data for inventory table
-          const inventoryData = {
-            product_id: payload.product_id,
-            warehouse_id: batch.warehouse_id,
-            location_id: batch.location_id || null,
-            batch_id: batchId,
-            // Removed box_id as it's not in the schema
-            barcode: boxBarcode,
-            quantity: batch.quantityPerBox || batch.quantity_per_box,
-            status: 'available',
-            created_at: now,
-            updated_at: now,
-            color: batch.color || null,
-            size: batch.size || null
-          };
-          inventoryInserts.push(inventoryData);
-
-          // Data for barcodes table
-          const barcodeData = {
-            barcode: boxBarcode,
-            box_id: boxId,
-            product_id: payload.product_id,
-            warehouse_id: batch.warehouse_id,
-            location_id: batch.location_id || null,
-            batch_id: batchId,
-            quantity: batch.quantityPerBox || batch.quantity_per_box,
-            status: 'active',
+        // Create batch_operations record
+        const { data: batchData, error: batchError } = await supabase
+          .from('batch_operations')
+          .insert({
+            operation_type: 'stock_in',
+            status: 'processing',
+            created_by: user_id,
             created_at: now,
             updated_at: now
-          };
-          barcodeInserts.push(barcodeData);
+          })
+          .select('id')
+          .single();
+
+        if (batchError) throw batchError;
+        if (!batchData?.id) throw new Error('Failed to create batch operations record');
+        
+        const batchId = batchData.id;
+        batchIds.push(batchId);
+        
+        // Create processed_batches record with explicit ID
+        const processedBatchData = {
+          id: batchId,
+          batch_number: String(baseBarcode || `BATCH-${Date.now()}`),
+          product_id: product_id,
+          quantity_processed: boxCount * quantityPerBox,
+          processed_by: user_id,
+          status: 'processing',
+          total_boxes: boxCount,
+          total_quantity: boxCount * quantityPerBox,
+          warehouse_id: batch.warehouse_id,
+          created_at: now,
+          processed_at: now,
+          location_id: batch.location_id || null,
+          stock_in_id: stock_in_id,
+          notes: `Processed ${boxCount} boxes with ${quantityPerBox} items each`,
+          color: batch.color || null,
+          size: batch.size || null,
+          quantity_per_box: quantityPerBox
+        };
+        
+        // Insert the processed_batches record
+        const { error: processedBatchError } = await supabase
+          .from('processed_batches')
+          .insert(processedBatchData);
+        
+        if (processedBatchError) {
+          console.error(`Error creating processed batch: ${processedBatchError.message}`);
+          throw processedBatchError;
+        }
+        
+        // Prepare arrays for batch inserts
+        const batchItems = [];
+        const inventoryItems = [];
+        const barcodeItems = [];
+        
+        // Process each box in the batch
+        for (let i = 0; i < boxCount; i++) {
+          const barcode = generateBarcode(baseBarcode, i + 1);
+          barcodes.push(barcode);
+          const boxNumber = i + 1;
+          const boxId = crypto.randomUUID();
           
-          console.log(`[${requestId}] Prepared box ${boxNumber}/${batch.boxCount || batch.box_count}:`, JSON.stringify(boxData, null, 2));
+          // Create barcode record
+          barcodeItems.push({
+            barcode,
+            product_id,
+            batch_id: batchId,
+            box_id: boxId,
+            status: 'in_stock',
+            created_by: user_id,
+            quantity: quantityPerBox,
+            warehouse_id: batch.warehouse_id,
+            location_id: batch.location_id,
+            created_at: now,
+            updated_at: now
+          });
+          
+          // Create inventory record
+          inventoryItems.push({
+            product_id,
+            batch_id: batchId,
+            quantity: quantityPerBox,
+            total_quantity: quantityPerBox,
+            reserved_quantity: 0,
+            warehouse_id: batch.warehouse_id,
+            location_id: batch.location_id,
+            barcode, // Use barcode string directly
+            status: 'in_stock',
+            color: batch.color,
+            size: batch.size,
+            stock_in_id: stock_in_id,
+            created_at: now,
+            updated_at: now
+          });
+          
+          // Add to batch items
+          batchItems.push({
+            id: boxId,
+            batch_id: batchId,
+            barcode,
+            quantity: quantityPerBox,
+            status: 'processed',
+            color: batch.color,
+            size: batch.size,
+            warehouse_id: batch.warehouse_id,
+            location_id: batch.location_id,
+            created_at: now,
+            updated_at: now
+          });
         }
-
-        // Insert all batch items with error handling
-        if (boxInserts.length > 0) {
-          console.log(`[${requestId}] Inserting ${boxInserts.length} batch items...`);
-          const { error: boxError } = await supabaseClient
-            .from('batch_items')
-            .insert(boxInserts);
-
-          if (boxError) {
-            console.error(`[${requestId}] Error creating batch items:`, boxError);
-            throw new Error(`Failed to create batch items: ${boxError.message}`);
-          }
-          console.log(`[${requestId}] Successfully inserted batch items`);
-        }
-
-        // Insert all inventory items with error handling
-        if (inventoryInserts.length > 0) {
-          console.log(`[${requestId}] Inserting ${inventoryInserts.length} inventory items...`);
-          const { error: inventoryError } = await supabaseClient
-            .from('inventory')
-            .insert(inventoryInserts);
-
-          if (inventoryError) {
-            console.error(`[${requestId}] Error creating inventory items:`, inventoryError);
-            throw new Error(`Failed to create inventory items: ${inventoryError.message}`);
-          }
-          console.log(`[${requestId}] Successfully inserted inventory items`);
-        }
-
-        // Insert all barcodes with error handling
-        if (barcodeInserts.length > 0) {
-          console.log(`[${requestId}] Inserting ${barcodeInserts.length} barcodes...`);
-          const { error: barcodeError } = await supabaseClient
+        
+        // Insert all barcodes
+        if (barcodeItems.length > 0) {
+          const { error: barcodeError } = await supabase
             .from('barcodes')
-            .insert(barcodeInserts);
-
+            .insert(barcodeItems);
+          
           if (barcodeError) {
-            console.error(`[${requestId}] Error creating barcodes:`, barcodeError);
-            throw new Error(`Failed to create barcodes: ${barcodeError.message}`);
+            console.error(`Error creating barcodes: ${barcodeError.message}`);
+            throw barcodeError;
           }
-          console.log(`[${requestId}] Successfully inserted barcodes`);
+        }
+        
+        // Insert all batch items
+        if (batchItems.length > 0) {
+          const { error: batchItemError } = await supabase
+            .from('batch_items')
+            .insert(batchItems);
+          
+          if (batchItemError) {
+            console.error(`Error creating batch items: ${batchItemError.message}`);
+            throw batchItemError;
+          }
+        }
+        
+        // Insert all inventory items
+        if (inventoryItems.length > 0) {
+          const { error: inventoryError } = await supabase
+            .from('inventory')
+            .insert(inventoryItems);
+          
+          if (inventoryError) {
+            console.error(`Error creating inventory items: ${inventoryError.message}`);
+            throw inventoryError;
+          }
+        }
+        
+        // Update processed_batches status to completed
+        const { error: updateProcessedBatchError } = await supabase
+          .from('processed_batches')
+          .update({
+            status: 'completed',
+            processed_at: now
+          })
+          .eq('id', batchId);
+        
+        if (updateProcessedBatchError) {
+          console.error(`Error updating processed batch: ${updateProcessedBatchError.message}`);
+          throw updateProcessedBatchError;
         }
 
-        // Mark batch as completed - handle missing completed_at column
-        try {
-          const updateData: Record<string, any> = {
+        // Update batch_operations status to completed
+        const { error: updateBatchError } = await supabase
+          .from('batch_operations')
+          .update({ 
             status: 'completed',
-            updated_at: now,
-            quantity_processed: totalQuantity,
-            total_boxes: batch.boxCount || batch.box_count
-          };
+            updated_at: now
+          })
+          .eq('id', batchId);
 
-          // Try to set completed_at, but don't fail if column doesn't exist
-          try {
-            updateData.completed_at = now;
-          } catch (e) {
-            console.warn(`[${requestId}] Could not set completed_at - column may not exist`);
-          }
-
-          const { error: batchUpdateError } = await supabaseClient
-            .from('processed_batches')
-            .update(updateData)
-            .eq('id', batchId);
-
-          if (batchUpdateError) {
-            console.error(`[${requestId}] Error updating batch status:`, batchUpdateError);
-            throw new Error(`Failed to update batch status: ${batchUpdateError.message}`);
-          }
-          
-          console.log(`[${requestId}] Batch ${batchId} marked as completed with ${batch.boxCount || batch.box_count} boxes`);
-        } catch (updateError) {
-          console.error(`[${requestId}] Error in batch completion:`, updateError);
-          throw new Error(`Failed to complete batch: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+        if (updateBatchError) {
+          console.error(`Error updating batch operation: ${updateBatchError.message}`);
+          throw updateBatchError;
         }
       }
-
-      // After processing all batches, update stock_in status to completed
-      console.log(`[${requestId}] Successfully processed ${payload.batches.length} batches`);
       
-      // Mark stock_in as completed
-      await safeUpdateStockIn(supabaseClient, payload.stock_in_id, {
+      // Update stock_in status to completed
+      await safeUpdateStockIn(supabase, stock_in_id, {
         status: 'completed',
-        processed_by: payload.user_id,
-        processed_at: now
+        number_of_boxes: batches.reduce((sum, batch) => 
+          sum + (batch.box_count || batch.boxCount || 1), 0)
       });
 
-      // Return success response with batch IDs
+      // Prepare response with batch IDs for toast notifications
+      const batchCount = batchIds.length;
+      const toastMessage = batchCount > 1 
+        ? `${batchCount} batches processed successfully` 
+        : 'Batch processed successfully';
+
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Stock-in processed successfully',
-          batch_ids: createdBatches,
+          message: toastMessage,
+          batch_ids: batchIds, // Return batch IDs for the frontend
+          batch_count: batchCount,
           requestId
         }),
         { status: 200, headers: corsHeaders }
       );
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[${requestId}] Error in transaction:`, error);
+      console.error(`[${requestId}] Error processing stock-in:`, error);
       
-      // Clean up any partial data
+      // Cleanup any partial data and reset to pending status
+      await cleanupPartialData(supabase, stock_in_id, batchIds, barcodes);
+
+      // Ensure the stock_in status is set to pending even if cleanupPartialData fails
+      // This is critical to make sure failed stock-ins remain visible in the warehouse UI
+      // under the "Awaiting Processing" filter
       try {
-        await cleanupPartialData(
-          supabaseClient,
-          payload.stock_in_id,
-          createdBatches,
-          createdBarcodes
-        );
-      } catch (cleanupError) {
-        console.error(`[${requestId}] Error during cleanup:`, cleanupError);
-      }
-
-      // Update stock_in status back to 'pending' so it can be processed again
-      const errorUpdate = await safeUpdateStockIn(supabaseClient, payload.stock_in_id, {
-        status: 'pending',
-        error_message: errorMessage
-      });
-
-      if (!errorUpdate.success) {
-        console.error(`[${requestId}] Failed to update stock_in with error:`, errorUpdate.error);
-      }
-
-      const errorResponse = {
-        success: false,
-        error: 'Failed to process stock-in',
-        details: errorMessage,
-        requestId
-      };
-
-      console.error(`[${requestId}] Error response:`, JSON.stringify(errorResponse, null, 2));
-      
-      return new Response(
-        JSON.stringify(errorResponse),
-        { 
-          status: 500, 
-          headers: corsHeaders 
+        await safeUpdateStockIn(supabase, stock_in_id, {
+          status: 'pending', // Set back to pending so it appears in the warehouse UI
+          rejection_reason: `Processing error: ${error instanceof Error ? error.message : String(error)}. Please try again.`
+        });
+      } catch (updateError) {
+        console.error(`[${requestId}] Failed to reset stock_in status:`, updateError);
+        
+        // Last resort attempt to ensure stock_in is visible
+        try {
+          // Direct update without helper function
+          const { error: directUpdateError } = await supabase
+            .from('stock_in')
+            .update({
+              status: 'pending',
+              rejection_reason: 'Processing failed. Please try again.'
+            })
+            .eq('id', stock_in_id);
+            
+          if (directUpdateError) {
+            console.error(`[${requestId}] Final attempt to reset status failed:`, directUpdateError);
+          }
+        } catch (finalError) {
+          console.error(`[${requestId}] All status reset attempts failed:`, finalError);
         }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          requestId
+        }),
+        { status: 500, headers: corsHeaders }
       );
     }
-
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : undefined;
-    
-    console.error(`[${requestId || 'unknown'}] Unhandled error:`, error);
+    console.error(`[${requestId}] Unhandled error:`, error);
     
     return new Response(
       JSON.stringify({
         success: false,
         error: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-        stack: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
+        details: error instanceof Error ? error.message : String(error),
         requestId: requestId || 'unknown'
       }),
       { 
         status: 500,
-        headers: corsHeaders 
+        headers: corsHeaders
       }
     );
   }

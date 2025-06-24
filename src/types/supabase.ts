@@ -536,7 +536,7 @@ export type Database = {
           active: boolean | null
           created_at: string | null
           id: string
-          name: string
+          full_name: string
           role: string
           username: string
         }
@@ -544,7 +544,7 @@ export type Database = {
           active?: boolean | null
           created_at?: string | null
           id: string
-          name: string
+          full_name: string
           role: string
           username: string
         }
@@ -552,7 +552,7 @@ export type Database = {
           active?: boolean | null
           created_at?: string | null
           id?: string
-          name?: string
+          full_name?: string
           role?: string
           username?: string
         }
@@ -868,6 +868,7 @@ export type Database = {
           id: string
           product_id: string | null
           quantity: number
+          processed_quantity: number | null
           stock_out_id: string | null
         }
         Insert: {
@@ -876,6 +877,7 @@ export type Database = {
           id?: string
           product_id?: string | null
           quantity: number
+          processed_quantity?: number | null
           stock_out_id?: string | null
         }
         Update: {
@@ -884,6 +886,7 @@ export type Database = {
           id?: string
           product_id?: string | null
           quantity?: number
+          processed_quantity?: number | null
           stock_out_id?: string | null
         }
         Relationships: [

@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ScanLine, ArrowRight } from 'lucide-react';
-import BarcodeScanner from '@/components/barcode/BarcodeScanner';
+import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { ScannedItemsList } from '@/components/transfers/ScannedItemsList';
 import { TransferDestinationForm } from '@/components/transfers/TransferDestinationForm';
 import { useTransferLogic } from '@/hooks/useTransferLogic';
@@ -71,10 +70,9 @@ const FieldOperatorTransfers: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <BarcodeScanner 
-              allowManualEntry={true}
-              allowCameraScanning={true}
+            <MobileBarcodeScanner 
               onBarcodeScanned={handleBarcodeScanned}
+              allowManualEntry={true}
               inputValue={currentScannedBarcode}
               onInputChange={(e) => setCurrentScannedBarcode(e.target.value)}
               scanButtonLabel="Scan Item"

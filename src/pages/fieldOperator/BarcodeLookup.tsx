@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import BarcodeScanner from '@/components/barcode/BarcodeScanner';
+import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScanResponse } from '@/types/auth';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
@@ -77,10 +76,10 @@ const BarcodeLookup: React.FC = () => {
           </CardContent>
         </Card>
         
-        <BarcodeScanner 
+        <MobileBarcodeScanner 
+          onBarcodeScanned={handleBarcodeDetected}
           allowManualEntry={true}
-          allowCameraScanning={true}
-          onDetected={handleBarcodeDetected}
+          scanButtonLabel="Scan Barcode"
         />
         
         {(lastScan || scanData) && (

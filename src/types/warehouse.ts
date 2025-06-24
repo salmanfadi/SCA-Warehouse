@@ -1,32 +1,66 @@
-import { BoxData } from './shared';
 
-export interface BatchData {
-  // Core fields
+export interface Warehouse {
   id: string;
-  warehouse_id: string;
-  warehouse_name: string;
-  location_id: string;
-  location_name: string;
-  boxCount: number;
-  quantityPerBox: number;
-  color: string | null;
-  size: string | null;
-  boxes: BoxData[];
-  batchBarcode?: string;
-  boxBarcodes?: string[];
-  
-  // For backward compatibility with BarcodeViewerDialog
-  batch_number?: string;
-  product_name?: string;
-  product_sku?: string;
-  quantity_per_box?: number;
-  barcodes?: string[]; // Alias for boxBarcodes
+  name: string;
+  code: string | null;
+  location: string | null;
+  address: string | null;
+  contact_person: string | null;
+  contact_phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
+export interface WarehouseLocation {
+  id: string;
+  warehouse_id: string;
+  zone: string;
+  floor: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Enhanced BatchData type with all needed properties
+export interface BatchData {
+  id: string;
+  product_id: string;
+  total_quantity: number;
+  total_boxes: number;
+  status: string;
+  created_at: string;
+  processed_at: string;
+  warehouse_id: string;
+  location_id?: string;
+  warehouse_name?: string;
+  location_name?: string;
+  // Batch processing properties
+  boxCount?: number;
+  quantityPerBox?: number;
+  color?: string;
+  size?: string;
+  batchBarcode?: string;
+  boxBarcodes?: string[];
+  // Product information
+  product_name?: string;
+  product_sku?: string;
+  product?: {
+    id: string;
+    name: string;
+    sku?: string;
+  };
+  // Additional properties for barcode viewer
+  batch_number?: string;
+  barcodes?: string[];
+  quantity_per_box?: number;
+}
+
+// Updated interface for BarcodeViewerDialog
 export interface BarcodeViewerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  batchData: BatchData | null;
+  batch: BatchData | null;
+  batchData?: BatchData | null; // For backward compatibility
   batches?: BatchData[];
   onBatchChange?: (batchId: string) => void;
 }

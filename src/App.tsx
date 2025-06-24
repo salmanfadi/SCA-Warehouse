@@ -18,11 +18,11 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ProductManagement from './pages/admin/ProductManagement';
 import WarehouseManagement from './pages/admin/WarehouseManagement';
 import UsersManagement from './pages/admin/UsersManagement';
-import AdminInventoryView from './pages/admin/InventoryView';
-
 import CustomerInquiries from './pages/admin/CustomerInquiries';
+import AdminInventoryView from './pages/admin/InventoryView';
 import BatchInventoryPage from './pages/admin/BatchInventoryPage';
 import BarcodeManagement from './pages/admin/BarcodeManagement';
+import AdminBarcodeLookup from './pages/admin/BarcodeLookup';
 import StockInManagement from './pages/admin/StockInManagement';
 import StockOutManagement from './pages/admin/StockOutManagement';
 import InventoryTransfers from './pages/admin/InventoryTransfers';
@@ -39,7 +39,8 @@ import StockInProcessing from './pages/warehouseManager/StockInProcessing';
 import StockInDetailsPage from './pages/warehouseManager/StockInDetailsPage';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
 import StockOutApproval from './pages/warehouseManager/StockOutApproval';
-import BarcodeScanner from './pages/warehouseManager/BarcodeScanner';
+import BarcodeScannerPage from './pages/BarcodeScannerPage';
+import BarcodeStockOutPage from './pages/warehouseManager/BarcodeStockOutPage';
 import BarcodeLookup from './pages/warehouseManager/BarcodeLookup';
 import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehouseManager/InventoryTransfers';
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
@@ -61,10 +62,11 @@ import { default as OperatorReserveStock } from './pages/fieldOperator/ReserveSt
 
 // Sales operator pages
 import SalesOperatorDashboard from './pages/salesOperator/SalesOperatorDashboard';
-import SalesInquiriesManagement from './pages/salesOperator/SalesInquiriesManagement';
+import CustomerInquiriesManagement from './pages/salesOperator/CustomerInquiriesManagement';
 import SalesInventoryView from './pages/salesOperator/InventoryView';
 import ProductView from './pages/salesOperator/ProductView';
 import OrdersManagement from './pages/salesOperator/OrdersManagement';
+import CustomersPage from './pages/salesOperator/CustomersPage';
 
 // Customer pages
 import CustomerPortal from './pages/customer/CustomerPortal';
@@ -155,12 +157,13 @@ function App() {
                 <Route path="/admin/products" element={<ProductManagement />} />
                 <Route path="/admin/warehouses" element={<WarehouseManagement />} />
                 <Route path="/admin/users" element={<UsersManagement />} />
+                <Route path="/admin/sales-inquiries" element={<CustomerInquiries />} />
                 <Route path="/admin/inventory" element={<AdminEnhancedInventoryView />} />
                 <Route path="/admin/inventory/products" element={<ProductInventoryView />} />
                 <Route path="/admin/inventory/batch/:batchId" element={<BatchDetailsPage />} />
                 <Route path="/admin/inventory/barcode/:barcodeId" element={<BarcodeInventoryPage />} />
                 <Route path="/admin/barcodes" element={<BarcodeManagement />} />
-                <Route path="/admin/sales-inquiries" element={<SalesInquiries />} />
+                <Route path="/admin/barcode" element={<AdminBarcodeLookup />} />
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
                 <Route path="/admin/stock-out" element={<StockOutManagement />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
@@ -184,7 +187,9 @@ function App() {
                 <Route path="/manager/stock-in/:id" element={<StockInDetailsPage />} />
                 <Route path="/manager/stock-in/process/:id" element={<ProcessStockInPage />} />
                 <Route path="/manager/stock-out" element={<StockOutApproval />} />
-                <Route path="/manager/stock-out/barcode-scanner" element={<BarcodeScanner />} />
+                <Route path="/manager/stock-out/barcode-scanner" element={<BarcodeScannerPage />} />
+                <Route path="/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
+                <Route path="/manager/stock-out/barcode-stock-out" element={<BarcodeStockOutPage />} />
                 <Route path="/manager/barcode" element={<BarcodeLookup />} />
                 <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
                 <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />
@@ -231,8 +236,9 @@ function App() {
                 <Route path="/sales" element={<SalesOperatorDashboard />} />
                 <Route path="/sales/products" element={<ProductView />} />
                 <Route path="/sales/inventory" element={<SalesInventoryView />} />
-                <Route path="/sales/inquiries" element={<SalesInquiriesManagement />} />
+                <Route path="/sales/inquiries" element={<CustomerInquiriesManagement />} />
                 <Route path="/sales/orders" element={<OrdersManagement />} />
+                <Route path="/sales/customers" element={<CustomersPage />} />
               </Route>
               
               {/* 404 */}

@@ -27,7 +27,7 @@ export const useStockInBatches = (stockInId?: string) => {
           processed_by,
           products:product_id (id, name, sku),
           warehouses:warehouse_id (id, name, location),
-          profiles:processed_by (id, name, username)
+          profiles:processed_by (id, full_name, username)
         `)
         .eq('stock_in_id', stockInId)
         .order('processed_at', { ascending: false });

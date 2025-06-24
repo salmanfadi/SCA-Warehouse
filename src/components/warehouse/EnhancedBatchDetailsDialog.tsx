@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Download, Package } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import * as htmlToImage from 'html-to-image';
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
@@ -95,10 +95,14 @@ const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
       // Create an array to store barcode images
       const barcodeImages: { barcode: string; dataUrl: string }[] = [];
       
-      // Generate barcode images
+      // Generate barcode images with proper rendering time
       for (const item of selectedBatch.items) {
-        // Create a barcode element
+        // Create a barcode element with specific dimensions
         const barcodeElement = document.createElement('div');
+        barcodeElement.style.width = '300px';
+        barcodeElement.style.height = '100px';
+        barcodeElement.style.backgroundColor = 'white';
+        barcodeElement.style.padding = '10px';
         tempContainer.appendChild(barcodeElement);
         
         // Render the barcode using react-barcode
@@ -113,12 +117,26 @@ const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
         />;
         
         // Render the barcode component to the DOM
-        ReactDOM.render(barcodeComponent, barcodeElement);
+        const root = createRoot(barcodeElement);
+        root.render(barcodeComponent);
         
-        // Capture the barcode as an image
+        // Wait for the barcode to render completely
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Capture the barcode as an image with error handling
         try {
-          const dataUrl = await htmlToImage.toPng(barcodeElement);
-          barcodeImages.push({ barcode: item.barcode, dataUrl });
+          const dataUrl = await htmlToImage.toPng(barcodeElement, {
+            quality: 1.0,
+            pixelRatio: 2.0,
+            cacheBust: true
+          });
+          
+          // Validate the data URL
+          if (dataUrl && dataUrl.startsWith('data:image/png;base64,')) {
+            barcodeImages.push({ barcode: item.barcode, dataUrl });
+          } else {
+            console.error('Invalid PNG data URL generated');
+          }
         } catch (err) {
           console.error('Error generating barcode image:', err);
         }
@@ -164,13 +182,25 @@ const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
         pdf.text(`Status: ${item.status}  Location: ${item.locationDetails || 'N/A'}`, margin, yPosition + 16);
         
         // Add barcode image if available
-        if (barcodeImage) {
-          pdf.addImage(barcodeImage.dataUrl, 'PNG', margin, yPosition + 20, barcodeWidth, barcodeHeight);
-          
-          // Add barcode number underneath
-          pdf.setFontSize(10);
-          pdf.setFont('courier', 'normal');
-          pdf.text(item.barcode, margin + barcodeWidth / 2, yPosition + barcodeHeight + 25, { align: 'center' });
+        if (barcodeImage && barcodeImage.dataUrl) {
+          try {
+            // Create a new Image to verify the PNG data is valid
+            const img = new Image();
+            img.src = barcodeImage.dataUrl;
+            
+            // Add the image to the PDF with error handling
+            pdf.addImage(barcodeImage.dataUrl, 'PNG', margin, yPosition + 20, barcodeWidth, barcodeHeight);
+            
+            // Add barcode number underneath
+            pdf.setFontSize(10);
+            pdf.setFont('courier', 'normal');
+            pdf.text(item.barcode, margin + barcodeWidth / 2, yPosition + barcodeHeight + 25, { align: 'center' });
+          } catch (err) {
+            console.error(`Error adding barcode image for ${item.barcode}:`, err);
+            // Fallback if image addition failed
+            pdf.setFontSize(12);
+            pdf.text(`Barcode: ${item.barcode}`, margin + barcodeWidth / 2, yPosition + 40, { align: 'center' });
+          }
         } else {
           // Fallback if image generation failed
           pdf.setFontSize(12);

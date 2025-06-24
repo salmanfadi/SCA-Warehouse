@@ -78,7 +78,7 @@ const BarcodeInventoryPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title={`Batch Barcodes: ${batchDetails?.product.name || 'Loading...'}`}
+        title={`Batch Barcodes: ${batchDetails?.product_name || 'Loading...'}`}
         description={`View and print barcodes for batch ${batchId?.slice(0, 8) || ''}`}
       />
       
@@ -129,8 +129,8 @@ const BarcodeInventoryPage: React.FC = () => {
           <CardDescription>
             {isLoadingDetails ? 'Loading batch details...' : (
               <>
-                {batchDetails?.total_boxes} boxes, {batchDetails?.total_quantity} items, 
-                processed on {new Date(batchDetails?.processed_at || '').toLocaleDateString()}
+                {batchDetails?.total_quantity} boxes, {batchDetails?.total_quantity} items, 
+                processed on {new Date(batchDetails?.created_at || '').toLocaleDateString()}
               </>
             )}
           </CardDescription>

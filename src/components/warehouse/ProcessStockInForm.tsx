@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useWarehouses } from '@/hooks/useWarehouses';
-import { useLocations } from '@/hooks/useLocations';
-import { StockInRequestData } from '@/types/database';
+import { Box } from 'lucide-react';
+import StockInWizard from './StockInWizard';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProcessStockInFormProps {
   open: boolean;
@@ -20,141 +21,114 @@ interface ProcessStockInFormProps {
   adminMode?: boolean;
 }
 
-export const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
+const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   open,
   onOpenChange,
   stockIn,
   userId,
-  adminMode = false
+  adminMode = false,
 }) => {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [warehouseId, setWarehouseId] = useState('');
-  const [locationId, setLocationId] = useState('');
-  const [notes, setNotes] = useState('');
-  const [quantityPerBox, setQuantityPerBox] = useState('1');
-
-  const { warehouses } = useWarehouses();
-  const { locations } = useLocations(warehouseId);
-
-  const handleProcess = async () => {
-    if (!stockIn || !warehouseId || !locationId) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing Information',
-        description: 'Please select both warehouse and location',
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // Add debug logging
+  useEffect(() => {
+    console.log("ProcessStockInForm mounted with:", {
+      open,
+      stockInId: stockIn?.id,
+      userId,
+      adminMode
+    });
+  }, []);
+  
+  useEffect(() => {
+    console.log("ProcessStockInForm props updated:", {
+      open,
+      stockInId: stockIn?.id,
+      userId
+    });
+    
+    // Validate required props
+    if (open && (!stockIn || !userId)) {
+      console.error("Missing required props for ProcessStockInForm:", {
+        stockInMissing: !stockIn,
+        userIdMissing: !userId
       });
-      return;
+      
+      if (!userId) {
+        toast({
+          title: "Authentication Error",
+          description: "User ID is missing. Please try logging in again.",
+          variant: "destructive"
+        });
+        onOpenChange(false);
+      }
     }
-
-    setIsProcessing(true);
-    try {
-      // Update the stock in record
-      const { error } = await supabase
-        .from('stock_in')
-        .update({
-          status: 'processing',
-          warehouse_id: warehouseId,
-          processing_started_at: new Date().toISOString()
-        })
-        .eq('id', stockIn.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Stock In Processing Started',
-        description: 'Stock in request is now being processed',
-      });
-
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error processing stock in:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to start processing stock in request',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+  }, [open, stockIn, userId, onOpenChange, toast]);
+  
+  // Handle wizard completion
+  const handleWizardComplete = (batchId: string) => {
+    console.log("Wizard completed with batch ID:", batchId);
+    onOpenChange(false);
+    
+    // Store the newly added batch ID in localStorage for highlighting in the batches tab
+    localStorage.setItem('recentlyAddedBatchId', batchId);
+    localStorage.setItem('recentlyAddedTimestamp', Date.now().toString());
+    
+    // Set tab parameter to ensure we land on the batches tab in EnhancedInventoryView
+    const baseRoute = adminMode ? '/admin' : '/manager';
+    const redirectUrl = `${baseRoute}/inventory?tab=batches&highlight=${batchId}`;
+    
+    // Show success toast with batch ID and clickable action
+    toast({
+      title: "Stock-In Processed Successfully",
+      description: `Batch #${batchId.slice(0, 8)} has been processed and items are now in inventory. View the batch details for more information.`,
+      variant: "default",
+      action: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate(redirectUrl)}
+        >
+          View Processed Batch
+        </Button>
+      ),
+      duration: 10000, // Longer duration to give user time to click
+    });
   };
-
-  if (!stockIn) return null;
-
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Process Stock In Request</DialogTitle>
-        </DialogHeader>
-        <Card>
-          <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="warehouse">Warehouse</Label>
-                <Select value={warehouseId} onValueChange={setWarehouseId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select warehouse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {warehouses?.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Select value={locationId} onValueChange={setLocationId} disabled={!warehouseId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations?.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        Floor {location.floor} - Zone {location.zone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] h-[90vh] overflow-hidden flex flex-col">
+        {stockIn && userId ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Box className="h-5 w-5" />
+                Process Stock In - {stockIn.product?.name || 'Unknown Product'} - ID: {stockIn.id.substring(0, 8)}
+              </DialogTitle>
+              <DialogDescription>
+                Complete the following steps to process this stock in request
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-y-auto py-4">
+            <StockInWizard 
+              stockIn={stockIn}
+              userId={userId}
+              onComplete={handleWizardComplete}
+              onCancel={() => onOpenChange(false)}
+            />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity per Box</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                value={quantityPerBox}
-                onChange={(e) => setQuantityPerBox(e.target.value)}
-                placeholder="Items per box"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Processing Notes</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any processing notes..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
-                Cancel
-              </Button>
-              <Button onClick={handleProcess} disabled={isProcessing}>
-                {isProcessing ? 'Processing...' : 'Start Processing'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </>
+        ) : (
+          <div className="py-8 text-center">
+            <p className="text-red-500">
+              {!stockIn ? "Stock in request data is missing." : ""}
+              {!userId ? "User ID is missing. Please log in again." : ""}
+            </p>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,30 +1,26 @@
 
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+export type UserRole = 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
 
-export interface User extends SupabaseUser {
+export interface User {
   id: string;
   email?: string;
   name?: string;
-  role?: UserRole;
   username?: string;
+  role?: UserRole;
   active?: boolean;
+  created_at?: string;
+  updated_at?: string;
   avatar_url?: string;
 }
 
-export type UserRole = 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
-
 export interface AuthContextType {
-  session: Session | null;
   user: User | null;
+  session: any;
   isLoading: boolean;
   isAuthenticated: boolean;
-  error?: string | Error | null;
-  signIn: (
-    provider: 'google' | 'github' | 'email',
-    email?: string,
-    password?: string
-  ) => Promise<void>;
+  error: Error | null;
   login: (email: string, password: string) => Promise<void>;
+  signIn: (provider: 'google' | 'github' | 'email', email?: string, password?: string) => Promise<void>;
   signUp: (email: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -34,53 +30,37 @@ export interface AuthContextType {
 }
 
 export interface ScanResponse {
+  success: boolean;
   status: 'success' | 'error';
-  data?: {
-    box_id: string;
-    product: {
-      id: string;
-      name: string;
-      sku?: string;
-      description?: string;
-    };
-    box_quantity: number;
-    total_product_quantity?: number;
-    location: {
-      warehouse: string;
-      zone: string;
-      position: string;
-    };
-    status: string;
-    attributes?: {
-      color?: string;
-      size?: string;
-      batch_id?: string;
-      [key: string]: any;
-    };
-    history?: Array<{
-      action: string;
-      timestamp: string;
-    }>;
-  };
+  data?: any;
   error?: string;
+  product?: any;
+  inventory?: any;
 }
 
 export interface ProcessableStockIn {
   id: string;
-  boxes: number;
+  product_id: string;
+  quantity: number;
   status: string;
   created_at: string;
-  source: string;
-  notes?: string;
-  product: {
-    id: string;
-    name: string;
-    sku?: string;
-    category?: string;
-  };
-  submitter: {
-    id: string;
+  product?: any;
+  boxes?: number;
+  source?: string;
+  submitter?: {
     name: string;
     username: string;
+    id: string;
   };
+  notes?: string;
+}
+
+export interface Profile {
+  id: string;
+  name: string | null;
+  username: string | null;
+  role: string | null;
+  active: boolean | null;
+  created_at: string;
+  updated_at: string;
 }

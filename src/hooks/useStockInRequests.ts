@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useCallback, useEffect } from 'react';
-import { StockInRequestData } from '@/types/database';
 
 interface Product {
   id: string;
@@ -12,22 +11,72 @@ interface Product {
 
 interface Profile {
   id: string;
-  name: string;
-  username: string;
+  full_name: string;
+  email: string;
 }
 
 interface StockInRecord {
   id: string;
+  // Core fields from stock_in table
   product_id: string | null;
-  submitted_by: string;
-  boxes: number | null;
+  requested_by: string | null;
   status: "pending" | "approved" | "rejected" | "completed" | "processing" | null;
   created_at: string | null;
+  boxes: number | null;
+  notes: string | null;
+  source: string;
+  processed_by: string | null;
+  batch_id: string | null;
+  processing_started_at: string | null;
+  processing_completed_at: string | null;
+  updated_at: string | null;
+  rejection_reason: string | null;
+  number_of_boxes: number | null;
+  warehouse_id: string | null;
+  quantity: number | null;
+  // Joined tables
+  products: Product | null;
+  profiles: Profile | null;
+}
+
+export interface StockInRequestData {
+  id: string;
+  // Product information (joined from products table)
+  product: { 
+    name: string; 
+    id: string | null; 
+    sku?: string | null 
+  };
+  // Submitter information (joined from profiles table)
+  submitter: { 
+    name: string; 
+    username: string; 
+    id: string | null;
+    email?: string; 
+  } | null;
+  // Core fields from stock_in table
+  boxes: number;
+  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  created_at: string;
   source: string;
   notes?: string | null;
   rejection_reason?: string | null;
-  products: Product | null;
-  profiles: Profile | null;
+  processed_by?: string | null;
+  updated_at?: string | null;
+  // Additional fields from stock_in table
+  product_id?: string | null;
+  requested_by?: string | null;
+  warehouse_id?: string | null;
+  quantity?: number | null;
+  // UI-only fields (not in database)
+  location_id?: string;
+  warehouse_name?: string;
+  location_name?: string;
+  processing_started_at?: string | null;
+  processing_completed_at?: string | null;
+  batch_id?: string | null;
+  // For batch processing
+  number_of_boxes?: number | null;
 }
 
 export const useStockInRequests = (filters: Record<string, any> = {}, page: number = 1, pageSize: number = 20) => {
@@ -78,7 +127,7 @@ export const useStockInRequests = (filters: Record<string, any> = {}, page: numb
           id,
           product_id,
           submitted_by,
-          boxes,
+          number_of_boxes,
           status,
           created_at,
           source,
@@ -89,10 +138,10 @@ export const useStockInRequests = (filters: Record<string, any> = {}, page: numb
             name,
             sku
           ),
-          profiles!stock_in_submitted_by_fkey!inner (
+          profiles:profiles!stock_in_submitted_by_fkey (
             id,
-            username,
-            name
+            email,
+            full_name
           )
         `);
       
@@ -130,27 +179,47 @@ export const useStockInRequests = (filters: Record<string, any> = {}, page: numb
         return { data: [], totalCount: totalCount ?? 0 };
       }
 
-      const processedData: StockInRequestData[] = (stockData as unknown as StockInRecord[]).map((item) => ({
-        id: item.id,
-        product: {
-          id: item.products?.id || null,
-          name: item.products?.name || 'Unknown Product',
-          sku: item.products?.sku || null
-        },
-        submitter: item.profiles ? {
-          id: item.profiles.id,
-          name: item.profiles.name || 'Unknown User',
-          username: item.profiles.username || 'unknown'
-        } : null,
-        boxes: item.boxes || 0,
-        status: (item.status || 'pending') as "pending" | "approved" | "rejected" | "completed" | "processing",
-        created_at: item.created_at || new Date().toISOString(),
-        source: item.source || 'Unknown',
-        notes: item.notes || undefined,
-        rejection_reason: item.rejection_reason || undefined
-      }));
+      const processedData = (stockData as unknown as StockInRecord[]).map((item) => {
+        const baseData: StockInRequestData = {
+          id: item.id,
+          // Map product information
+          product: {
+            id: item.products?.id || item.product_id || null,
+            name: item.products?.name || 'Unknown Product',
+            sku: item.products?.sku || null
+          },
+          // Map submitter information
+          submitter: item.profiles ? {
+            id: item.profiles.id || null,
+            name: item.profiles.full_name || 'Unknown User',
+            username: item.profiles.email?.split('@')[0] || 'user'
+          } : null,
+          // Map core fields
+          boxes: item.number_of_boxes || item.boxes || 0,
+          status: (item.status || 'pending') as 'pending' | 'approved' | 'rejected' | 'completed' | 'processing',
+          created_at: item.created_at || new Date().toISOString(),
+          source: item.source || 'Unknown',
+          // Map optional fields with proper null handling
+          notes: item.notes || undefined,
+          rejection_reason: item.rejection_reason || undefined,
+          processed_by: item.processed_by || null,
+          updated_at: item.updated_at || null,
+          // Map additional fields from stock_in table
+          product_id: item.product_id || null,
+          requested_by: item.requested_by || null,
+          warehouse_id: item.warehouse_id || null,
+          quantity: item.quantity || null,
+          // Map batch processing fields
+          number_of_boxes: item.number_of_boxes || null,
+          batch_id: item.batch_id || null,
+          processing_started_at: item.processing_started_at || null,
+          processing_completed_at: item.processing_completed_at || null
+        };
+
+        return baseData;
+      });
       
-      return { data: processedData, totalCount: totalCount ?? 0 };
+return { data: processedData, totalCount: totalCount ?? 0 };
     } catch (error) {
       console.error('Failed to fetch stock in requests:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -191,6 +260,3 @@ export const useStockInRequests = (filters: Record<string, any> = {}, page: numb
 
   return queryResult;
 };
-
-// Export the type for other components to use
-export type { StockInRequestData };

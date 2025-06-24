@@ -69,6 +69,7 @@ export interface ProcessedBatchType {
     zone?: string;
     position?: string;
   };
+  locationDetails?: string;
 }
 
 interface ProcessedBatchesFilters {
@@ -152,17 +153,36 @@ const fetchProcessedBatches = async (
       let processorName = "Unknown";
       if (item.processed_by) {
         try {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('name')
+            .select('full_name')
             .eq('id', item.processed_by)
             .maybeSingle();
           
-          if (profileData) {
-            processorName = profileData.name || "Unknown";
+          // Type assertion to handle the response properly
+          if (profileData && typeof profileData === 'object' && profileData !== null) {
+            processorName = (profileData as { full_name?: string }).full_name || "Unknown";
           }
         } catch (error) {
           console.error("Error getting processor name:", error);
+        }
+      }
+
+      // Get warehouse name if available
+      let warehouseName = "Unknown";
+      if (item.warehouse_id) {
+        try {
+          const { data: warehouseData } = await supabase
+            .from('warehouses')
+            .select('name')
+            .eq('id', item.warehouse_id)
+            .single();
+          
+          if (warehouseData) {
+            warehouseName = warehouseData.name;
+          }
+        } catch (error) {
+          console.error("Error getting warehouse name:", error);
         }
       }
 
@@ -183,6 +203,7 @@ const fetchProcessedBatches = async (
         processor_name: processorName,
         total_quantity: item.total_quantity || 0,
         warehouse_id: item.warehouse_id || undefined,
+        warehouse_name: warehouseName,
       };
     })) : [];
 
@@ -200,6 +221,7 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<Process
   if (!batchId) return null;
   
   try {
+    // First get the processed batch details
     const { data, error } = await supabase
       .from('processed_batches')
       .select(`
@@ -213,43 +235,53 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<Process
         processed_at,
         total_quantity,
         warehouse_id,
+        location_id,
         products:product_id (
           name,
           sku,
           description
         ),
-        processor:processed_by (name),
-        warehouses:warehouse_id (name),
-        batch_items (
-          id,
-          barcode,
-          quantity,
-          color,
-          size,
-          status,
-          created_at,
-          warehouse_id,
-          location_id
-        )
+        processor:processed_by (full_name),
+        warehouses:warehouse_id (name)
       `)
       .eq('id', batchId)
       .single();
+      
+    // Then get the batch items with their barcodes
+    const { data: batchItemsData, error: batchItemsError } = await supabase
+      .from('batch_items')
+      .select(`
+        id,
+        barcode,
+        quantity,
+        color,
+        size,
+        status,
+        created_at,
+        warehouse_id,
+        location_id
+      `)
+      .eq('batch_id', batchId);
 
     if (error) throw error;
+    if (batchItemsError) {
+      console.error("Error fetching batch items:", batchItemsError);
+    }
     if (!data) return null;
     
     // Get processor name if available
     let processorName = "Unknown";
     if (data.processed_by) {
       try {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('name')
+          .select('full_name')
           .eq('id', data.processed_by)
           .maybeSingle();
         
-        if (profileData) {
-          processorName = profileData.name || "Unknown";
+        // Type assertion to handle the response properly
+        if (profileData && typeof profileData === 'object' && profileData !== null) {
+          processorName = (profileData as { full_name?: string }).full_name || "Unknown";
         }
       } catch (error) {
         console.error("Error getting processor name:", error);
@@ -278,6 +310,24 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<Process
       }
     }
 
+    // Get location details if available
+    let locationName = "Unknown";
+    if (data.location_id) {
+      try {
+        const { data: locationData } = await supabase
+          .from('warehouse_locations')
+          .select('floor, zone')
+          .eq('id', data.location_id)
+          .single();
+          
+        if (locationData) {
+          locationName = `Floor ${locationData.floor || '?'} - Zone ${locationData.zone || '?'}`;
+        }
+      } catch (error) {
+        console.error("Error getting location details:", error);
+      }
+    }
+    
     return {
       id: data.id,
       product_id: data.product_id,
@@ -296,7 +346,9 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<Process
       total_quantity: data.total_quantity || 0,
       warehouse_id: data.warehouse_id || undefined,
       warehouse_name: warehouseName,
-      items: data.batch_items?.map((item: any) => ({
+      location_id: data.location_id,
+      locationDetails: locationName,
+      items: batchItemsData?.map((item: any) => ({
         id: item.id,
         barcode: item.barcode || `BATCH-${data.id}-${item.id}`,
         quantity: item.quantity || 0,

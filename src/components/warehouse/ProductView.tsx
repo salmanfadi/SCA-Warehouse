@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, KeyboardEvent } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -24,7 +24,8 @@ import {
   Download,
   RefreshCw
 } from 'lucide-react';
-import { useProductBatchesData } from '@/hooks/useProductBatchesData';
+import { useProductBatchesData, ProductWithBatches } from '@/hooks/useProductBatchesData';
+import { supabase } from '@/lib/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { getHSNDescription } from '@/utils/hsnCodes';
@@ -38,6 +39,10 @@ export const ProductView: React.FC = () => {
   // State for search and filters
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  
+  // State for HSN code editing
+  const [editingHSN, setEditingHSN] = useState<string | null>(null);
+  const [hsnValue, setHsnValue] = useState<string>('');
   
   const { toast } = useToast();
   
@@ -79,14 +84,71 @@ export const ProductView: React.FC = () => {
   };
   
   // Handle refresh
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     refetch();
     toast({
-      title: "Data Refreshed",
+      title: "Data refreshed",
       description: "Product inventory data has been updated.",
     });
+  }, [refetch, toast]);
+  
+  // Function to update HSN code
+  const updateHSNCode = async (productId: string, newHSNCode: string) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ hsn_code: newHSNCode })
+        .eq('id', productId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "HSN Code Updated",
+        description: `HSN Code has been updated to ${newHSNCode}.`,
+      });
+      
+      // Refresh data
+      refetch();
+    } catch (error) {
+      console.error('Error updating HSN code:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update HSN code. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
+  // Handle HSN edit start
+  const handleEditHSN = (productId: string, currentHSN: string) => {
+    setEditingHSN(productId);
+    setHsnValue(currentHSN === 'Not Set' ? '' : currentHSN);
+  };
+  
+  // Handle HSN edit save
+  const handleSaveHSN = (productId: string) => {
+    if (hsnValue.trim() !== '') {
+      updateHSNCode(productId, hsnValue.trim());
+    }
+    setEditingHSN(null);
+  };
+  
+  // Handle HSN edit cancel
+  const handleCancelHSN = () => {
+    setEditingHSN(null);
+  };
+  
+  // Handle keyboard events for HSN editing
+  const handleHSNKeyDown = (e: KeyboardEvent<HTMLInputElement>, productId: string) => {
+    if (e.key === 'Enter') {
+      handleSaveHSN(productId);
+    } else if (e.key === 'Escape') {
+      handleCancelHSN();
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -94,10 +156,10 @@ export const ProductView: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-primary" />
-              Product Inventory with HSN & GST
+              Product Inventory with HSN
             </CardTitle>
             <CardDescription>
-              View all products with HSN codes, GST rates and batch distribution across warehouses
+              View all products with HSN codes and total quantity across warehouses
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -136,8 +198,7 @@ export const ProductView: React.FC = () => {
                   <TableHead className="w-[30%]">Product</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>HSN Code</TableHead>
-                  <TableHead>GST Rate</TableHead>
-                  <TableHead className="text-right">Batches</TableHead>
+                  <TableHead className="text-right">Products</TableHead>
                   <TableHead className="text-right">Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -160,23 +221,24 @@ export const ProductView: React.FC = () => {
                   ))
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-red-500">
+                    <TableCell colSpan={5} className="h-24 text-center text-red-500">
                       Error loading product data. Please try again.
                     </TableCell>
                   </TableRow>
                 ) : !productBatchesData || productBatchesData.data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       No products found. Try adjusting your search.
                     </TableCell>
                   </TableRow>
                 ) : (
+                  // Products are already sorted by stock status at the database level
                   productBatchesData.data.map((product) => (
-                    <React.Fragment key={product.productId}>
-                      <TableRow 
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => toggleProductExpansion(product.productId)}
-                      >
+                      <React.Fragment key={product.productId}>
+                        <TableRow 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => toggleProductExpansion(product.productId)}
+                        >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className={`transition-transform ${expandedProducts.has(product.productId) ? 'rotate-180' : ''}`}>
@@ -188,27 +250,57 @@ export const ProductView: React.FC = () => {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>{product.category || 'N/A'}</TableCell>
+                        <TableCell>{product.categories?.length ? product.categories[0] : 'N/A'}</TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {product.hsnCode}
-                            </Badge>
-                            {product.hsnCode !== 'Not Set' && product.hsnCode !== '9999' && (
+                            {editingHSN === product.productId ? (
+                              <div className="flex items-center space-x-2">
+                                <Input
+                                  value={hsnValue}
+                                  onChange={(e) => setHsnValue(e.target.value)}
+                                  onKeyDown={(e) => handleHSNKeyDown(e, product.productId)}
+                                  className="h-7 w-24 font-mono text-xs"
+                                  autoFocus
+                                />
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-7 w-7 p-0" 
+                                  onClick={() => handleSaveHSN(product.productId)}
+                                >
+                                  ✓
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-7 w-7 p-0" 
+                                  onClick={handleCancelHSN}
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                            ) : (
+                              <Badge 
+                                variant="outline" 
+                                className="font-mono text-xs cursor-pointer hover:bg-muted"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditHSN(product.productId, product.hsnCode);
+                                }}
+                              >
+                                {product.hsnCode}
+                              </Badge>
+                            )}
+                            {product.hsnCode !== 'Not Set' && product.hsnCode !== '9999' && !editingHSN && (
                               <div className="text-xs text-muted-foreground max-w-[200px] truncate" title={getHSNDescription(product.hsnCode)}>
                                 {getHSNDescription(product.hsnCode)}
                               </div>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-sm">
-                            {product.gstRate}%
-                          </Badge>
-                        </TableCell>
                         <TableCell className="text-right">
                           <Badge variant="outline" className="font-normal">
-                            {product.batches?.length || 0}
+                            {product.totalProductCount || 0}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -221,7 +313,7 @@ export const ProductView: React.FC = () => {
                       {/* Collapsible Batch Details */}
                       {expandedProducts.has(product.productId) && (
                         <TableRow>
-                          <TableCell colSpan={6} className="p-0 border-b">
+                          <TableCell colSpan={5} className="p-0 border-b">
                             <div className="bg-muted/30 p-4">
                               <h4 className="font-medium mb-2">Batch Details</h4>
                               <div className="rounded-md border bg-background overflow-auto max-h-[400px]">
@@ -275,8 +367,8 @@ export const ProductView: React.FC = () => {
                           </TableCell>
                         </TableRow>
                       )}
-                    </React.Fragment>
-                  ))
+                      </React.Fragment>
+                    ))
                 )}
               </TableBody>
             </Table>

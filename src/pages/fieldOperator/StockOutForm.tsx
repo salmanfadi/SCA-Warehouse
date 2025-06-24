@@ -19,7 +19,7 @@ import { ArrowLeft, Plus, Trash2, ScanLine, Tag } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import BarcodeScanner from '@/components/barcode/BarcodeScanner';
+import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { Product } from '@/types/database';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -839,10 +839,9 @@ const StockOutForm: React.FC = () => {
                 <div className="space-y-2">
                   <Label>Scan Box Barcodes</Label>
                   <div className="border rounded-md p-4">
-                    <BarcodeScanner 
-                      allowManualEntry={true}
-                      allowCameraScanning={true}
+                    <MobileBarcodeScanner 
                       onBarcodeScanned={handleBarcodeScanned}
+                      allowManualEntry={true}
                       inputValue={currentScannedBarcode}
                       onInputChange={(e) => setCurrentScannedBarcode(e.target.value)}
                       scanButtonLabel="Add Box"

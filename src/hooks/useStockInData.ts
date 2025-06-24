@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, executeQuery } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
 import { Product } from '@/types/database';
 
@@ -15,10 +15,10 @@ export interface StockInData {
   };
   submitter: {
     id: string | null;
-    name: string;
+    name: string; // This is mapped from full_name in the database
     username: string;
   } | null;
-  boxes: number;
+  quantity: number; // Changed from boxes to quantity to match the database schema
   status: 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
   created_at: string;
   source: string;
@@ -41,7 +41,7 @@ export const useStockInData = (stockInId: string | undefined) => {
         // First, get the stock in record
         const { data, error } = await supabase
           .from('stock_in')
-          .select('id, product_id, submitted_by, boxes, status, created_at, source, notes, rejection_reason')
+          .select('id, product_id, submitted_by, quantity, status, created_at, source, notes, rejection_reason')
           .eq('id', stockInId)
           .single();
 
@@ -80,7 +80,7 @@ export const useStockInData = (stockInId: string | undefined) => {
           }
         }
         
-        // Fetch submitter information from profiles table using name field
+        // Fetch submitter information from profiles table using full_name field
         let submitter = null;
         if (data.submitted_by) {
           console.log("Fetching submitter with ID:", data.submitted_by);
@@ -89,19 +89,23 @@ export const useStockInData = (stockInId: string | undefined) => {
             // Directly query the profiles table for the user's name and username
             const { data: submitterData, error: submitterError } = await supabase
               .from('profiles')
-              .select('id, name, username')
+              .select('id, full_name, username')
               .eq('id', data.submitted_by)
               .maybeSingle();
               
-            if (!submitterError && submitterData) {
+            // Type guard to ensure submitterData is not null and has expected properties
+            if (!submitterError && submitterData && typeof submitterData === 'object') {
+              // Create a non-null version of submitterData for TypeScript
+              const safeData = submitterData as Record<string, any>;
+              
               submitter = {
-                id: submitterData.id,
-                name: submitterData.name || 'Unknown User',
-                username: submitterData.username
+                id: safeData.id || null,
+                name: safeData.full_name || 'Unknown User',
+                username: safeData.username || 'unknown'
               };
               console.log("Found submitter with name:", submitter.name);
             } else {
-              console.warn("Submitter profile not found:", submitterError);
+              console.warn("Submitter profile not found:", submitterError?.message || 'Unknown error');
               
               // Fallback option if profile not found
               submitter = { 
@@ -125,8 +129,8 @@ export const useStockInData = (stockInId: string | undefined) => {
           id: data.id,
           product,
           submitter: submitter,
-          boxes: typeof data.boxes === 'string' ? parseInt(data.boxes, 10) : 
-                 typeof data.boxes === 'number' ? data.boxes : 0,
+          quantity: typeof data.quantity === 'string' ? parseInt(data.quantity, 10) : 
+                   typeof data.quantity === 'number' ? data.quantity : 0,
           status: data.status as 'pending' | 'approved' | 'rejected' | 'completed' | 'processing',
           created_at: data.created_at,
           source: data.source || 'Unknown Source',

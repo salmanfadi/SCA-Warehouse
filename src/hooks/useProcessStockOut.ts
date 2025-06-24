@@ -1,3 +1,4 @@
+
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -24,17 +25,7 @@ export const useProcessStockOut = (options?: ProcessStockOutOptions) => {
 
       // Process each item in sequence
       for (const item of items) {
-        // First get the batch ID for this item
-        const { data: stockOutDetail, error: detailError } = await supabase
-          .from('stock_out_details')
-          .select('inventory_id')
-          .eq('id', item.id)
-          .single();
-
-        if (detailError) throw detailError;
-        if (!stockOutDetail) throw new Error('Stock out detail not found');
-
-        // Now process the stock out
+        // Update the stock out detail
         const { error } = await supabase
           .from('stock_out_details')
           .update({ 
@@ -44,20 +35,6 @@ export const useProcessStockOut = (options?: ProcessStockOutOptions) => {
           .eq('id', item.id);
 
         if (error) throw error;
-
-        // Update the inventory
-        const { error: inventoryError } = await supabase
-          .from('inventory')
-          .update({ 
-            quantity: supabase.rpc('get_inventory_quantity', { 
-              p_inventory_id: stockOutDetail.inventory_id,
-              p_quantity: -item.quantity 
-            }),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', stockOutDetail.inventory_id);
-
-        if (inventoryError) throw inventoryError;
       }
 
       // Update the stock out status
@@ -80,4 +57,4 @@ export const useProcessStockOut = (options?: ProcessStockOutOptions) => {
       options?.onError?.(error);
     }
   });
-}; 
+};

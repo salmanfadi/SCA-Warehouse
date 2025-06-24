@@ -1,30 +1,42 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import type { PostgrestError } from '@supabase/supabase-js';
 
 // Re-export the configured supabase client
 export { supabase };
 
-// Export utility functions
-export const executeQuery = async (table: string, query: any) => {
+/**
+ * Execute a Supabase query with error handling
+ * @param table The table name for logging purposes
+ * @param queryFn Function that receives the supabase client and executes a query
+ * @returns The result of the query
+ */
+export const executeQuery = async <T = any>(table: string, queryFn: (supabase: any) => Promise<any>) => {
   try {
-    const { data, error } = await query;
-    if (error) {
-      console.error(`Error executing query on ${table}:`, error);
-      throw error;
+    const result = await queryFn(supabase);
+    if (result.error) {
+      console.error(`Error executing query on ${table}:`, result.error);
+      throw result.error;
     }
-    return data;
+    return result;
   } catch (error) {
     console.error(`Failed to execute query on ${table}:`, error);
     throw error;
   }
 };
 
-// Add retry logic for critical operations
-export const executeWithRetry = async (
-  operation: () => Promise<any>,
+/**
+ * Execute an operation with retry logic for critical operations
+ * @param operation The function to execute
+ * @param maxRetries Maximum number of retries
+ * @param delay Base delay in ms between retries (increases with each retry)
+ * @returns The result of the operation
+ */
+export const executeWithRetry = async <T = any>(
+  operation: () => Promise<T>,
   maxRetries = 3,
   delay = 1000
-) => {
+): Promise<T> => {
   let lastError;
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -40,7 +52,10 @@ export const executeWithRetry = async (
   throw lastError;
 };
 
-// Helper function to check auth status
+/**
+ * Check the current authentication status
+ * @returns The current session or null if not authenticated
+ */
 export const checkAuthStatus = async () => {
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
@@ -55,7 +70,10 @@ export const checkAuthStatus = async () => {
   }
 };
 
-// Helper function to refresh the session
+/**
+ * Refresh the current authentication session
+ * @returns The refreshed session or null if failed
+ */
 export const refreshSession = async () => {
   try {
     const { data: { session }, error } = await supabase.auth.refreshSession();
@@ -70,7 +88,10 @@ export const refreshSession = async () => {
   }
 };
 
-// Add this function to test the connection
+/**
+ * Test the Supabase connection by making a simple query
+ * @returns True if connection successful, false otherwise
+ */
 export const testSupabaseConnection = async () => {
   try {
     console.log('Testing Supabase connection...');
@@ -92,5 +113,64 @@ export const testSupabaseConnection = async () => {
   }
 };
 
-// Call this when the app starts
+/**
+ * Helper functions for stock operations
+ */
+export const stockOperations = {
+  /**
+   * Get pending stock out requests
+   */
+  getPendingStockOutRequests: async () => {
+    return executeQuery('stock_out', async (supabase) => {
+      return await supabase
+        .from('stock_out')
+        .select(`
+          *,
+          stock_out_details(*, product:products(*))
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+    });
+  },
+  
+  /**
+   * Process a stock out request
+   */
+  processStockOut: async (stockOutId: string, userId: string, status: 'approved' | 'rejected') => {
+    const updateData = status === 'approved' 
+      ? {
+          status,
+          approved_by: userId,
+          approved_at: new Date().toISOString(),
+        }
+      : {
+          status,
+          rejected_by: userId,
+          rejected_at: new Date().toISOString(),
+        };
+        
+    return executeQuery('stock_out', async (supabase) => {
+      return await supabase
+        .from('stock_out')
+        .update(updateData)
+        .eq('id', stockOutId)
+        .select();
+    });
+  },
+  
+  /**
+   * Check inventory for a product
+   */
+  checkInventory: async (productId: string) => {
+    return executeQuery('inventory', async (supabase) => {
+      return await supabase
+        .from('inventory')
+        .select('quantity')
+        .eq('product_id', productId)
+        .eq('status', 'in_stock');
+    });
+  }
+};
+
+// Initialize connection test when the module is imported
 testSupabaseConnection();

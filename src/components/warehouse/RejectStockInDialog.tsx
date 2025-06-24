@@ -1,18 +1,36 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { StockInRequestData } from '@/types/database';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
+interface StockInData {
+  id: string;
+  product: { name: string; id?: string | null };
+  submitter: { name: string; username: string; id?: string | null } | null;
+  boxes: number;
+  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  created_at: string;
+  source: string;
+  notes?: string;
+  rejection_reason?: string;
+}
 
 interface RejectStockInDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedStockIn: StockInRequestData | null;
+  selectedStockIn: StockInData | null;
   userId: string | undefined;
 }
 
@@ -20,120 +38,152 @@ export const RejectStockInDialog: React.FC<RejectStockInDialogProps> = ({
   open,
   onOpenChange,
   selectedStockIn,
-  userId
+  userId,
 }) => {
-  const [reason, setReason] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleReject = async () => {
-    if (!reason.trim() || !selectedStockIn) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please provide a reason for rejection'
-      });
-      return;
+  const queryClient = useQueryClient();
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [error, setError] = useState('');
+  
+  // Reset reason when dialog opens/closes
+  React.useEffect(() => {
+    if (open) {
+      setRejectionReason('');
+      setError('');
     }
+  }, [open]);
 
-    setIsSubmitting(true);
-    try {
-      // Update stock in status to rejected
-      const { error: updateError } = await supabase
-        .from('stock_in')
-        .update({
-          status: 'rejected',
-          rejection_reason: reason,
-          processed_by: userId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedStockIn.id);
-
-      if (updateError) throw updateError;
-
-      // Create notification for the requester if they exist
-      if (selectedStockIn.submitter?.id) {
-        const { error: notificationError } = await supabase
-          .from('notifications')
-          .insert({
-            user_id: selectedStockIn.submitter.id,
-            title: 'Stock In Request Rejected',
-            message: `Your stock in request has been rejected. Reason: ${reason}`
-          });
-
-        if (notificationError) {
-          console.error('Failed to create notification:', notificationError);
-          // Don't throw here as the main operation succeeded
+  // Reject stock in mutation
+  const rejectStockInMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      console.log('Rejecting stock in request:', id, 'with reason:', reason);
+      
+      try {
+        // Create a notification for the rejection
+        const notifResult = await supabase.from('notifications').insert([{
+          user_id: selectedStockIn?.submitter?.id || null,
+          role: 'field_operator', 
+          action_type: 'stock_in_rejected',
+          metadata: {
+            stock_in_id: id,
+            reason: reason,
+            product_name: selectedStockIn?.product?.name
+          }
+        }]);
+        
+        if (notifResult.error) {
+          console.error('Error creating notification:', notifResult.error);
         }
-      }
+        
+        // Update stock in status to rejected
+        const { data, error } = await supabase
+          .from('stock_in')
+          .update({ 
+            status: 'rejected',
+            processed_by: userId,
+            rejection_reason: reason
+          })
+          .eq('id', id)
+          .select();
 
+        if (error) {
+          console.error('Error rejecting stock in:', error);
+          throw error;
+        }
+        
+        console.log('Stock in rejected successfully:', data);
+        return data;
+      } catch (error) {
+        console.error('Failed to reject stock in:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       toast({
         title: 'Stock In Rejected',
-        description: 'The stock in request has been rejected successfully'
+        description: 'The stock in request has been rejected.',
       });
-
-      onOpenChange(false);
-      setReason('');
-
-    } catch (error) {
-      console.error('Error rejecting stock in:', error);
+    },
+    onError: (error) => {
+      console.error('Error in rejection mutation:', error);
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to reject stock in request'
+        title: 'Rejection failed',
+        description: error instanceof Error ? error.message : 'Failed to reject stock in',
       });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+  });
 
-  if (!selectedStockIn) return null;
+  const handleReject = () => {
+    if (!selectedStockIn) return;
+    
+    if (!rejectionReason.trim()) {
+      setError('Please provide a rejection reason');
+      return;
+    }
+    
+    rejectStockInMutation.mutate({
+      id: selectedStockIn.id,
+      reason: rejectionReason.trim()
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            Reject Stock In Request
-          </DialogTitle>
+          <DialogTitle>Reject Stock In Request</DialogTitle>
+          <DialogDescription>
+            Please provide a reason for rejecting this stock in request.
+          </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-yellow-800">
-              You are about to reject the stock in request.
-              This action cannot be undone.
-            </p>
+        {selectedStockIn && (
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <div className="font-medium">Product: {selectedStockIn.product?.name}</div>
+              <div className="text-sm text-gray-500">Total Boxes: {selectedStockIn.boxes}</div>
+              <div className="text-sm text-gray-500">
+                Submitted By: {selectedStockIn.submitter ? `${selectedStockIn.submitter.name} (${selectedStockIn.submitter.username})` : 'Unknown'}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">Rejection Reason</Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="Please explain why this stock in request is being rejected..."
+                value={rejectionReason}
+                onChange={(e) => {
+                  setRejectionReason(e.target.value);
+                  if (e.target.value.trim()) setError('');
+                }}
+                className={error ? 'border-red-500' : ''}
+                rows={4}
+              />
+              {error && <p className="text-sm text-red-500">{error}</p>}
+            </div>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="reason">Reason for Rejection *</Label>
-            <Textarea
-              id="reason"
-              placeholder="Please provide a detailed reason for rejecting this request..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={4}
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={isSubmitting || !reason.trim()}
-            >
-              {isSubmitting ? 'Rejecting...' : 'Reject Request'}
-            </Button>
-          </div>
-        </div>
+        )}
+        
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleReject}
+            disabled={rejectStockInMutation.isPending}
+          >
+            {rejectStockInMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

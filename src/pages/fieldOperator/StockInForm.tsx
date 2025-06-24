@@ -88,7 +88,7 @@ const StockInForm: React.FC = () => {
         source: data.source,
         notes: data.notes,
         status: 'pending' as const,
-        boxes: Number(data.number_of_boxes)
+        number_of_boxes: Number(data.number_of_boxes)
       };
       
       const { data: result, error } = await supabase

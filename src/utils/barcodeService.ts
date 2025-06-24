@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, executeQuery } from '@/lib/supabase';
 
 /**
  * Barcode Service

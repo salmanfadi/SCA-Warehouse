@@ -1,5 +1,5 @@
 import React from 'react';
-import { StockInRequestData } from '@/types/database';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { useWarehouses } from '@/hooks/useWarehouses';
 import { useLocations } from '@/hooks/useLocations';
 import { Button } from '@/components/ui/button';

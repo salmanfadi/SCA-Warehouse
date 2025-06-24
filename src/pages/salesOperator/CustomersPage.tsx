@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,19 +22,19 @@ interface CustomerProfile {
   role: string;
   created_at: string;
   active: boolean;
-  email: string;
+  username: string;
 }
 
 const CustomersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
 
-  // Fetch customers from profiles table
+  // Fetch customers from profiles table using available columns
   const { data: customers, isLoading, error } = useQuery<CustomerProfile[]>({
     queryKey: ['customers'],
     queryFn: async () => {
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, role, created_at, active, email')
+        .select('id, role, created_at, active, username')
         .or('role.is.null,role.not.in.(admin,sales_operator,field_operator,warehouse_manager)')
         .order('created_at', { ascending: false });
 
@@ -50,7 +51,7 @@ const CustomersPage: React.FC = () => {
   const filteredCustomers = React.useMemo(() => {
     if (!customers) return [];
     return customers.filter(customer => 
-      customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      customer.username?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [customers, searchTerm]);
 
@@ -67,7 +68,7 @@ const CustomersPage: React.FC = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search by email..."
+                placeholder="Search by username..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
@@ -90,7 +91,7 @@ const CustomersPage: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Email</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
@@ -100,7 +101,7 @@ const CustomersPage: React.FC = () => {
                 {filteredCustomers.length > 0 ? (
                   filteredCustomers.map((customer) => (
                     <TableRow key={customer.id}>
-                      <TableCell>{customer.email}</TableCell>
+                      <TableCell>{customer.username}</TableCell>
                       <TableCell>{customer.role || 'Customer'}</TableCell>
                       <TableCell>
                         <Badge variant={customer.active ? 'default' : 'secondary'}>
@@ -128,4 +129,4 @@ const CustomersPage: React.FC = () => {
   );
 };
 
-export default CustomersPage; 
+export default CustomersPage;

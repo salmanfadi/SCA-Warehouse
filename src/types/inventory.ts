@@ -1,8 +1,28 @@
 
-// Define interfaces for inventory movement system
+import type { Product } from './products';
 
 export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
-export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit'; // Match exact Supabase enum values
+export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
+
+export interface Inventory {
+  id: string;
+  product_id: string;
+  quantity: number;
+  barcode: string;
+  color: string | null;
+  size: string | null;
+  batch_id: string | null;
+  status: string;
+  warehouse_id: string;
+  location_id: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface InventoryProduct {
+  id: string;
+  name: string;
+}
 
 export interface InventoryMovement {
   id: string;
@@ -74,7 +94,6 @@ export interface InventoryMovementFilters {
   performedBy?: string;
 }
 
-// Define interface for barcode logs (for temporary storage/tracking of barcode scans)
 export interface BarcodeLog {
   barcode: string;
   user_id: string;

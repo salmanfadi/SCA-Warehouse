@@ -1,10 +1,10 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Camera, X, ScanLine } from 'lucide-react';
+import { Camera, X, ScanLine, RefreshCcw, FlipHorizontal } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import Quagga from 'quagga'; // Import QuaggaJS for barcode scanning
 
 interface MobileBarcodeScannerProps {
   onBarcodeScanned: (barcode: string) => void;
@@ -21,407 +21,364 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
   onInputChange,
   scanButtonLabel = 'Scan',
 }) => {
+  // State variables
   const [isScanning, setIsScanning] = useState(false);
   const [manualInput, setManualInput] = useState(inputValue);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [supportsCamera, setSupportsCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string>('');
+  const [supportsCamera, setSupportsCamera] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+  const [currentCamera, setCurrentCamera] = useState<'environment' | 'user'>('environment');
+  const [wasScanningStopped, setWasScanningStopped] = useState(false);
+  const [hasScannedBefore, setHasScannedBefore] = useState(false);
   
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  // Refs
+  const scannerRef = useRef<HTMLDivElement>(null);
+  const quaggaInitialized = useRef<boolean>(false);
 
-  // Check for camera support on component mount
+  // Check for camera support on component mount - without requesting permissions yet
   useEffect(() => {
     const checkCameraSupport = async () => {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           setSupportsCamera(false);
-          setCameraError('Camera not supported in this browser');
+          setCameraError('Your browser does not support camera access');
           return;
         }
-
-        // Check for camera permission
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
         
-        if (videoDevices.length === 0) {
-          setSupportsCamera(false);
-          setCameraError('No camera found on device');
-          return;
-        }
-
+        // We now only check if the API exists, not if we have permission
+        // This avoids premature permission requests
         setSupportsCamera(true);
       } catch (error) {
         console.error('Error checking camera support:', error);
         setSupportsCamera(false);
-        setCameraError('Camera access not available');
+        setCameraError('Failed to check camera support');
       }
     };
-
+    
     checkCameraSupport();
+    
+    // Clean up on unmount
+    return () => {
+      stopScanning();
+    };
   }, []);
-
-  // Enhanced camera initialization specifically for iOS
-  const initializeCamera = useCallback(async () => {
+  
+  // Update manualInput when inputValue prop changes
+  useEffect(() => {
+    setManualInput(inputValue);
+  }, [inputValue]);
+  
+  // Initialize and clean up Quagga
+  useEffect(() => {
+    if (isScanning && scannerRef.current) {
+      initializeQuagga();
+    } else if (!isScanning && quaggaInitialized.current) {
+      stopScanning();
+    }
+    
+    return () => {
+      if (quaggaInitialized.current) {
+        stopScanning();
+      }
+    };
+  }, [isScanning]);
+  
+  // Initialize Quagga barcode scanner with optimized settings for long barcodes
+  const initializeQuagga = useCallback(() => {
+    if (!scannerRef.current) return;
+    
+    // Clear any previous errors
+    setCameraError('');
+    
     try {
-      setCameraError('');
-      console.log('Starting camera initialization for iOS...');
-      
-      // Stop any existing stream
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-
-      // iOS-specific constraints - removed unsupported properties
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 30, min: 15 }
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: scannerRef.current,
+          willReadFrequently: true, // Fix for the Canvas2D warning
+          constraints: {
+            facingMode: currentCamera, // Use environment (rear) camera by default
+            aspectRatio: { min: 1, max: 2 }, // Prefer landscape orientation
+            width: { min: 640 },
+            height: { min: 480 },
+            // Request higher resolution for better barcode detection
+            advanced: [{width: {min: 1280}, height: {min: 720}}]
+          },
         },
-        audio: false
-      };
-
-      console.log('Requesting camera with constraints:', constraints);
-      
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('Camera stream obtained successfully:', mediaStream);
-      
-      setStream(mediaStream);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+        locator: {
+          patchSize: "large", // Use larger patch size for better detection of long barcodes
+          halfSample: false // Disable half sampling for more accurate detection
+        },
+        numOfWorkers: navigator.hardwareConcurrency || 4,
+        frequency: 10,
+        decoder: {
+          readers: [
+            "code_128_reader" // Only use Code 128 format for our long barcodes
+          ],
+          multiple: false // Only return the first valid barcode
+        },
+        debug: {
+          drawBoundingBox: true,
+          showFrequency: true,
+          drawScanline: true,
+          showPattern: true
+        },
+        locate: true
+      }, (err) => {
+        if (err) {
+          console.error("Quagga initialization error:", err);
+          setCameraError(err.message || 'Failed to initialize camera');
+          setIsScanning(false);
+          
+          toast({
+            variant: 'destructive',
+            title: 'Camera Error',
+            description: err.name === 'NotAllowedError' 
+              ? 'Camera permission denied. Please allow camera access.'
+              : 'Failed to initialize camera. Please try again.',
+          });
+          
+          return;
+        }
         
-        // Enhanced video setup for iOS
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.setAttribute('webkit-playsinline', 'true');
-        videoRef.current.muted = true;
-        videoRef.current.autoplay = true;
+        console.log("Quagga initialized successfully");
+        quaggaInitialized.current = true;
         
-        // Wait for video to be ready with better error handling
-        await new Promise((resolve, reject) => {
-          if (!videoRef.current) {
-            reject(new Error('Video ref not available'));
-            return;
-          }
-          
-          const video = videoRef.current;
-          
-          const handleLoadedMetadata = () => {
-            console.log('Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
-            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-            video.removeEventListener('error', handleError);
-            resolve(true);
-          };
-          
-          const handleError = (error: Event) => {
-            console.error('Video error:', error);
-            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-            video.removeEventListener('error', handleError);
-            reject(error);
-          };
-          
-          video.addEventListener('loadedmetadata', handleLoadedMetadata);
-          video.addEventListener('error', handleError);
-          
-          // Start playing with iOS-specific handling
-          const playPromise = video.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(reject);
-          }
+        // Start processing frames
+        Quagga.start();
+        
+        // Register barcode detection handler
+        Quagga.onDetected(handleBarcodeDetected);
+        
+        // Show success toast
+        toast({
+          title: "Camera Active",
+          description: "Scanning for barcodes...",
         });
-
-        // Start scanning after video is ready
-        startScanning();
-        console.log('Camera initialization completed successfully');
-      }
+      });
     } catch (error: any) {
-      console.error('Camera initialization failed:', error);
-      let errorMessage = 'Failed to access camera';
-      
-      if (error.name === 'NotAllowedError') {
-        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No camera found on this device.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Camera is being used by another application.';
-      } else if (error.name === 'OverconstrainedError') {
-        errorMessage = 'Camera constraints not supported. Trying with basic settings.';
-        // Try with simpler constraints
-        retryWithBasicConstraints();
-        return;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setCameraError(errorMessage);
+      console.error("Error initializing Quagga:", error);
+      setCameraError(error.message || 'Failed to initialize scanner');
       setIsScanning(false);
       
       toast({
         variant: 'destructive',
-        title: 'Camera Error',
-        description: errorMessage,
+        title: 'Scanner Error',
+        description: error.message || 'Failed to initialize barcode scanner',
       });
     }
-  }, [stream]);
-
-  // Fallback with basic constraints for iOS
-  const retryWithBasicConstraints = useCallback(async () => {
+  }, [currentCamera]);
+  
+  // Handle barcode detection
+  const handleBarcodeDetected = useCallback((result: Quagga.QuaggaJSResultObject) => {
+    const code = result.codeResult.code;
+    if (!code) return;
+    
+    // Check if this is a valid barcode format for our application
+    console.log("Barcode detected:", code, "with format:", result.codeResult.format, "confidence:", result.codeResult.confidence);
+    
+    // For our application, we need to ensure we're getting the full barcode
+    // The barcode should be a long numeric string (19+ digits for our inventory system)
+    if (code.length < 19) {
+      console.log("Ignoring short barcode - not a complete scan");
+      return;
+    }
+    
+    // Play success sound
     try {
-      console.log('Retrying with basic constraints...');
-      
-      const basicConstraints: MediaStreamConstraints = {
-        video: {
-          facingMode: 'environment'
-        },
-        audio: false
-      };
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
-      console.log('Camera stream obtained with basic constraints');
-      
-      setStream(mediaStream);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.setAttribute('webkit-playsinline', 'true');
-        videoRef.current.muted = true;
-        
-        await videoRef.current.play();
-        startScanning();
-      }
-    } catch (error: any) {
-      console.error('Basic camera initialization also failed:', error);
-      setCameraError('Unable to access camera with any settings');
-      setIsScanning(false);
+      const audio = new Audio('/beep.mp3');
+      audio.play().catch(e => console.log('Sound play error:', e));
+    } catch (e) {
+      console.log('Sound not supported:', e);
     }
-  }, []);
-
-  // Enhanced barcode detection for mobile
-  const detectBarcode = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || !isScanning) {
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-
-    if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) {
-      animationFrameRef.current = requestAnimationFrame(detectBarcode);
-      return;
-    }
-
-    // Set canvas size to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Try to detect barcode using native BarcodeDetector if available
-    if ('BarcodeDetector' in window) {
-      const barcodeDetector = new (window as any).BarcodeDetector({
-        formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93']
-      });
-
-      barcodeDetector.detect(canvas)
-        .then((barcodes: any[]) => {
-          if (barcodes.length > 0 && isScanning) {
-            const barcode = barcodes[0].rawValue;
-            console.log('Barcode detected:', barcode);
-            onBarcodeScanned(barcode);
-            stopCamera();
-            return;
-          }
-          
-          // Continue scanning
-          if (isScanning) {
-            animationFrameRef.current = requestAnimationFrame(detectBarcode);
-          }
-        })
-        .catch((error: any) => {
-          console.error('Barcode detection error:', error);
-          if (isScanning) {
-            animationFrameRef.current = requestAnimationFrame(detectBarcode);
-          }
-        });
-    } else {
-      // Fallback: continue scanning without detection
-      if (isScanning) {
-        animationFrameRef.current = requestAnimationFrame(detectBarcode);
+    
+    // Stop scanning
+    stopScanning();
+    
+    // Notify parent component
+    onBarcodeScanned(code);
+    
+    // Show success toast
+    toast({
+      title: "Barcode Scanned",
+      description: `${code}`,
+    });
+  }, [onBarcodeScanned]);
+  
+  // Stop scanning
+  const stopScanning = useCallback(() => {
+    if (quaggaInitialized.current) {
+      try {
+        Quagga.offDetected(handleBarcodeDetected);
+        Quagga.stop();
+        quaggaInitialized.current = false;
+        setIsScanning(false);
+        setWasScanningStopped(true);
+        setHasScannedBefore(true);
+        console.log("Quagga stopped");
+      } catch (error) {
+        console.error("Error stopping Quagga:", error);
       }
     }
-  }, [isScanning, onBarcodeScanned]);
-
-  const startScanning = useCallback(() => {
-    if (!videoRef.current) return;
+  }, [handleBarcodeDetected]);
+  
+  // Switch camera between front and back
+  const switchCamera = useCallback(() => {
+    stopScanning();
     
-    console.log('Starting barcode scanning...');
-    setIsScanning(true);
-    animationFrameRef.current = requestAnimationFrame(detectBarcode);
-  }, [detectBarcode]);
-
-  const stopCamera = useCallback(() => {
-    console.log('Stopping camera...');
-    setIsScanning(false);
+    // Toggle camera
+    setCurrentCamera(prev => prev === 'environment' ? 'user' : 'environment');
     
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
+    // Small delay to ensure previous camera is fully stopped
+    setTimeout(() => {
+      setIsScanning(true);
+    }, 300);
     
-    if (stream) {
-      stream.getTracks().forEach(track => {
-        console.log('Stopping track:', track.kind);
-        track.stop();
-      });
-      setStream(null);
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, [stream]);
-
+    toast({
+      title: `Switching Camera`,
+      description: `Using ${currentCamera === 'environment' ? 'front' : 'rear'} camera`,
+    });
+  }, [currentCamera, stopScanning]);
+  
+  // Handle start camera button click
   const handleStartCamera = () => {
-    if (!supportsCamera) {
+    setIsScanning(true);
+    setWasScanningStopped(false);
+  };
+  
+  // Handle stop camera button click
+  const handleStopCamera = () => {
+    stopScanning();
+    setWasScanningStopped(true);
+    setHasScannedBefore(true);
+  };
+  
+  // Handle manual barcode submission
+  const handleManualSubmit = () => {
+    if (!manualInput.trim()) {
       toast({
         variant: 'destructive',
-        title: 'Camera Not Available',
-        description: 'Camera is not supported on this device or browser.',
+        title: 'Empty Barcode',
+        description: 'Please enter a barcode value',
       });
       return;
     }
     
-    console.log('User clicked start camera button');
-    initializeCamera();
+    onBarcodeScanned(manualInput.trim());
+    setManualInput('');
   };
-
-  const handleManualSubmit = () => {
-    if (manualInput.trim()) {
-      onBarcodeScanned(manualInput.trim());
-      setManualInput('');
-    }
-  };
-
+  
+  // Handle manual input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setManualInput(value);
+    setManualInput(e.target.value);
     if (onInputChange) {
       onInputChange(e);
     }
   };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, [stopCamera]);
-
   return (
-    <div className="space-y-4">
-      {/* Camera Scanner */}
-      {supportsCamera && (
-        <div className="space-y-2">
-          <Label>Camera Scanner</Label>
-          {!isScanning ? (
-            <div className="text-center">
-              <Button 
-                onClick={handleStartCamera}
-                disabled={!!cameraError}
-                className="w-full"
-              >
-                <Camera className="h-4 w-4 mr-2" />
-                Start Camera
-              </Button>
-              {cameraError && (
-                <p className="text-sm text-red-500 mt-2">{cameraError}</p>
-              )}
-            </div>
-          ) : (
-            <div className="relative">
-              <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                  style={{ transform: 'scaleX(-1)' }}
-                />
-                <canvas ref={canvasRef} className="hidden" />
-                
-                {/* Scanning overlay */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="border-2 border-white w-64 h-32 rounded-lg relative">
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
-                    <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
-                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
-                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ScanLine className="h-8 w-8 text-blue-500 animate-pulse" />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Instructions */}
-                <div className="absolute bottom-4 left-0 right-0 text-center">
-                  <p className="text-white text-sm bg-black/50 px-3 py-1 rounded-full inline-block">
-                    Position barcode within the frame
-                  </p>
-                </div>
+    <div className="relative w-full max-w-md mx-auto">
+      {/* Camera view */}
+      <div className="relative overflow-hidden rounded-lg bg-black aspect-video">
+        {isScanning ? (
+          <>
+            {/* Scanner container */}
+            <div 
+              ref={scannerRef} 
+              className="w-full h-full relative"
+            >
+              {/* Scanning overlay */}
+              <div className="absolute inset-0 z-10 pointer-events-none">
+                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 animate-scan-line"></div>
+                <div className="absolute inset-0 border-2 border-white/50 rounded"></div>
               </div>
-              
+            </div>
+            
+            {/* Camera controls */}
+            <div className="absolute bottom-2 right-2 z-20 flex gap-2">
               <Button 
-                onClick={stopCamera}
-                variant="destructive"
-                className="w-full mt-2"
+                size="sm" 
+                variant="outline" 
+                className="bg-black/50 text-white border-white/20 hover:bg-black/70"
+                onClick={switchCamera}
               >
-                <X className="h-4 w-4 mr-2" />
-                Stop Camera
+                <FlipHorizontal className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="bg-black/50 text-white border-white/20 hover:bg-black/70"
+                onClick={handleStopCamera}
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
-          )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full bg-black">
+            {/* Always show a scan button when not scanning */}
+            <Button 
+              onClick={handleStartCamera} 
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 text-lg shadow-lg"
+              variant="default"
+            >
+              <Camera className="h-6 w-6 mr-2" />
+              {hasScannedBefore ? 'Scan Again' : scanButtonLabel}
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      {/* Error message */}
+      {cameraError && (
+        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+          <p><strong>Camera Error:</strong> {cameraError}</p>
+          <p className="text-xs mt-1">You can use manual entry below instead.</p>
         </div>
       )}
-
-      {/* Manual Entry */}
+      
+      {/* Manual entry */}
       {allowManualEntry && (
-        <div className="space-y-2">
-          <Label htmlFor="manual-barcode">Manual Entry</Label>
-          <div className="flex space-x-2">
+        <div className="mt-4">
+          <Label htmlFor="manual-barcode">Manual Barcode Entry</Label>
+          <div className="flex mt-1 gap-2">
             <Input
               id="manual-barcode"
-              type="text"
               value={manualInput}
               onChange={handleInputChange}
               placeholder="Enter barcode manually"
               className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleManualSubmit();
+                }
+              }}
             />
-            <Button 
-              onClick={handleManualSubmit}
-              disabled={!manualInput.trim()}
-            >
-              {scanButtonLabel}
-            </Button>
+            <Button onClick={handleManualSubmit}>Submit</Button>
           </div>
         </div>
       )}
-
-      {/* Device Info for Debugging */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
+      
+      {/* Debug info */}
+      {showDebug && (
+        <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
+          <p>Camera: {currentCamera}</p>
+          <p>Scanning: {isScanning ? 'Yes' : 'No'}</p>
           <p>Camera Support: {supportsCamera ? 'Yes' : 'No'}</p>
-          <p>User Agent: {navigator.userAgent.substring(0, 50)}...</p>
-          <p>BarcodeDetector: {'BarcodeDetector' in window ? 'Available' : 'Not Available'}</p>
-          <p>Video State: {isScanning ? 'Scanning' : 'Stopped'}</p>
-          <p>Stream Active: {stream ? 'Yes' : 'No'}</p>
+          <p>QuaggaJS Initialized: {quaggaInitialized.current ? 'Yes' : 'No'}</p>
         </div>
       )}
+      
+      {/* Debug toggle */}
+      <div className="mt-2 text-right">
+        <button 
+          onClick={() => setShowDebug(!showDebug)} 
+          className="text-xs text-gray-500 underline"
+        >
+          {showDebug ? 'Hide Debug Info' : 'Show Debug Info'}
+        </button>
+      </div>
     </div>
   );
 };

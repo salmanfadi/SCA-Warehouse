@@ -1,142 +1,160 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { StockInItem, TransferItem, StockOutWithProduct } from '@/types/common';
 
-interface StockInItem {
-  id: string;
-  product_id: string;
-  products: {
-    name: string;
-  };
-  number_of_boxes: number;
-  status: string;
-  created_at: string;
-  source: string;
-  notes: string;
+interface UserStockActivity {
+  stockIns: StockInItem[];
+  transfers: TransferItem[];
+  stockOuts: StockOutWithProduct[];
+  isLoading: boolean;
+  error: string | null;
 }
 
-interface StockOutWithProduct {
-  id: string;
-  item_id: string;
-  status: string;
-  created_at: string;
-  destination: string;
-  notes: string;
-  quantity: number;
-  product_name: string;
-}
-
-interface TransferItem {
-  id: string;
-  products: {
-    name: string;
-  };
-  quantity: number;
-  status: string;
-  created_at: string;
-  source_warehouse: { name: string };
-  destination_warehouse: { name: string };
-  notes: string;
-  transfer_reason: string;
-}
-
-export const useUserStockActivity = (userId: string | undefined, { limit }: { limit?: number } = {}) => {
-  const query = useQuery({
-    queryKey: ['user-stock-activity', userId, limit],
+export const useUserStockActivity = (userId?: string): UserStockActivity => {
+  const { data: stockIns = [], isLoading: stockInsLoading } = useQuery({
+    queryKey: ['user-stock-ins', userId],
     queryFn: async () => {
-      if (!userId) return { stockIn: [], stockOut: [], transfers: [] };
-
-      // Use the correct table names and column names
-      let stockInQuery = supabase
+      if (!userId) return [];
+      
+      const { data, error } = await supabase
         .from('stock_in')
         .select(`
           id,
           product_id,
-          products!inner(name),
           number_of_boxes,
+          quantity,
           status,
           created_at,
-          source,
-          notes
+          updated_at,
+          product:products(*)
         `)
         .eq('submitted_by', userId)
         .order('created_at', { ascending: false });
 
-      let stockOutQuery = supabase
-        .from('stock_out_with_products')
-        .select('*')
-        .eq('requester_id', userId)
-        .order('created_at', { ascending: false });
-        
-      // Transfers - Using the inventory_transfers table with explicit relationship hints
-      let transfersQuery = supabase
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!userId,
+  });
+
+  const { data: transfers = [], isLoading: transfersLoading } = useQuery({
+    queryKey: ['user-transfers', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      
+      const { data, error } = await supabase
         .from('inventory_transfers')
         .select(`
           id,
-          products!inner(name),
-          quantity,
           status,
           created_at,
-          source_warehouse:warehouses!source_warehouse_id(name),
-          destination_warehouse:warehouses!destination_warehouse_id(name),
-          notes,
-          transfer_reason
+          updated_at,
+          details:inventory_transfer_details(
+            id,
+            product_id,
+            quantity,
+            product:products(*)
+          )
         `)
         .eq('initiated_by', userId)
         .order('created_at', { ascending: false });
 
-      if (limit) {
-        stockInQuery = stockInQuery.limit(limit);
-        stockOutQuery = stockOutQuery.limit(limit);
-        transfersQuery = transfersQuery.limit(limit);
-      }
-
-      const [stockIn, stockOut, transfers] = await Promise.all([
-        stockInQuery,
-        stockOutQuery,
-        transfersQuery,
-      ]);
-
-      // Transform the data to match the expected format
-      const transformedStockIn = (stockIn.data as StockInItem[] || []).map(item => ({
-        ...item,
-        boxes: item.number_of_boxes,
-        product: item.products?.name || 'Unknown Product'
-      }));
-
-      // Transform stock out data to match the expected format
-      const transformedStockOut = (stockOut.data as StockOutWithProduct[] || []).map(item => ({
-        id: item.id,
-        status: item.status,
-        created_at: item.created_at,
-        destination: item.destination,
-        notes: item.notes,
-        quantity: item.quantity,
-        product: item.product_name || 'Unknown Product'
-      }));
-
-      const transformedTransfers = (transfers.data as TransferItem[] || []).map(item => ({
-        ...item,
-        product: item.products?.name || 'Unknown Product'
-      }));
-
-      return {
-        stockIn: transformedStockIn,
-        stockOut: transformedStockOut,
-        transfers: transformedTransfers,
-      };
+      if (error) throw error;
+      return data?.flatMap(transfer => 
+        transfer.details?.map(detail => ({
+          id: detail.id,
+          product_id: detail.product_id,
+          quantity: detail.quantity,
+          status: transfer.status,
+          created_at: transfer.created_at,
+          updated_at: transfer.updated_at,
+          product: detail.product
+        })) || []
+      ) || [];
     },
     enabled: !!userId,
-    initialData: { stockIn: [], stockOut: [], transfers: [] },
-    refetchInterval: 5000,
   });
 
-  // Restructure the return value to include isLoading and data properties
+  const { data: stockOuts = [], isLoading: stockOutsLoading } = useQuery({
+    queryKey: ['user-stock-outs', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      
+      const { data, error } = await supabase
+        .from('stock_out')
+        .select(`
+          id,
+          destination,
+          status,
+          notes,
+          created_at,
+          updated_at,
+          customer_name,
+          customer_email,
+          customer_company,
+          customer_phone,
+          sales_order_id,
+          details:stock_out_details(
+            id,
+            product_id,
+            quantity,
+            product:products(*)
+          )
+        `)
+        .eq('requested_by', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      return data?.flatMap(stockOut => 
+        stockOut.details?.map(detail => ({
+          id: stockOut.id,
+          item_id: detail.id,
+          product_id: detail.product_id,
+          product_name: detail.product?.name || '',
+          quantity: detail.quantity,
+          destination: stockOut.destination || '',
+          status: stockOut.status,
+          created_at: stockOut.created_at,
+          updated_at: stockOut.updated_at || stockOut.created_at,
+          notes: stockOut.notes || '',
+          customer_name: stockOut.customer_name,
+          customer_email: stockOut.customer_email,
+          customer_company: stockOut.customer_company,
+          customer_phone: stockOut.customer_phone,
+          sales_order_id: stockOut.sales_order_id,
+          product: {
+            id: detail.product?.id || '',
+            name: detail.product?.name || '',
+            sku: detail.product?.sku,
+            description: detail.product?.description,
+            hsn_code: detail.product?.hsn_code,
+            gst_rate: detail.product?.gst_rate,
+            category: detail.product?.category,
+            barcode: detail.product?.barcode,
+            unit: detail.product?.unit,
+            min_stock_level: detail.product?.min_stock_level,
+            is_active: detail.product?.is_active,
+            gst_category: detail.product?.gst_category,
+            image_url: detail.product?.image_url,
+            created_at: detail.product?.created_at,
+            updated_at: detail.product?.updated_at
+          }
+        })) || []
+      ) || [];
+    },
+    enabled: !!userId,
+  });
+
+  const isLoading = stockInsLoading || transfersLoading || stockOutsLoading;
+  const error = null; // You can implement error handling as needed
+
   return {
-    isActivityLoading: query.isLoading,
-    stockInActivity: query.data.stockIn,
-    stockOutActivity: query.data.stockOut,
-    transferActivity: query.data.transfers,
-    data: query.data,
-    isLoading: query.isLoading,
+    stockIns,
+    transfers,
+    stockOuts,
+    isLoading,
+    error
   };
 };

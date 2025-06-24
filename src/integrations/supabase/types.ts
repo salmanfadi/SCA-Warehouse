@@ -295,6 +295,103 @@ export type Database = {
           },
         ]
       }
+      customer_inquiries: {
+        Row: {
+          converted_to_order: boolean | null
+          created_at: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          message: string | null
+          notes: string | null
+          order_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          converted_to_order?: boolean | null
+          created_at?: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          message?: string | null
+          notes?: string | null
+          order_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          converted_to_order?: boolean | null
+          created_at?: string
+          customer_company?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          message?: string | null
+          notes?: string | null
+          order_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customer_inquiry_items: {
+        Row: {
+          created_at: string
+          id: string
+          inquiry_id: string
+          price: number | null
+          product_id: string | null
+          quantity: number
+          specific_requirements: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inquiry_id: string
+          price?: number | null
+          product_id?: string | null
+          quantity: number
+          specific_requirements?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inquiry_id?: string
+          price?: number | null
+          product_id?: string | null
+          quantity?: number
+          specific_requirements?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_inquiry_items_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "customer_inquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_inquiry_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "customer_inquiry_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           barcode: string | null
@@ -702,6 +799,59 @@ export type Database = {
           },
         ]
       }
+      orders: {
+        Row: {
+          created_at: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          inquiry_id: string | null
+          items: Json | null
+          order_date: string
+          status: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          inquiry_id?: string | null
+          items?: Json | null
+          order_date?: string
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_company?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          inquiry_id?: string | null
+          items?: Json | null
+          order_date?: string
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "customer_inquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processed_batches: {
         Row: {
           batch_number: string | null
@@ -841,6 +991,7 @@ export type Database = {
           gst_rate: number | null
           hsn_code: string | null
           id: string
+          image_url: string | null
           is_active: boolean | null
           min_stock_level: number | null
           name: string
@@ -861,6 +1012,7 @@ export type Database = {
           gst_rate?: number | null
           hsn_code?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           min_stock_level?: number | null
           name: string
@@ -881,6 +1033,7 @@ export type Database = {
           gst_rate?: number | null
           hsn_code?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           min_stock_level?: number | null
           name?: string
@@ -927,6 +1080,167 @@ export type Database = {
           role?: string | null
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      sales_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          price: number
+          product_id: string
+          quantity: number
+          requirements: string | null
+          sales_order_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price?: number
+          product_id: string
+          quantity: number
+          requirements?: string | null
+          sales_order_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price?: number
+          product_id?: string
+          quantity?: number
+          requirements?: string | null
+          sales_order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "sales_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_items_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_orders: {
+        Row: {
+          created_at: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          inquiry_id: string | null
+          order_date: string
+          pushed_to_stockout: boolean | null
+          sales_order_number: string
+          status: string
+          stockout_id: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          inquiry_id?: string | null
+          order_date?: string
+          pushed_to_stockout?: boolean | null
+          sales_order_number: string
+          status?: string
+          stockout_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_company?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          inquiry_id?: string | null
+          order_date?: string
+          pushed_to_stockout?: boolean | null
+          sales_order_number?: string
+          status?: string
+          stockout_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_orders_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "customer_inquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_stockout_id_fkey"
+            columns: ["stockout_id"]
+            isOneToOne: false
+            referencedRelation: "stock_out"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_stockout_id_fkey"
+            columns: ["stockout_id"]
+            isOneToOne: false
+            referencedRelation: "stock_out_with_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      serial_numbers: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          operation_type: string
+          reference_id: string
+          reference_table: string
+          serial_number: string
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          operation_type: string
+          reference_id: string
+          reference_table: string
+          serial_number: string
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          operation_type?: string
+          reference_id?: string
+          reference_table?: string
+          serial_number?: string
         }
         Relationships: []
       }
@@ -1204,10 +1518,15 @@ export type Database = {
           approved_by: string | null
           created_at: string | null
           created_by: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
           destination: string | null
           id: string
           notes: string | null
           requested_by: string | null
+          sales_order_id: string | null
           status: Database["public"]["Enums"]["stock_status"] | null
           updated_at: string | null
           warehouse_id: string | null
@@ -1217,10 +1536,15 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           created_by?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           destination?: string | null
           id?: string
           notes?: string | null
           requested_by?: string | null
+          sales_order_id?: string | null
           status?: Database["public"]["Enums"]["stock_status"] | null
           updated_at?: string | null
           warehouse_id?: string | null
@@ -1230,10 +1554,15 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           created_by?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           destination?: string | null
           id?: string
           notes?: string | null
           requested_by?: string | null
+          sales_order_id?: string | null
           status?: Database["public"]["Enums"]["stock_status"] | null
           updated_at?: string | null
           warehouse_id?: string | null
@@ -1261,6 +1590,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_out_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_out_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
@@ -1273,6 +1609,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          inventory_id: string | null
           product_id: string | null
           quantity: number
           stock_out_id: string | null
@@ -1281,6 +1618,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          inventory_id?: string | null
           product_id?: string | null
           quantity: number
           stock_out_id?: string | null
@@ -1289,12 +1627,20 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          inventory_id?: string | null
           product_id?: string | null
           quantity?: number
           stock_out_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_out_details_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_out_details_product_id_fkey"
             columns: ["product_id"]
@@ -1548,6 +1894,10 @@ export type Database = {
         Args: { p_table_name: string }
         Returns: string
       }
+      get_inventory_quantity: {
+        Args: { p_inventory_id: string; p_quantity: number }
+        Returns: number
+      }
       get_inventory_summary: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1615,7 +1965,12 @@ export type Database = {
         | "approved"
         | "rejected"
         | "failed"
-      stock_status: "pending" | "approved" | "rejected" | "completed"
+      stock_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "completed"
+        | "from_sales_order"
       transfer_status: "pending" | "in_transit" | "completed" | "cancelled"
     }
     CompositeTypes: {
@@ -1757,7 +2112,13 @@ export const Constants = {
         "rejected",
         "failed",
       ],
-      stock_status: ["pending", "approved", "rejected", "completed"],
+      stock_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "completed",
+        "from_sales_order",
+      ],
       transfer_status: ["pending", "in_transit", "completed", "cancelled"],
     },
   },

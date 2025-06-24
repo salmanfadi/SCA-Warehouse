@@ -47,34 +47,74 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
   };
 
+  // Define profile data type to match database schema
+  interface ProfileData {
+    full_name?: string;
+    role?: UserRole;
+    active?: boolean;
+    email?: string;
+  }
+
   // Helper function to get user profile
   const getUserProfile = async (authUser: any) => {
     try {
       console.log('Fetching user profile for user ID:', authUser.id);
       
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, name, username, active')
-        .eq('id', authUser.id)
-        .single();
-        
-      console.log('Profile fetch result:', { profileData, profileError });
+      // Use a try-catch block to handle any potential errors with the query
+      let profileData: ProfileData | null = null;
+      let profileError: any = null;
       
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        // If profile doesn't exist, create a default one
-        const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
-        const { data: newProfile, error: createError } = await supabase
+      try {
+        const result = await supabase
           .from('profiles')
-          .insert([{
-            id: authUser.id,
-            username: authUser.email?.split('@')[0] || 'user',
-            name: authUser.email?.split('@')[0] || 'User',
-            role: defaultRole as UserRole,
-            active: true
-          }])
-          .select()
+          .select('full_name, role, active, email')
+          .eq('id', authUser.id)
           .single();
+        
+        profileData = result.data as ProfileData | null;
+        profileError = result.error;
+      } catch (err) {
+        console.error('Exception in profile fetch:', err);
+        profileError = err;
+      }
+        
+      console.log('Profile fetch result:', { 
+        profileData: profileData ? 'Found' : 'Not found', 
+        profileError: profileError ? profileError.message : null 
+      });
+      
+      // If profile doesn't exist or there's an error, create a default one
+      if (profileError || !profileData) {
+        console.error('Error fetching user profile:', profileError);
+        console.log('Creating new profile for user:', authUser.id);
+        let defaultRole = 'field_operator';
+        if (authUser.email === 'admin@gmail.com') {
+          defaultRole = 'admin';
+        } else if (authUser.email === 'salesoperator@gmail.com') {
+          defaultRole = 'sales_operator';
+        }
+        let newProfile: ProfileData | null = null;
+        let createError: any = null;
+        
+        try {
+          const result = await supabase
+            .from('profiles')
+            .insert([{
+              id: authUser.id,
+              email: authUser.email,
+              full_name: authUser.email?.split('@')[0] || 'User',
+              role: defaultRole as UserRole,
+              active: true
+            }])
+            .select('full_name, role, active, email')
+            .single();
+            
+          newProfile = result.data as ProfileData | null;
+          createError = result.error;
+        } catch (err) {
+          console.error('Exception in profile creation:', err);
+          createError = err;
+        }
           
         if (createError) {
           console.error('Error creating profile:', createError);
@@ -88,29 +128,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           } as User;
         }
         
-        return {
+        // Create a properly typed user object from the profile data
+        const safeNewProfile = newProfile as ProfileData | null;
+        const userData: User = {
           ...authUser,
-          role: newProfile.role as UserRole,
-          name: newProfile.name,
-          username: newProfile.username,
-          active: newProfile.active
-        } as User;
+          role: (safeNewProfile?.role as UserRole) || (defaultRole as UserRole),
+          name: safeNewProfile?.full_name || authUser.email?.split('@')[0] || 'User',
+          username: safeNewProfile?.email || authUser.email || '',
+          active: safeNewProfile?.active !== false
+        };
+        return userData;
       }
       
-      if (profileData) {
+      if (profileData && !profileError) {
         // Ensure admin@gmail.com always has admin role
-        const role = authUser.email === 'admin@gmail.com' ? 'admin' : profileData.role;
-        return {
+        const safeProfileData = profileData as ProfileData;
+        const role = authUser.email === 'admin@gmail.com' ? 'admin' : (safeProfileData.role as UserRole || 'field_operator');
+        const userData: User = {
           ...authUser,
-          role: role as UserRole,
-          name: profileData.name || authUser.email?.split('@')[0] || 'User',
-          username: profileData.username || authUser.email || '',
-          active: profileData.active !== false
-        } as User;
+          role: role,
+          name: safeProfileData.full_name || authUser.email?.split('@')[0] || 'User',
+          username: safeProfileData.email || authUser.email || '',
+          active: safeProfileData.active !== false
+        };
+        return userData;
       }
       
-      // Fallback if no profile data, with proper role for admin
-      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      // Fallback if no profile data, with proper role based on email
+      let defaultRole = 'field_operator';
+      if (authUser.email === 'admin@gmail.com') {
+        defaultRole = 'admin';
+      } else if (authUser.email === 'salesoperator@gmail.com') {
+        defaultRole = 'sales_operator';
+      }
       return {
         ...authUser,
         role: defaultRole as UserRole,
@@ -120,8 +170,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } as User;
     } catch (err) {
       console.error('Error processing user profile:', err);
-      // Return fallback user with proper role for admin
-      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      // Return fallback user with proper role based on email
+      let defaultRole = 'field_operator';
+      if (authUser.email === 'admin@gmail.com') {
+        defaultRole = 'admin';
+      } else if (authUser.email === 'salesoperator@gmail.com') {
+        defaultRole = 'sales_operator';
+      }
       return {
         ...authUser,
         role: defaultRole as UserRole,
@@ -132,41 +187,40 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  useEffect(() => {
+  // Initialize authentication and set up listeners
+  useEffect((): (() => void) => {
     console.log('AuthContext: Initializing...');
     
-    // Get initial session with retry mechanism
+    // Cache for user profiles to avoid repeated database queries
+    const userProfileCache = new Map<string, User>();
+    
+    // Get initial session with optimized approach
     const getInitialSession = async () => {
       setIsLoading(true);
-      let retryCount = 0;
-      const maxRetries = 3;
-      const timeout = 10000; // 10 seconds timeout
       
-      const attemptSessionFetch = async () => {
-        try {
-          console.log(`Fetching session from Supabase (attempt ${retryCount + 1})...`);
+      try {
+        // Use a reasonable timeout but don't retry excessively
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data?.session) {
+          setSession(data.session);
           
-          const sessionPromise = supabase.auth.getSession();
-          const timeoutPromise = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Auth check timeout')), timeout)
-          );
-          
-          const { data, error } = await Promise.race([
-            sessionPromise,
-            timeoutPromise
-          ]);
-          
-          if (error) {
-            throw error;
-          }
-          
-          if (data?.session) {
-            console.log('Session found, processing user...');
-            setSession(data.session);
-            
-            if (data.session.user) {
+          if (data.session.user) {
+            // Check cache first
+            const cachedUser = userProfileCache.get(data.session.user.id);
+            if (cachedUser) {
+              setUser(cachedUser);
+              setIsAuthenticated(true);
+              console.log('User authenticated from cache');
+            } else {
               const userWithProfile = await getUserProfile(data.session.user);
               if (userWithProfile) {
+                // Cache the profile
+                userProfileCache.set(data.session.user.id, userWithProfile);
                 setUser(userWithProfile);
                 setIsAuthenticated(true);
                 console.log('User authenticated:', userWithProfile);
@@ -176,31 +230,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 setIsAuthenticated(false);
               }
             }
-          } else {
-            console.log('No session found');
-            setSession(null);
-            setUser(null);
-            setIsAuthenticated(false);
           }
-          return true;
-        } catch (err) {
-          console.error(`Error in getInitialSession (attempt ${retryCount + 1}):`, err);
-          if (retryCount < maxRetries - 1) {
-            retryCount++;
-            console.log(`Retrying in ${retryCount * 2} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
-            return attemptSessionFetch();
-          }
-          setError(err instanceof Error ? err : new Error('Failed to initialize auth'));
+        } else {
+          console.log('No session found');
           setSession(null);
           setUser(null);
           setIsAuthenticated(false);
-          return false;
         }
-      };
-      
-      try {
-        await attemptSessionFetch();
+      } catch (err) {
+        console.error('Error in getInitialSession:', err);
+        setError(err instanceof Error ? err : new Error('Failed to initialize auth'));
+        setSession(null);
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -208,52 +250,67 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     getInitialSession();
     
-    // Listen for auth changes with timeout handling
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', { event, session });
+    // Debounce function to prevent multiple rapid auth state changes
+    let authChangeTimeout: ReturnType<typeof setTimeout> | null = null;
+    
+    // Listen for auth changes with debouncing
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      // Clear any pending timeout
+      if (authChangeTimeout) {
+        clearTimeout(authChangeTimeout);
+      }
       
-      try {
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth state change timeout')), 10000)
-        );
+      // Debounce auth state changes to prevent multiple rapid updates
+      authChangeTimeout = setTimeout(() => {
+        // Handle auth state change
+        console.log('Auth state changed:', { event });
         
-        await Promise.race([
-          (async () => {
+        const handleAuthChange = async () => {
+          try {
             setSession(session);
             
             if (session?.user) {
-              console.log('User session found, processing profile...');
+            // Check cache first
+            const cachedUser = userProfileCache.get(session.user.id);
+            if (cachedUser) {
+              setUser(cachedUser);
+              setIsAuthenticated(true);
+            } else {
               const userWithProfile = await getUserProfile(session.user);
               if (userWithProfile) {
+                // Cache the profile
+                userProfileCache.set(session.user.id, userWithProfile);
                 setUser(userWithProfile);
                 setIsAuthenticated(true);
                 console.log('User profile updated and authenticated:', userWithProfile);
               } else {
                 setUser(null);
                 setIsAuthenticated(false);
-                console.log('User profile not found or inactive');
               }
+            }
             } else {
-              console.log('No user session, clearing state');
               setUser(null);
               setIsAuthenticated(false);
             }
-          })(),
-          timeoutPromise
-        ]);
-      } catch (err) {
-        console.error('Error in auth state change:', err);
-        setError(err instanceof Error ? err : new Error('Auth state change failed'));
-        // Don't clear auth state on timeout, maintain previous state
-        if (!(err instanceof Error && err.message.includes('timeout'))) {
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-
-      }
+          } catch (err) {
+            console.error('Error in auth state change:', err);
+            // Don't clear auth state on error if we already have a user
+            if (!user) {
+              setUser(null);
+              setIsAuthenticated(false);
+            }
+          }
+        };
+        
+        // Execute the async function
+        void handleAuthChange();
+      }, 300); // Small debounce delay to group rapid auth events
     });
     
     return () => {
+      if (authChangeTimeout) {
+        clearTimeout(authChangeTimeout);
+      }
       authListener.subscription.unsubscribe();
     };
   }, []);
@@ -411,4 +468,4 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextType => useContext(AuthContext);

@@ -1,127 +1,108 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
-
-interface ApproveStockOutParams {
-  id: string;
-  approvedQuantity: number;
-}
-
-interface RejectStockOutParams {
-  id: string;
-  reason: string;
-}
-
-interface ProcessStockOutParams {
-  id: string;
-  details: Array<{
-    id: string;
-    processedQuantity: number;
-    batchId: string;
-  }>;
-}
+import { toast } from '@/hooks/use-toast';
 
 export const useStockOutActions = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
-  const approve = useMutation({
-    mutationFn: async ({ id, approvedQuantity }: ApproveStockOutParams) => {
-      if (!user?.id) throw new Error('User not authenticated');
-
-      const { error } = await supabase.rpc('approve_stock_out', {
-        p_stock_out_id: id,
-        p_approved_quantity: approvedQuantity,
-        p_user_id: user.id
-      });
-
-      if (error) throw error;
-      return { success: true };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
-      toast({
-        title: 'Stock Out Approved',
-        description: 'The stock out request has been approved successfully.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Approval Failed',
-        description: error instanceof Error ? error.message : 'Failed to approve stock out request',
-      });
-    }
-  });
-
-  const reject = useMutation({
-    mutationFn: async ({ id, reason }: RejectStockOutParams) => {
-      if (!user?.id) throw new Error('User not authenticated');
-
-      const { error } = await supabase.rpc('reject_stock_out', {
-        p_stock_out_id: id,
-        p_reason: reason,
-        p_user_id: user.id
-      });
+  const approveStockOut = useMutation({
+    mutationFn: async (requestId: string) => {
+      const { data, error } = await supabase
+        .from('stock_out')
+        .update({ 
+          status: 'approved',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+        .select()
+        .single();
 
       if (error) throw error;
-      return { success: true };
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
       toast({
-        title: 'Stock Out Rejected',
-        description: 'The stock out request has been rejected.',
+        title: 'Success',
+        description: 'Stock out request approved successfully',
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
+        title: 'Error',
+        description: error.message,
         variant: 'destructive',
-        title: 'Rejection Failed',
-        description: error instanceof Error ? error.message : 'Failed to reject stock out request',
       });
-    }
+    },
   });
 
-  const process = useMutation({
-    mutationFn: async ({ id, details }: ProcessStockOutParams) => {
-      if (!user?.id) throw new Error('User not authenticated');
+  const rejectStockOut = useMutation({
+    mutationFn: async ({ requestId, reason }: { requestId: string; reason: string }) => {
+      const { data, error } = await supabase
+        .from('stock_out')
+        .update({ 
+          status: 'rejected',
+          notes: reason,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+        .select()
+        .single();
 
-      // Process each detail in sequence
-      for (const detail of details) {
-        const { error } = await supabase.rpc('process_stock_out_detail', {
-          p_detail_id: detail.id,
-          p_processed_quantity: detail.processedQuantity,
-          p_batch_id: detail.batchId,
-          p_user_id: user.id
-        });
-
-        if (error) throw error;
-      }
-
-      return { success: true };
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
       toast({
-        title: 'Stock Out Processed',
-        description: 'The stock out request has been processed successfully.',
+        title: 'Success',
+        description: 'Stock out request rejected',
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
+        title: 'Error',
+        description: error.message,
         variant: 'destructive',
-        title: 'Processing Failed',
-        description: error instanceof Error ? error.message : 'Failed to process stock out request',
       });
-    }
+    },
+  });
+
+  const processStockOut = useMutation({
+    mutationFn: async (requestId: string) => {
+      const { data, error } = await supabase
+        .from('stock_out')
+        .update({ 
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
+      toast({
+        title: 'Success',
+        description: 'Stock out processed successfully',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
   });
 
   return {
-    approve,
-    reject,
-    process
+    approveStockOut,
+    rejectStockOut,
+    processStockOut,
   };
-}; 
+};

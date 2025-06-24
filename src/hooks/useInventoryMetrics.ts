@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, executeQuery } from "@/lib/supabase";
 
 export interface InventoryMetrics {
   totalItems: number;

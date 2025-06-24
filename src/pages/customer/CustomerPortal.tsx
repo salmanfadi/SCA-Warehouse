@@ -48,12 +48,12 @@ const CustomerPortal: React.FC = () => {
       if (data.session.user.id) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('name')
+          .select('full_name')
           .eq('id', data.session.user.id)
           .single();
           
-        if (profile?.name) {
-          setUserName(profile.name);
+        if (profile?.full_name) {
+          setUserName(profile.full_name);
         } else {
           // For OTP users without a profile, extract name from email
           setUserName(`${data.session.user.email?.split('@')[0] || 'Guest'}`);

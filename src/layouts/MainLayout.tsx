@@ -1,7 +1,7 @@
 
 import React, { useState, ReactNode, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Header from '@/components/layout/Header';
+import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { useMobileDetector } from '@/hooks/use-mobile.tsx';
 import { OfflineDetector } from '@/components/pwa/OfflineDetector';
@@ -32,8 +32,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <OfflineDetector className="offline-indicator" />
       
       <Header
-        isCollapsed={!isSidebarOpen}
-        toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        isSidebarOpen={isSidebarOpen}
       />
       
       <div className="flex flex-1">

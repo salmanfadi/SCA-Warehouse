@@ -13,8 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Eye, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { useProcessedBatches, ProcessedBatchType } from '@/hooks/useProcessedBatches';
+import { ProcessedBatchWithItems } from '@/hooks/useProcessedBatchesWithItems';
 
 export interface ProcessedBatchesTableProps {
+  batches?: ProcessedBatchWithItems[];
+  isLoading?: boolean;
+  error?: Error | null;
   filters?: Record<string, any>;
   onViewDetails?: (batchId: string) => void;
   onPrintBarcodes?: (batchId: string) => void;
@@ -22,27 +26,41 @@ export interface ProcessedBatchesTableProps {
   pageSize?: number;
   onPageChange?: (page: number) => void;
   highlightBatchId?: string | null;
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
+  statusFilter?: string;
+  onStatusChange?: (status: string) => void;
+  warehouseFilter?: string;
+  onWarehouseChange?: (warehouseId: string) => void;
+  currentPage?: number;
+  totalPages?: number;
 }
 
 export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({ 
+  batches: propBatches,
+  isLoading: propIsLoading,
+  error: propError,
   filters = {},
   onViewDetails,
   onPrintBarcodes,
   page = 1,
   pageSize = 10,
   onPageChange,
-  highlightBatchId = null
+  highlightBatchId = null,
+  currentPage = 1,
+  totalPages = 1
 }) => {
   const navigate = useNavigate();
-  const { 
-    data, 
-    isLoading, 
-    isError, 
-    error,
-    refetch // Add refetch method to manually refresh data
-  } = useProcessedBatches(page, pageSize, filters);
-  const totalCount = data?.count || 0;
-  const totalPages = Math.ceil(totalCount / pageSize);
+  
+  // Use hook data if batches are not provided as props
+  const hookData = useProcessedBatches(page, pageSize, filters);
+  
+  const batches = propBatches || hookData.data?.data || [];
+  const isLoading = propIsLoading !== undefined ? propIsLoading : hookData.isLoading;
+  const error = propError !== undefined ? propError : hookData.error;
+  const totalCount = hookData.data?.count || 0;
+  const calculatedTotalPages = Math.ceil(totalCount / pageSize);
+  const finalTotalPages = totalPages > 1 ? totalPages : calculatedTotalPages;
   
   // Handle batch details view
   const handleViewDetails = (batchId: string) => {
@@ -64,7 +82,9 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
 
   // Add refresh button
   const handleRefresh = () => {
-    refetch();
+    if (hookData.refetch) {
+      hookData.refetch();
+    }
   };
   
   // Show skeleton UI instead of a spinner when loading
@@ -120,7 +140,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
     );
   }
   
-  if (isError) {
+  if (error) {
     return (
       <div className="bg-red-50 p-4 rounded">
         <p className="text-red-500">{error instanceof Error ? error.message : 'An error occurred while fetching data'}</p>
@@ -131,7 +151,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
     );
   }
   
-  if (!data?.data || data.data.length === 0) {
+  if (!batches || batches.length === 0) {
     return (
       <div className="text-center p-8 border rounded bg-gray-50">
         <p className="text-gray-500">No processed batches found</p>
@@ -158,14 +178,13 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
               <TableHead>Product</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Boxes</TableHead>
-              <TableHead>Submitted By</TableHead>
               <TableHead>Processed By</TableHead>
               <TableHead>Processed Date</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.data.map((batch) => (
+            {batches.map((batch) => (
               <TableRow 
                 key={batch.id} 
                 className={batch.id === highlightBatchId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
@@ -173,34 +192,25 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
                 <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
                 <TableCell>
                   <div>
-                    <div className="font-medium">{batch.product_name}</div>
-                    <div className="text-sm text-muted-foreground">SKU: {batch.product_sku}</div>
+                    <div className="font-medium">{batch.product?.name || batch.product_name || 'Unknown Product'}</div>
+                    <div className="text-sm text-muted-foreground">SKU: {batch.product?.sku || batch.product_sku || 'N/A'}</div>
                   </div>
                 </TableCell>
-                <TableCell>{batch.total_quantity}</TableCell>
-                <TableCell>{batch.boxes}</TableCell>
-                <TableCell>{batch.submitter_name || 'Unknown'}</TableCell>
-                <TableCell>{batch.processor_name}</TableCell>
+                <TableCell>{batch.totalQuantity || batch.total_quantity || 0}</TableCell>
+                <TableCell>{batch.totalBoxes || batch.boxes || 0}</TableCell>
+                <TableCell>{batch.processorName || batch.processor_name || 'Unknown'}</TableCell>
                 <TableCell>
-                  {batch.completed_at ? format(new Date(batch.completed_at), 'MMM d, yyyy h:mm a') : 'N/A'}
+                  {batch.created_at ? format(new Date(batch.created_at), 'MMM d, yyyy h:mm a') : 'N/A'}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
                     <Button 
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleViewDetails(batch.id)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      Details
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePrintBarcodes(batch.id)}
-                    >
-                      <Printer className="h-4 w-4 mr-1" />
-                      Barcodes
+                      View Barcodes
                     </Button>
                   </div>
                 </TableCell>
@@ -211,13 +221,13 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
       </div>
       
       {/* Pagination Controls */}
-      {totalPages > 1 && (
+      {finalTotalPages > 1 && (
         <div className="flex justify-center items-center gap-2 py-4">
-          <Button size="sm" variant="outline" onClick={() => onPageChange && onPageChange(page - 1)} disabled={page === 1}>
+          <Button size="sm" variant="outline" onClick={() => onPageChange && onPageChange(currentPage - 1)} disabled={currentPage === 1}>
             Previous
           </Button>
-          <span>Page {page} of {totalPages}</span>
-          <Button size="sm" variant="outline" onClick={() => onPageChange && onPageChange(page + 1)} disabled={page === totalPages}>
+          <span>Page {currentPage} of {finalTotalPages}</span>
+          <Button size="sm" variant="outline" onClick={() => onPageChange && onPageChange(currentPage + 1)} disabled={currentPage === finalTotalPages}>
             Next
           </Button>
         </div>

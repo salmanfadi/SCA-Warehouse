@@ -1,6 +1,6 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, executeQuery } from '@/lib/supabase';
 
 export interface BatchDetail {
   batchId: string;
@@ -18,10 +18,12 @@ export interface ProductWithBatches {
   productId: string;
   productName: string;
   sku: string;
-  category: string;
+  categories: string[];
   hsnCode: string;
-  gstRate: number;
-  totalQuantity: number;
+  gstRate?: number;
+  totalQuantity: number; // Total quantity across all batches
+  totalProductCount: number; // Total product count (batches * boxes * quantity)
+  batchCount: number; // Number of batches
   batches?: BatchDetail[];
 }
 
@@ -48,29 +50,71 @@ async function fetchProductBatchesData(
   searchQuery: string
 ): Promise<ProductBatchesResponse> {
   try {
-    // Step 1: Fetch all products with pagination including HSN and GST data
-    let productsQuery = supabase
+    // First, we need to get all product IDs with their stock status to sort them properly
+    // This query will get all product IDs and their associated batch quantities
+    const { data: productStockData, error: stockError } = await supabase
+      .from('processed_batches')
+      .select('product_id, total_quantity')
+      .order('total_quantity', { ascending: false });
+    
+    if (stockError) {
+      console.error('Error fetching product stock data:', stockError);
+      throw new Error(`Failed to fetch product stock data: ${stockError.message}`);
+    }
+    
+    // Create a map of product IDs to their total quantity
+    const productQuantityMap: Record<string, number> = {};
+    productStockData?.forEach((item: any) => {
+      const productId = item.product_id;
+      if (productId) {
+        productQuantityMap[productId] = (productQuantityMap[productId] || 0) + Number(item.total_quantity || 0);
+      }
+    });
+    
+    // Get all product IDs sorted by their stock status (in-stock first)
+    const { data: allProducts, error: allProductsError } = await supabase
       .from('products')
-      .select('id, name, sku, category, hsn_code, gst_rate', { count: 'exact' });
+      .select('id, name, sku, categories, hsn_code');
+      
+    if (allProductsError) {
+      console.error('Error fetching all products:', allProductsError);
+      throw new Error(`Failed to fetch all products: ${allProductsError.message}`);
+    }
+    
+    // Sort products by stock status (in-stock first)
+    const sortedProducts = (allProducts || []).sort((a: any, b: any) => {
+      const aQuantity = productQuantityMap[a.id] || 0;
+      const bQuantity = productQuantityMap[b.id] || 0;
+      
+      // First sort by stock status (in stock first)
+      if (aQuantity > 0 && bQuantity <= 0) return -1;
+      if (aQuantity <= 0 && bQuantity > 0) return 1;
+      // Then sort by name
+      return a.name.localeCompare(b.name);
+    });
     
     // Apply search filter if provided
+    let filteredProducts = sortedProducts;
     if (searchQuery) {
-      productsQuery = productsQuery.or(
-        `name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%,hsn_code.ilike.%${searchQuery}%`
-      );
+      filteredProducts = sortedProducts.filter((product: any) => {
+        return (
+          product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.hsn_code?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      });
     }
+    
+    // Calculate total count
+    const totalProductCount = filteredProducts.length;
     
     // Apply pagination
     const from = Math.max(0, (page - 1) * pageSize);
-    const to = from + pageSize - 1;
-    productsQuery = productsQuery.range(from, to);
+    const to = Math.min(from + pageSize, filteredProducts.length);
+    const paginatedProducts = filteredProducts.slice(from, to);
     
-    const { data: productsData, error: productsError, count: totalProductCount } = await productsQuery;
-    
-    if (productsError) {
-      console.error('Error fetching products:', productsError);
-      throw new Error(`Failed to fetch products: ${productsError.message}`);
-    }
+    // Use the paginated products as our product data
+    const productsData = paginatedProducts;
     
     if (!productsData || productsData.length === 0) {
       return {
@@ -87,6 +131,23 @@ async function fetchProductBatchesData(
       .from('processed_batches')
       .select('id, created_at, product_id, warehouse_id, location_id, total_quantity')
       .in('product_id', productIds);
+      
+    // Step 3.5: Fetch batch items to calculate accurate product counts
+    let batchItemsData: any[] = [];
+    if (batchesData && batchesData.length > 0) {
+      const batchIds = batchesData.map((batch: any) => batch.id);
+      const { data: batchItems, error: batchItemsError } = await supabase
+        .from('batch_items')
+        .select('id, batch_id, quantity')
+        .in('batch_id', batchIds);
+        
+      if (batchItemsError) {
+        console.error('Error fetching batch items:', batchItemsError);
+        throw new Error(`Failed to fetch batch items: ${batchItemsError.message}`);
+      }
+      
+      batchItemsData = batchItems || [];
+    }
     
     if (batchesError) {
       console.error('Error fetching batches:', batchesError);
@@ -150,7 +211,23 @@ async function fetchProductBatchesData(
       const productBatchesData = (batchesData || []).filter((batch: any) => batch.product_id === product.id);
       
       // Calculate total quantity across all batches
-      const totalQuantity = productBatchesData.reduce((sum: number, batch: any) => sum + (batch.total_quantity || 0), 0);
+      const totalQuantity = productBatchesData.reduce((sum: number, batch: any) => sum + (Number(batch.total_quantity) || 0), 0);
+      
+      // Calculate total product count (batches * boxes * quantity)
+      let totalProductCount = 0;
+      let batchCount = productBatchesData.length;
+      
+      // For each batch, find its batch items and sum up the quantities
+      productBatchesData.forEach((batch: any) => {
+        const batchItems = batchItemsData.filter((item: any) => item.batch_id === batch.id);
+        const batchItemCount = batchItems.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0);
+        totalProductCount += batchItemCount > 0 ? batchItemCount : Number(batch.total_quantity) || 0;
+      });
+      
+      // If no batch items found but we have batches, use total_quantity as fallback
+      if (totalProductCount === 0 && totalQuantity > 0) {
+        totalProductCount = totalQuantity;
+      }
       
       // Format batch details
       const batches: BatchDetail[] = productBatchesData.map((batch: any) => {
@@ -164,9 +241,14 @@ async function fetchProductBatchesData(
         const zone = location.zone || 'N/A';
         const floor = location.floor || 'N/A';
         
+        // Calculate actual quantity for this batch
+        const batchItems = batchItemsData.filter((item: any) => item.batch_id === batch.id);
+        const batchItemQuantity = batchItems.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0);
+        const finalQuantity = batchItemQuantity > 0 ? batchItemQuantity : Number(batch.total_quantity) || 0;
+        
         return {
           batchId: batch.id,
-          quantity: batch.total_quantity || 0,
+          quantity: finalQuantity,
           warehouseId,
           warehouseName,
           locationId,
@@ -181,10 +263,12 @@ async function fetchProductBatchesData(
         productId: product.id,
         productName: product.name,
         sku: product.sku,
-        category: product.category,
+        categories: product.categories || [],
         hsnCode: product.hsn_code || 'Not Set',
-        gstRate: product.gst_rate || 0,
+        gstRate: 0, // Default value since gst_rate doesn't exist in the table
         totalQuantity,
+        totalProductCount,
+        batchCount,
         batches
       };
     });

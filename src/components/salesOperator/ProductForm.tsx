@@ -57,7 +57,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onOpenChange }
       }
 
       // Prepare product data for database insertion
-      const { selectedImage, image_file, ...productToInsert } = productData;
+      const { selectedImage, ...productToInsert } = productData;
       
       // Ensure required fields are present and properly typed
       const finalProductData = {

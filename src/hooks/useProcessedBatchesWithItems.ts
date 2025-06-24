@@ -147,14 +147,15 @@ export function useProcessedBatchesWithItems({
             // Get processor name if available
             let processorName = undefined;
             if (batch.processed_by) {
-              const { data: userData } = await supabase
+              const { data: userData, error: userError } = await supabase
                 .from('profiles')
-                .select('name')
+                .select('full_name')
                 .eq('id', batch.processed_by)
                 .single();
               
-              if (userData) {
-                processorName = userData.name;
+              // Type assertion to handle the response properly
+              if (userData && typeof userData === 'object' && userData !== null) {
+                processorName = (userData as { full_name?: string }).full_name;
               }
             }
 

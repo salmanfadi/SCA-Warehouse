@@ -23,7 +23,7 @@ import { ProductView } from '@/components/warehouse/ProductView';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import EnhancedBatchDetailsDialog from '@/components/warehouse/EnhancedBatchDetailsDialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -69,7 +69,7 @@ interface ProcessedBatchData {
   };
   processor?: {
     id: string;
-    name: string;
+    full_name: string;
   };
 }
 
@@ -108,7 +108,15 @@ interface Batch {
   };
 }
 
-const EnhancedInventoryView: React.FC = () => {
+interface EnhancedInventoryViewProps {
+  isAdminView?: boolean;
+  overrideBackNavigation?: () => boolean;
+}
+
+const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({ 
+  isAdminView = false,
+  overrideBackNavigation
+}) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -373,7 +381,7 @@ const EnhancedInventoryView: React.FC = () => {
           totalQuantity: batch.total_quantity || 0,
           warehouseName: batch.warehouse_id ? (warehouses[batch.warehouse_id] || String(batch.warehouse_id)) : undefined,
           locationDetails: batch.location_id ? `Location ID: ${batch.location_id}` : undefined,
-          processorName: batch.processor?.name,
+          processorName: batch.processor?.full_name,
           processedAt: batch.processed_at,
           product: batch.products ? { name: batch.products.name } : undefined,
           items: (batch.batch_items || []).map(item => {
