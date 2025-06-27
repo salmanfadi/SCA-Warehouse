@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X, QrCode } from 'lucide-react';
 import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
-import { executeQuery } from '@/lib/supabase';
+import { executeQuery, supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface BatchItem {
   id: string;
   barcode?: string;
+  barcode_id?: string;
   product_id?: string;
   product_name: string;
+  product_sku?: string;
+  product_description?: string;
+  product_category?: string[];
   batch_id?: string;
   batch_number?: string;
+  batch_item_id?: string;
+  barcode_batch_id?: string;
+  box_id?: string;
   quantity: number;
   location_id?: string;
   location_name?: string;
@@ -21,6 +30,9 @@ interface BatchItem {
   warehouse_name?: string;
   floor?: string | number;
   zone?: string;
+  color?: string;
+  size?: string;
+  status?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -59,51 +71,79 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
     setIsLoading(true);
 
     try {
-      // Use the optimized function to get all details in a single query
-      const { data, error } = await executeQuery('barcodes-fast', async (supabase) => {
-        // Try the optimized function first
-        const result = await supabase.rpc('get_barcode_details_fast', {
-          p_barcode: barcodeValue.trim()
-        });
+      // Use the barcode_batch_view to get all details in a single query
+      let barcodeData = null;
+      const { error } = await executeQuery('barcode-lookup', async (supabase) => {
+        console.log('Looking up barcode in barcode_batch_view:', barcodeValue.trim());
         
-        console.log('RPC function result:', result);
+        // First try exact match in barcode_batch_view
+        const result = await supabase
+          .from('barcode_batch_view')
+          .select('*')
+          .eq('barcode', barcodeValue.trim());
         
-        // If the function doesn't exist, fall back to the direct query
-        if (result.error && result.error.message.includes('does not exist')) {
-          console.log('Using fallback query method');
-          return await supabase
-            .from('barcodes')
-            .select(`
-              id, barcode, product_id, batch_id, quantity, warehouse_id, location_id, created_at, updated_at,
-              products:product_id(name),
-              warehouses:warehouse_id(name),
-              warehouse_locations:location_id(name)
-            `)
-            .eq('barcode', barcodeValue.trim())
-            .single();
+        console.log('Barcode batch view result:', result);
+        
+        if (result.data && result.data.length > 0) {
+          console.log('Found exact match in barcode_batch_view:', result.data[0]);
+          barcodeData = result.data[0];
+          return result.data[0];
         }
         
-        // If no results found with exact match and barcode is short, try partial match
-        if (!result.data && barcodeValue.length < 19) {
-          console.log('No exact match found, trying partial match in fallback');
+        // If no results found with exact match and barcode is long enough, try partial match
+        if (!barcodeData) {
+          console.log('No exact match found, trying partial match in barcode_batch_view');
           const partialResult = await supabase
-            .from('barcodes')
-            .select(`
-              id, barcode, product_id, batch_id, quantity, warehouse_id, location_id, created_at, updated_at,
-              products:product_id(name),
-              warehouses:warehouse_id(name),
-              warehouse_locations:location_id(name)
-            `)
+            .from('barcode_batch_view')
+            .select('*')
             .like('barcode', `%${barcodeValue.trim()}%`)
             .limit(1);
-            
+          
           if (partialResult.data && partialResult.data.length > 0) {
-            console.log('Found partial match:', partialResult.data[0]);
+            console.log('Found partial match in barcode_batch_view:', partialResult.data[0]);
+            barcodeData = partialResult.data[0];
             return partialResult.data[0];
           }
         }
         
-        return result;
+        // If still no results, fall back to the direct barcodes table query
+        if (!barcodeData) {
+          console.log('No match in barcode_batch_view, trying barcodes table');
+          const fallbackResult = await supabase
+            .from('barcodes')
+            .select(`
+              id, barcode, product_id, box_id, batch_id, created_at, updated_at,
+              products:product_id(name, sku, description)
+            `)
+            .eq('barcode', barcodeValue.trim());
+            
+          if (fallbackResult.data && fallbackResult.data.length > 0) {
+            console.log('Found match in barcodes table:', fallbackResult.data[0]);
+            barcodeData = fallbackResult.data[0];
+            return fallbackResult.data[0];
+          }
+        }
+        
+        // Try one more time with a partial match in the barcodes table
+        if (!barcodeData) {
+          const partialBarcodeResult = await supabase
+            .from('barcodes')
+            .select(`
+              id, barcode, product_id, box_id, batch_id, created_at, updated_at,
+              products:product_id(name, sku, description)
+            `)
+            .like('barcode', `%${barcodeValue.trim()}%`)
+            .limit(1);
+            
+          if (partialBarcodeResult.data && partialBarcodeResult.data.length > 0) {
+            console.log('Found partial match in barcodes table:', partialBarcodeResult.data[0]);
+            barcodeData = partialBarcodeResult.data[0];
+            return partialBarcodeResult.data[0];
+          }
+        }
+        
+        return null;
+            
       });
 
       if (error) {
@@ -111,107 +151,161 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
         throw new Error(error.message || 'Failed to fetch barcode details');
       }
 
-      if (!data) {
-        console.log('No exact barcode match found, trying partial match...');
+      // Use the barcodeData variable instead of data from executeQuery
+      if (!barcodeData) {
+        console.log('No barcode match found in any table');
         
-        // Try a partial match if the barcode is short (likely a misread)
-        if (barcodeValue.length < 19 && /^\d+$/.test(barcodeValue)) {
-          const { data: partialMatches } = await executeQuery('partial-barcode-match', async (supabase) => {
-            return await supabase
-              .from('barcodes')
-              .select('*')
-              .like('barcode', `%${barcodeValue}%`)
-              .limit(5);
-          });
-          
-          if (partialMatches && partialMatches.length > 0) {
-            console.log('Found potential barcode matches:', partialMatches);
-            
-            // If there's only one match, use it automatically
-            if (partialMatches.length === 1) {
-              console.log('Using the single partial match:', partialMatches[0].barcode);
-              return handleBarcodeSubmit(partialMatches[0].barcode);
-            } else {
-              // Show options to the user
-              setIsLoading(false);
-              toast({
-                title: 'Multiple Matches Found',
-                description: 'Please select the correct barcode from the list below',
-              });
-              
-              // Display potential matches (implementation depends on your UI)
-              // For now, just use the first match
-              return handleBarcodeSubmit(partialMatches[0].barcode);
-            }
-          }
-        }
-        
-        throw new Error('No barcode found with this value');
-      }
-
-      console.log('Barcode data found:', data);
-      console.log('Full barcode data:', JSON.stringify(data));
-      
-      // Extract actual names from the response
-      const batchItem: BatchItem = {
-        id: data.id,
-        barcode: data.barcode,
-        product_id: data.product_id,
-        product_name: data.product_name || data.products?.name || 'Unknown Product',
-        batch_id: data.batch_id,
-        batch_number: data.batch_id ? `BATCH-${data.batch_id.substring(0, 6)}` : 'N/A',
-        quantity: data.quantity || 0,
-        location_id: data.location_id,
-        location_name: data.location_name || (data.locations && data.locations.name) || 'Loading...',
-        warehouse_id: data.warehouse_id,
-        warehouse_name: data.warehouse_name || data.warehouses?.name || 'Unknown',
-        created_at: data.created_at,
-        updated_at: data.updated_at
-      };
-      
-      // Use the location name from the initial query if available
-      if (data.location_name) {
-        console.log('Using location name from initial query:', data.location_name);
-        batchItem.location_name = data.location_name;
-      } else if (data.locations && data.locations.name) {
-        console.log('Using location name from relationship data:', data.locations.name);
-        batchItem.location_name = data.locations.name;
-      } else if (data.location_id) {
-        // If we have a location ID but no name, fetch it from warehouse_locations
-        console.log('Fetching location name from warehouse_locations for ID:', data.location_id);
-        executeQuery('warehouse-location-name', async (supabase) => {
-          try {
-            const { data: locationData, error } = await supabase
-              .from('warehouse_locations')
-              .select('name')
-              .eq('id', data.location_id)
-              .single();
-              
-            if (error) {
-              console.error('Error fetching warehouse location:', error);
-              return;
-            }
-            
-            if (locationData?.name) {
-              console.log('Found warehouse location name:', locationData.name);
-              setBatchItem(prev => prev ? {
-                ...prev,
-                location_name: locationData.name
-              } : prev);
-            }
-          } catch (err) {
-            console.error('Exception fetching warehouse location:', err);
-          }
+        // Show a more user-friendly error message
+        toast({
+          variant: 'destructive',
+          title: 'Barcode Not Found',
+          description: 'The scanned barcode was not found in the system. Please check the barcode and try again.',
         });
         
-        // Use a placeholder while fetching
-        batchItem.location_name = 'Loading location...';
-      } else {
-        batchItem.location_name = 'Not specified';
+        // Don't throw an error, just return early
+        setIsLoading(false);
+        return;
       }
 
-      console.log('Setting batch item:', batchItem);
-      setBatchItem(batchItem);
+      console.log('Barcode data found:', barcodeData);
+      console.log('Full barcode data:', JSON.stringify(barcodeData));
+      
+      // Log the full data structure to understand what fields are available
+      console.log('Data structure from barcode lookup:', barcodeData);
+      
+      // Create a temporary batch item object that we'll update with location and warehouse names
+      let batchItemData: BatchItem = {
+        id: barcodeData.batch_item_id || barcodeData.barcode_id || 'unknown-id',
+        barcode: barcodeValue,
+        barcode_id: barcodeData.barcode_id || '',
+        product_id: barcodeData.product_id || '',
+        product_name: barcodeData.product_name || 'Unknown Product',
+        product_sku: barcodeData.product_sku || '',
+        product_description: barcodeData.product_description || '',
+        product_category: barcodeData.product_category || [],
+        batch_id: barcodeData.batch_id || '',
+        batch_number: barcodeData.batch_number || '',
+        batch_item_id: barcodeData.batch_item_id || '',
+        barcode_batch_id: barcodeData.barcode_batch_id || '',
+        box_id: barcodeData.box_id || '',
+        quantity: barcodeData.quantity || 0,
+        location_id: barcodeData.location_id || '',
+        location_name: barcodeData.location_name || 'Unknown Location',
+        warehouse_id: barcodeData.warehouse_id || '',
+        warehouse_name: barcodeData.warehouse_name || 'Unknown Warehouse',
+        color: barcodeData.color || '',
+        size: barcodeData.size || '',
+        status: barcodeData.status || '',
+        created_at: barcodeData.created_at || '',
+        updated_at: barcodeData.updated_at || ''
+      };
+      
+      console.log('Initial batch item data:', batchItemData);
+      
+      // Fetch location name if we have a location ID
+      if (barcodeData.location_id) {
+        console.log('Fetching location name for ID:', barcodeData.location_id);
+        try {
+          // Define the type for warehouse_locations table data
+          type WarehouseLocation = {
+            id: string;
+            warehouse_id: string;
+            name: string;
+            description?: string;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+            floor?: number;
+            zone?: string;
+            sno?: number;
+          };
+
+          // Try to get location from warehouse_locations table
+          const { data: warehouseLocationData, error: warehouseLocationError } = await supabase
+            .from('warehouse_locations')
+            .select('name, floor, zone, warehouse_id')
+            .eq('id', barcodeData.location_id);
+            
+          if (warehouseLocationError) {
+            console.error('Error fetching from warehouse_locations:', warehouseLocationError);
+          } else if (warehouseLocationData && warehouseLocationData.length > 0) {
+            // Use type assertion with a more specific type that matches the query result
+            const locationData = warehouseLocationData[0] as {
+              name?: string;
+              floor?: number | string;
+              zone?: string;
+              warehouse_id?: string;
+            };
+            console.log('Found location in warehouse_locations table:', locationData);
+            
+            // Update location name with more detailed information if available
+            let locationName = locationData.name;
+            
+            
+            batchItemData.location_name = locationName;
+            
+            // If we have a warehouse ID from the location but not from the barcode data,
+            // update the warehouse ID to ensure we get the correct warehouse
+            if (locationData.warehouse_id && !batchItemData.warehouse_id) {
+              batchItemData.warehouse_id = locationData.warehouse_id;
+              
+              // Fetch the warehouse name for this updated ID
+              console.log('Fetching warehouse name for ID from location:', batchItemData.warehouse_id);
+              const { data: warehouseData, error } = await supabase
+                .from('warehouses')
+                .select('name')
+                .eq('id', batchItemData.warehouse_id);
+                
+              if (error) {
+                console.error('Error fetching warehouse from location reference:', error);
+              } else if (warehouseData && warehouseData.length > 0) {
+                console.log('Found warehouse name from location reference:', warehouseData[0].name);
+                batchItemData.warehouse_name = warehouseData[0].name;
+              }
+            }
+          } else {
+            // Fallback to locations table if not found in warehouse_locations
+            console.log('Location not found in warehouse_locations, checking locations table');
+            const { data: locationData, error } = await supabase
+              .from('locations')
+              .select('name')
+              .eq('id', barcodeData.location_id);
+              
+            if (error) {
+              console.error('Error fetching from locations:', error);
+            } else if (locationData && locationData.length > 0) {
+              console.log('Found location name in locations table:', locationData[0].name);
+              batchItemData.location_name = locationData[0].name;
+            }
+          }
+        } catch (err) {
+          console.error('Exception fetching location:', err);
+        }
+      }
+      
+      // Fetch warehouse name if we have a warehouse ID
+      if (barcodeData.warehouse_id) {
+        console.log('Fetching warehouse name for ID:', barcodeData.warehouse_id);
+        try {
+          const { data: warehouseData, error } = await supabase
+            .from('warehouses')
+            .select('name')
+            .eq('id', barcodeData.warehouse_id);
+            
+          if (error) {
+            console.error('Error fetching warehouse:', error);
+          } else if (warehouseData && warehouseData.length > 0) {
+            console.log('Found warehouse name:', warehouseData[0].name);
+            batchItemData.warehouse_name = warehouseData[0].name;
+          }
+        } catch (err) {
+          console.error('Exception fetching warehouse:', err);
+        }
+      }
+
+      // Now set the batch item with all the data including fetched location and warehouse names
+      console.log('Final batch item data:', batchItemData);
+      setBatchItem(batchItemData);
       
     } catch (error) {
       console.error('Error in handleBarcodeSubmit:', error);
@@ -258,7 +352,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
                   </>
                 ) : (
                   <>
-                    <Camera className="h-4 w-4" />
+                    <QrCode className="h-4 w-4" />
                     Open Camera
                   </>
                 )}
@@ -294,7 +388,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
                   onClick={() => setShowScanner(true)}
                   className="flex items-center gap-2"
                 >
-                  <Camera className="h-4 w-4" />
+                  <QrCode className="h-4 w-4" />
                   Scan
                 </Button>
               </div>
@@ -321,15 +415,40 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Product</Label>
                   <div className="text-lg font-semibold">{batchItem.product_name}</div>
                 </div>
                 
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Batch</Label>
-                  <div>{batchItem.batch_number}</div>
+                {batchItem.product_sku && (
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">SKU</Label>
+                    <div>{batchItem.product_sku}</div>
+                  </div>
+                )}
+                
+                {batchItem.product_description && (
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                    <div className="text-sm">{batchItem.product_description}</div>
+                  </div>
+                )}
+                
+                <div className="flex gap-4">
+                  {batchItem.color && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Color</Label>
+                      <div>{batchItem.color}</div>
+                    </div>
+                  )}
+                  
+                  {batchItem.size && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Size</Label>
+                      <div>{batchItem.size}</div>
+                    </div>
+                  )}
                 </div>
                 
                 <div>
@@ -338,7 +457,12 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Batch</Label>
+                  <div>{batchItem.batch_number || `BATCH-${batchItem.batch_id?.substring(0, 6)}`}</div>
+                </div>
+                
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Warehouse</Label>
                   <div>{batchItem.warehouse_name}</div>
@@ -348,6 +472,17 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
                   <Label className="text-sm font-medium text-muted-foreground">Location</Label>
                   <div>{batchItem.location_name}</div>
                 </div>
+                
+                {batchItem.status && (
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                    <div>
+                      <Badge variant="outline" className="capitalize">
+                        {batchItem.status}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
                 
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Created</Label>

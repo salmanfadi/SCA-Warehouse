@@ -4,6 +4,7 @@ import { Product } from '@/types/database';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 
 interface ProductBasicInfoFormProps {
   formData: Partial<Product>;
@@ -53,6 +54,16 @@ export const ProductBasicInfoForm: React.FC<ProductBasicInfoFormProps> = ({
           disabled={isSubmitting}
           rows={3}
         />
+      </div>
+      
+      <div className="flex items-center space-x-2 mt-4">
+        <Switch
+          id="is_active"
+          checked={formData.is_active ?? true}
+          onCheckedChange={(checked) => onChange('is_active', checked)}
+          disabled={isSubmitting}
+        />
+        <Label htmlFor="is_active">Active</Label>
       </div>
     </>
   );

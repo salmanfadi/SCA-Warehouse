@@ -8,7 +8,7 @@ import { getHSNForProduct } from '@/utils/hsnCodes';
 import { ProductBasicInfoForm } from './ProductBasicInfoForm';
 import { ProductCategoryForm } from './ProductCategoryForm';
 import { ProductHSNForm } from './ProductHSNForm';
-import { ProductBarcodeForm } from './ProductBarcodeForm';
+// Removed ProductBarcodeForm import as it's no longer needed
 
 interface ProductFormProps {
   product?: Product;
@@ -28,7 +28,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
     description: '',
     sku: '',
     category: '',
-    barcode: '',
     unit: '',
     min_stock_level: 0,
     is_active: true,
@@ -44,7 +43,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
         description: product.description || '',
         sku: product.sku || '',
         category: product.category || '',
-        barcode: product.barcode || '',
         unit: product.unit || '',
         min_stock_level: product.min_stock_level || 0,
         is_active: product.is_active ?? true,
@@ -100,12 +98,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
           />
 
           <ProductHSNForm 
-            formData={formData}
-            isSubmitting={isSubmitting}
-            onChange={handleChange}
-          />
-
-          <ProductBarcodeForm 
             formData={formData}
             isSubmitting={isSubmitting}
             onChange={handleChange}

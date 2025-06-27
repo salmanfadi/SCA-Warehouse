@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -321,6 +322,9 @@ const WarehouseManagement: React.FC = () => {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
+            <DialogDescription className="sr-only">
+              {editingWarehouse ? 'Edit warehouse details' : 'Create a new warehouse'}
+            </DialogDescription>
             <DialogHeader>
               <DialogTitle>
                 {editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}

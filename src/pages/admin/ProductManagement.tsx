@@ -36,11 +36,12 @@ const ProductManagement: React.FC = () => {
     try {
       if (!user?.id) throw new Error('User not authenticated');
       
-      // Auto-assign HSN code if not provided
+      // Auto-assign HSN code if not provided and ensure barcode is explicitly set to null
       const dataWithHSN = {
         ...productData,
         name: productData.name || '',
         sku: productData.sku || undefined,
+        barcode: null, // Explicitly set barcode to null to avoid backend errors
         hsn_code: productData.hsn_code || getHSNCodeByCategory(productData.category || ''),
         gst_rate: productData.gst_rate !== undefined ? productData.gst_rate : getGSTRateByCategory(productData.category || ''),
         gst_category: productData.gst_category || 'standard'

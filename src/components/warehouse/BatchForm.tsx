@@ -78,7 +78,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('is_active', true)
+        .or('is_active.eq.true,active.eq.true')
         .order('name');
       
       if (error) throw error;

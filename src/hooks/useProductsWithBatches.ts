@@ -50,7 +50,7 @@ export const useProductsWithBatches = (): UseProductsWithBatchesResult => {
         let query = supabase
           .from('products')
           .select('id, name, sku, description, category')
-          .eq('is_active', true);
+          .or('is_active.eq.true,active.eq.true');
         
         // Apply search filter if provided
         if (searchTerm) {
