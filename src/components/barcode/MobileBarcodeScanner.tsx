@@ -12,6 +12,7 @@ interface MobileBarcodeScannerProps {
   inputValue?: string;
   onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   scanButtonLabel?: string;
+  onClose?: () => void;
 }
 
 const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
@@ -20,6 +21,7 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
   inputValue = '',
   onInputChange,
   scanButtonLabel = 'Scan',
+  onClose,
 }) => {
   // State variables
   const [isScanning, setIsScanning] = useState(false);
@@ -171,7 +173,7 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
   }, [currentCamera]);
   
   // Handle barcode detection
-  const handleBarcodeDetected = useCallback((result: Quagga.QuaggaJSResultObject) => {
+  const handleBarcodeDetected = useCallback((result: any) => {
     const code = result.codeResult.code;
     if (!code) return;
     
@@ -185,25 +187,50 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
       return;
     }
     
-    // Play success sound
+    // Play success sound - use optional sound if available
     try {
-      const audio = new Audio('/beep.mp3');
-      audio.play().catch(e => console.log('Sound play error:', e));
+      // First check if the file exists in public directory
+      fetch('/beep.mp3', { method: 'HEAD' })
+        .then(response => {
+          if (response.ok) {
+            const audio = new Audio('/beep.mp3');
+            audio.play().catch(e => {
+              console.log('Sound play warning (non-critical):', e);
+              // Silently continue if sound can't play - this is not a critical error
+            });
+          } else {
+            console.log('Sound file not found - skipping sound');
+          }
+        })
+        .catch(() => {
+          console.log('Sound file check failed - skipping sound');
+        });
     } catch (e) {
-      console.log('Sound not supported:', e);
+      // Silently continue if sound is not supported
+      console.log('Sound not supported (non-critical):', e);
     }
     
     // Stop scanning
     stopScanning();
     
-    // Notify parent component
-    onBarcodeScanned(code);
-    
-    // Show success toast
-    toast({
-      title: "Barcode Scanned",
-      description: `${code}`,
-    });
+    // Ensure onBarcodeScanned is a function before calling it
+    if (typeof onBarcodeScanned === 'function') {
+      // Notify parent component
+      onBarcodeScanned(code);
+      
+      // Show success toast
+      toast({
+        title: "Barcode Scanned",
+        description: `${code}`,
+      });
+    } else {
+      console.error('onBarcodeScanned is not a function', onBarcodeScanned);
+      toast({
+        title: "Error",
+        description: "Could not process barcode. Please try again.",
+        variant: "destructive"
+      });
+    }
   }, [onBarcodeScanned]);
   
   // Stop scanning
@@ -217,11 +244,16 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
         setWasScanningStopped(true);
         setHasScannedBefore(true);
         console.log("Quagga stopped");
+        
+        // Call onClose if provided
+        if (onClose) {
+          onClose();
+        }
       } catch (error) {
         console.error("Error stopping Quagga:", error);
       }
     }
-  }, [handleBarcodeDetected]);
+  }, [handleBarcodeDetected, onClose]);
   
   // Switch camera between front and back
   const switchCamera = useCallback(() => {

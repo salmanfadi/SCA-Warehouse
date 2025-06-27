@@ -188,6 +188,7 @@ function App() {
                 <Route path="/manager/stock-in/process/:id" element={<ProcessStockInPage />} />
                 <Route path="/manager/stock-out" element={<StockOutApproval />} />
                 <Route path="/manager/stock-out/barcode-scanner" element={<BarcodeScannerPage />} />
+                <Route path="/manager/stock-out/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
                 <Route path="/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
                 <Route path="/manager/stock-out/barcode-stock-out" element={<BarcodeStockOutPage />} />
                 <Route path="/manager/barcode" element={<BarcodeLookup />} />
@@ -209,6 +210,8 @@ function App() {
               }>
                 <Route path="/inventory/batches/:batchId/barcodes" element={<BatchBarcodesPage />} />
                 <Route path="/inventory/batches/barcodes" element={<BatchBarcodesPage />} />
+                {/* Redirect route for backward compatibility */}
+                <Route path="/warehouse/stock-out" element={<StockOutApproval />} />
               </Route>
               
               {/* Field Operator Routes */}

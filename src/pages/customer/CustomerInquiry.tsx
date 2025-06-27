@@ -52,8 +52,8 @@ const CustomerInquiry: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, description, sku')
-        .eq('is_active', true)
+        .select('id, name, sku, description, price')
+        .or('is_active.eq.true,active.eq.true')
         .order('name');
 
       if (error) throw error;

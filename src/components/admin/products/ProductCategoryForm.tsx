@@ -26,12 +26,12 @@ export const ProductCategoryForm: React.FC<ProductCategoryFormProps> = ({
           onValueChange={(value) => onChange('category', value)}
           disabled={isSubmitting}
         >
-          <SelectTrigger>
+          <SelectTrigger id="category-trigger">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
-            {PRODUCT_CATEGORIES.map((category) => (
-              <SelectItem key={category} value={category}>
+            {Array.isArray(PRODUCT_CATEGORIES) && PRODUCT_CATEGORIES.map((category) => (
+              <SelectItem key={`category-${category}`} value={category}>
                 {category}
               </SelectItem>
             ))}

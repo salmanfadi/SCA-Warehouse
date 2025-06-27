@@ -193,11 +193,8 @@ export const useSalesOrders = () => {
           .insert({
             customer_name: orderData.customer_name,
             customer_email: orderData.customer_email,
-            customer_company: orderData.customer_company,
-            customer_phone: orderData.customer_phone,
             status: 'in_progress', // This is now an order in progress
-            message: orderData.message || '',
-            notes: orderData.notes || 'Created directly as an order',
+            message: orderData.message || ''
           })
           .select()
           .single();
@@ -354,7 +351,8 @@ export const useSalesOrders = () => {
               requester_username: userProfile?.username || '',
               reference_number: salesOrder.sales_order_number || `SO-${salesOrder.id.substring(0, 8)}`,
               priority: 'normal',
-              requested_by: user?.id
+              requested_by: user?.id,
+              customer_inquiry_id: salesOrder.id // Add the customer inquiry ID as a foreign key
             })
             .select()
             .single();

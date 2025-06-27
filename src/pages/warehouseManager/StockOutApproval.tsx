@@ -400,7 +400,7 @@ const StockOutApproval: React.FC = () => {
                     
                     console.log('Navigating to barcode scanner with data:', enhancedStockOutRequest);
                     
-                    navigate(`/barcode-scanner/${selectedStockOut.id}`, {
+                    navigate(`/manager/stock-out/barcode-scanner/${selectedStockOut.id}`, {
                       state: { 
                         stockOutRequest: enhancedStockOutRequest
                       }

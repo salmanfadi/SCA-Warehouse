@@ -17,6 +17,10 @@ interface CreateProductData {
   hsn_code?: string | null;
   gst_rate?: number | null;
   gst_category?: string | null;
+  unit?: string | null;
+  min_stock_level?: number | null;
+  // Explicitly making barcode optional and nullable
+  barcode?: string | null;
 }
 
 export function useProducts() {

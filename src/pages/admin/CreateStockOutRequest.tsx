@@ -59,7 +59,7 @@ const CreateStockOutRequest: React.FC = () => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('is_active', true);
+        .or('is_active.eq.true,active.eq.true');
       
       if (error) throw error;
       return data;

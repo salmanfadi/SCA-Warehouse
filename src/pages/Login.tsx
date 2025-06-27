@@ -169,7 +169,7 @@ const Login: React.FC = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="name@company.com"
+                    placeholder="Email Address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     ref={emailInputRef}
@@ -191,6 +191,7 @@ const Login: React.FC = () => {
                   <Input
                     id="password"
                     type="password"
+                    placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required

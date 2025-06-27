@@ -46,13 +46,17 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
+      // Query products that are active using either is_active or active column
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, sku, hsn_code, gst_rate')
-        .eq('is_active', true);
+        .select('id, name, sku, hsn_code')
+        .or('is_active.eq.true,active.eq.true');
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching products:', error);
+        throw error;
+      }
+      return data || [];
     },
   });
 

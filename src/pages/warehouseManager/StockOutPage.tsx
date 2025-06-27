@@ -66,7 +66,7 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
             stock_out_details(*, product:products(*)),
             profiles:requested_by(full_name)
           `)
-          .eq('status', 'pending')
+          .not('status', 'eq', 'completed') // Show all stock outs that are not completed
           .order('created_at', { ascending: false });
         
         return query;
