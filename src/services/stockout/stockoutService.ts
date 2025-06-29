@@ -1112,8 +1112,11 @@ const totalProcessed = processedItemsArray.reduce((sum: number, item: any) => su
       }
     }
 
-// Update inventory for all products
-await updateInventoryForProducts(productQuantityMap, userId);
+// Skip updating inventory by product ID to avoid duplicate deductions
+// We'll use barcode-based deduction instead through ensureBatchItemDeduction
+console.log('Skipping product ID-based inventory update to avoid duplicate deductions');
+// The following line was causing duplicate deductions and has been removed:
+// await updateInventoryByProductId(productQuantityMap, userId);
 
 // Update inventory for location-specific products
 await updateLocationSpecificInventory(locationProductQuantityMap, userId);
@@ -1158,7 +1161,11 @@ console.log(`Stock out request ${stockOutId} completed successfully`);
 // Use a simpler type definition to avoid excessive type instantiation
 type SimpleProductMap = Map<string, number>;
 
-async function updateInventoryForProducts(productQuantityMap: SimpleProductMap, userId?: string): Promise<void> {
+/**
+ * @deprecated This function is deprecated and should not be used as it causes duplicate deductions.
+ * Use ensureBatchItemDeduction instead which deducts based on barcodes.
+ */
+async function updateInventoryByProductId(productQuantityMap: SimpleProductMap, userId?: string): Promise<void> {
   // Process products in parallel with a limit to avoid overwhelming the database
   const productEntries = Array.from(productQuantityMap.entries())
     .filter(([key]) => !key.includes(':'));
