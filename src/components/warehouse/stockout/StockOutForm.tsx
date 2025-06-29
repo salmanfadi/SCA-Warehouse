@@ -96,7 +96,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           isProcessing={state.isProcessing}
           maxQuantity={Math.min(
             state.currentBatchItem.quantity,
-            state.stockOutRequest.remaining_quantity
+            state.stockOutRequest.quantity - state.processedItems.reduce((sum, item) => sum + item.quantity, 0)
           )}
         />
       )}
@@ -127,9 +127,12 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           
           {!isReadyForApproval() && state.processedItems.length > 0 && state.stockOutRequest && (
             <p className="text-sm text-amber-600 mt-2">
-              {state.stockOutRequest.remaining_quantity > 0 
-                ? `Please scan all required items (${state.stockOutRequest.remaining_quantity} remaining) before approving.`
-                : 'Stock out is ready for approval.'}
+              {(() => {
+                const remainingQuantity = state.stockOutRequest.quantity - state.processedItems.reduce((sum, item) => sum + item.quantity, 0);
+                return remainingQuantity > 0 
+                  ? `Please scan all required items (${remainingQuantity} remaining) before approving.`
+                  : 'Stock out is ready for approval.';
+              })()} 
             </p>
           )}
         </CardContent>

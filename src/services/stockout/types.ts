@@ -127,6 +127,7 @@ export interface StockOutState {
   scannerEnabled: boolean;
   scannedBarcodes: Set<string>;
   progress: number;
+  processedQuantityMap: Map<string, number>; // Map to track processed quantities by batch_item_id
 }
 
 // Validation result for barcode scanning

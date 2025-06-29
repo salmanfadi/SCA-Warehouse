@@ -58,7 +58,7 @@ const StockOutProgress: React.FC<StockOutProgressProps> = ({
                 Processed: {totalProcessedQuantity} / {stockOutRequest.quantity}
               </span>
               <span>
-                Remaining: {stockOutRequest.remaining_quantity || (stockOutRequest.quantity - totalProcessedQuantity)}
+                Remaining: {stockOutRequest.quantity - totalProcessedQuantity}
               </span>
             </div>
           </div>

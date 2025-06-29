@@ -352,7 +352,12 @@ const BarcodeScannerPage = (): React.ReactNode => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Remaining Quantity</p>
-                    <p className="font-medium">{state.stockOutRequest.remaining_quantity}</p>
+                    <p className="font-medium" data-testid="remaining-quantity">
+                      {state.stockOutRequest ? 
+                        // Calculate remaining quantity directly from the original quantity and processed items
+                        // This ensures it's always up-to-date even if the state update is delayed
+                        (state.stockOutRequest.quantity - state.processedItems.reduce((sum, item) => sum + item.quantity, 0)) : 0}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Requested By</p>
@@ -393,7 +398,9 @@ const BarcodeScannerPage = (): React.ReactNode => {
                         Processed: {state.processedItems.reduce((sum, item) => sum + item.quantity, 0)} / {state.stockOutRequest.quantity}
                       </span>
                       <span>
-                        Remaining: {state.stockOutRequest.remaining_quantity}
+                        Remaining: {state.stockOutRequest ? 
+                          // Calculate remaining quantity directly from the original quantity and processed items
+                          (state.stockOutRequest.quantity - state.processedItems.reduce((sum, item) => sum + item.quantity, 0)) : 0}
                       </span>
                     </div>
                   </div>
@@ -506,7 +513,12 @@ const BarcodeScannerPage = (): React.ReactNode => {
                 onQuantityChange={handleQuantityChange}
                 onProcess={processBatchItem}
                 isProcessing={state.isProcessing}
-                maxQuantity={state.stockOutRequest?.remaining_quantity || 0}
+                maxQuantity={
+                  state.stockOutRequest ? 
+                  // Calculate max quantity directly from original quantity and processed items
+                  // This ensures it's always up-to-date even if the state update is delayed
+                  (state.stockOutRequest.quantity - state.processedItems.reduce((sum, item) => sum + item.quantity, 0)) : 0
+                }
               />
             )}
           </div>
