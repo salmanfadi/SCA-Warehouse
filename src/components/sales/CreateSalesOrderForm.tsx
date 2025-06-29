@@ -61,7 +61,7 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
   });
 
   const addItem = () => {
-    setItems([...items, { product_id: '', quantity: 1, requirements: '' }]);
+    setItems([...items, { product_id: '', quantity: 1, specific_requirements: '' }]);
   };
 
   const removeItem = (index: number) => {
@@ -198,8 +198,8 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
               <div>
                 <Label>Requirements</Label>
                 <Textarea
-                  value={item.requirements || ''}
-                  onChange={(e) => updateItem(index, 'requirements', e.target.value)}
+                  value={item.specific_requirements || ''}
+                  onChange={(e) => updateItem(index, 'specific_requirements', e.target.value)}
                   placeholder="Special requirements..."
                   rows={2}
                 />
