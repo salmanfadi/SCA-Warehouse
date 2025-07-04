@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { ModeToggle } from '@/components/ui/mode-toggle';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -43,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center">
           <Button
             variant="ghost"
             size="sm"
@@ -53,12 +54,20 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
           
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Warehouse Management
-          </h1>
+          <div className={cn(
+            "fixed transition-all duration-300 ease-in-out",
+            isSidebarOpen ? "left-[280px]" : "left-24"
+          )}>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Warehouse Management
+            </h1>
+          </div>
         </div>
 
         <div className="flex items-center space-x-4">
+          {/* Theme Toggle */}
+          <ModeToggle />
+          
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

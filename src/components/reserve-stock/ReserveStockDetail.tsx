@@ -1,11 +1,14 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { reserveStockService } from '@/services/reserveStockService';
+import { reserveStockService, ReserveStockWithDetails } from '@/services/reserveStockService';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { toast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ReserveStockDetailProps {
   id: string;
@@ -21,116 +24,271 @@ export const ReserveStockDetail: React.FC<ReserveStockDetailProps> = ({ id, onCl
     queryFn: () => reserveStockService.getById(id),
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: () => reserveStockService.update(id, { status: 'cancelled' }),
+  const { data: reservedInventory, isLoading: isLoadingInventory } = useQuery({
+    queryKey: ['reserve-stocks', id, 'inventory'],
+    queryFn: () => reserveStockService.getReservedInventory(id),
+    enabled: !!stock,
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: (status: ReserveStockWithDetails['status']) => 
+      reserveStockService.updateStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
       toast({
         title: 'Success',
-        description: 'Reserve stock cancelled successfully.',
+        description: 'Reserve stock status updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: 'Failed to update reserve stock status.',
+        variant: 'destructive',
+      });
+      console.error('Error updating reserve stock status:', error);
+    },
+  });
+
+  const convertToStockOutMutation = useMutation({
+    mutationFn: () => reserveStockService.convertToStockOut(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
+      toast({
+        title: 'Success',
+        description: 'Reserve stock converted to stock out successfully.',
       });
       onClose();
     },
     onError: (error) => {
       toast({
         title: 'Error',
-        description: 'Failed to cancel reserve stock.',
+        description: 'Failed to convert reserve stock to stock out.',
         variant: 'destructive',
       });
-      console.error('Error cancelling reserve stock:', error);
+      console.error('Error converting reserve stock to stock out:', error);
     },
   });
 
-  if (isLoading) {
-    return <div>Loading...</div>;
+  if (isLoading || isLoadingInventory) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   if (error || !stock) {
-    return <div>Error loading reserve stock details</div>;
+    return (
+      <div className="text-center p-8 text-red-500">
+        Error loading reserve stock details: {error instanceof Error ? error.message : 'Unknown error'}
+      </div>
+    );
   }
 
   const handleCancel = () => {
     if (window.confirm('Are you sure you want to cancel this reservation?')) {
-      cancelMutation.mutate();
+      updateStatusMutation.mutate('cancelled');
     }
   };
 
-  const handleStockOut = () => {
-    navigate('/stock-out/new', {
-      state: {
-        reserveStock: {
-          id: stock.id,
-          product: stock.product,
-          quantity: stock.quantity,
-          customer_name: stock.customer_name
-        }
-      }
-    });
+  const handleComplete = () => {
+    if (window.confirm('Are you sure you want to complete this reservation?')) {
+      updateStatusMutation.mutate('completed');
+    }
+  };
+
+  const handleActivate = () => {
+    if (window.confirm('Are you sure you want to activate this reservation?')) {
+      updateStatusMutation.mutate('active');
+    }
+  };
+
+  const handleConvertToStockOut = () => {
+    if (window.confirm('Are you sure you want to convert this reservation to a stock out?')) {
+      convertToStockOutMutation.mutate();
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
+    <ScrollArea className="h-[80vh] pr-4">
+      <div className="space-y-6">
         <div>
-          <h4 className="font-medium text-sm">Product</h4>
-          <p>{stock.product.name}</p>
-          <p className="text-sm text-muted-foreground">SKU: {stock.product.sku}</p>
+          <h3 className="text-lg font-semibold">Reservation Details</h3>
+          <p className="text-sm text-muted-foreground">
+            Created on {format(new Date(stock.created_at), 'MMM d, yyyy HH:mm')}
+          </p>
         </div>
-        <div>
-          <h4 className="font-medium text-sm">Customer</h4>
-          <p>{stock.customer_name}</p>
-        </div>
-        <div>
-          <h4 className="font-medium text-sm">Quantity</h4>
-          <p>{stock.quantity}</p>
-        </div>
-        <div>
-          <h4 className="font-medium text-sm">Status</h4>
-          <Badge variant={getStatusVariant(stock.status)}>
-            {stock.status}
-          </Badge>
-        </div>
-        <div>
-          <h4 className="font-medium text-sm">Start Date</h4>
-          <p>{format(new Date(stock.start_date), 'MMM d, yyyy')}</p>
-        </div>
-        <div>
-          <h4 className="font-medium text-sm">End Date</h4>
-          <p>{format(new Date(stock.end_date), 'MMM d, yyyy')}</p>
-        </div>
-        <div>
-          <h4 className="font-medium text-sm">Created At</h4>
-          <p>{format(new Date(stock.created_at), 'MMM d, yyyy HH:mm')}</p>
-        </div>
-        <div>
-          <h4 className="font-medium text-sm">Last Updated</h4>
-          <p>{format(new Date(stock.updated_at), 'MMM d, yyyy HH:mm')}</p>
-        </div>
-      </div>
 
-      <div className="flex justify-end gap-2">
-        {stock.status === 'pending' && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <h4 className="font-medium text-sm">Status</h4>
+            <Badge variant={getStatusVariant(stock.status)} className="mt-1">
+              {formatStatus(stock.status)}
+            </Badge>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-sm">Product</h4>
+            <p className="mt-1">{stock.product.name}</p>
+            {stock.product.sku && (
+              <p className="text-sm text-muted-foreground">SKU: {stock.product.sku}</p>
+            )}
+            {stock.product.description && (
+              <p className="text-sm text-muted-foreground mt-1">{stock.product.description}</p>
+            )}
+          </div>
+
+          <div>
+            <h4 className="font-medium text-sm">Warehouse</h4>
+            <p className="mt-1">{stock.warehouse.name}</p>
+            {stock.warehouse.code && (
+              <p className="text-sm text-muted-foreground">Code: {stock.warehouse.code}</p>
+            )}
+          </div>
+
+          <div>
+            <h4 className="font-medium text-sm">Customer</h4>
+            <p className="mt-1">{stock.customer_name}</p>
+            {stock.customer && (
+              <>
+                {stock.customer.company && (
+                  <p className="text-sm text-muted-foreground">{stock.customer.company}</p>
+                )}
+                {stock.customer.email && (
+                  <p className="text-sm text-muted-foreground">{stock.customer.email}</p>
+                )}
+                {stock.customer.phone && (
+                  <p className="text-sm text-muted-foreground">{stock.customer.phone}</p>
+                )}
+              </>
+            )}
+          </div>
+
+          <div>
+            <h4 className="font-medium text-sm">Quantity</h4>
+            <p className="mt-1">{stock.quantity}</p>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-sm">Start Date</h4>
+            <p className="mt-1">{format(new Date(stock.start_date), 'MMM d, yyyy')}</p>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-sm">End Date</h4>
+            <p className="mt-1">{format(new Date(stock.end_date), 'MMM d, yyyy')}</p>
+          </div>
+
+          {stock.notes && (
+            <div className="col-span-2">
+              <h4 className="font-medium text-sm">Notes</h4>
+              <p className="mt-1 whitespace-pre-wrap">{stock.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {reservedInventory && reservedInventory.length > 0 && (
           <>
-            <Button
-              variant="default"
-              onClick={handleStockOut}
-            >
-              Push to Stock Out
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancel}
-              disabled={cancelMutation.isPending}
-            >
-              Cancel Reservation
-            </Button>
+            <Separator />
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Reserved Inventory</h3>
+              <div className="space-y-4">
+                {reservedInventory.map((item) => (
+                  <div key={item.id} className="border rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium text-sm">Product</h4>
+                        <p>{item.product.name}</p>
+                        {item.product.sku && (
+                          <p className="text-sm text-muted-foreground">SKU: {item.product.sku}</p>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm">Warehouse</h4>
+                        <p>{item.warehouse.name}</p>
+                        {item.warehouse.code && (
+                          <p className="text-sm text-muted-foreground">Code: {item.warehouse.code}</p>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm">Quantity</h4>
+                        <p>{item.quantity}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm">Reserved At</h4>
+                        <p>{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </>
         )}
-        <Button variant="outline" onClick={onClose}>
-          Close
-        </Button>
+
+        <Separator />
+
+        <div className="flex justify-end gap-2">
+          {stock.status === 'pending' && (
+            <>
+              <Button
+                variant="default"
+                onClick={handleActivate}
+                disabled={updateStatusMutation.isPending}
+              >
+                {updateStatusMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Activate'
+                )}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancel}
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel
+              </Button>
+            </>
+          )}
+
+          {stock.status === 'active' && (
+            <>
+              <Button
+                variant="default"
+                onClick={handleConvertToStockOut}
+                disabled={convertToStockOutMutation.isPending}
+              >
+                {convertToStockOutMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Convert to Stock Out'
+                )}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleComplete}
+                disabled={updateStatusMutation.isPending}
+              >
+                Complete
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancel}
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel
+              </Button>
+            </>
+          )}
+
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </div>
-    </div>
+    </ScrollArea>
   );
 };
 
@@ -142,7 +300,18 @@ function getStatusVariant(status: string): "default" | "secondary" | "destructiv
       return 'secondary';
     case 'cancelled':
       return 'destructive';
+    case 'completed':
+      return 'outline';
+    case 'converted_to_stockout':
+      return 'default';
     default:
       return 'outline';
   }
+}
+
+function formatStatus(status: string): string {
+  return status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 } 

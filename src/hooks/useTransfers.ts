@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -98,7 +97,7 @@ export const useTransfers = () => {
             destination_warehouse_id,
             status,
             created_at,
-            initiated_by
+            created_by
           `)
           .eq('status', 'pending')
           .order('created_at', { ascending: true });
@@ -123,7 +122,7 @@ export const useTransfers = () => {
         source_warehouse_id: transferData.source_warehouse_id || transferData.fromWarehouseId,
         destination_warehouse_id: transferData.destination_warehouse_id || transferData.toWarehouseId,
         notes: transferData.notes,
-        initiated_by: user.id,
+        created_by: user.id,
         status: 'pending' as const
       };
       
