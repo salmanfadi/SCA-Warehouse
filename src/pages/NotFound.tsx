@@ -1,9 +1,8 @@
-
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ArrowLeft, Home, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Home, AlertTriangle, Search } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
@@ -11,6 +10,7 @@ const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [suggestedPath, setSuggestedPath] = useState<string | null>(null);
 
   useEffect(() => {
     console.error(
@@ -22,36 +22,51 @@ const NotFound = () => {
     toast({
       variant: "destructive",
       title: "Page Not Found",
-      description: `The page ${location.pathname} does not exist.`
+      description: `The page "${location.pathname}" does not exist.`
     });
-  }, [location.pathname]);
+
+    // Try to suggest a similar path based on the current URL
+    const currentPath = location.pathname.toLowerCase();
+    if (currentPath.includes('admin') && user?.role !== 'admin') {
+      setSuggestedPath('/unauthorized');
+    } else if (currentPath.includes('manager') && user?.role !== 'warehouse_manager') {
+      setSuggestedPath('/unauthorized');
+    } else if (currentPath.includes('operator') && user?.role !== 'field_operator') {
+      setSuggestedPath('/unauthorized');
+    } else if (currentPath.includes('sales') && user?.role !== 'sales_operator') {
+      setSuggestedPath('/unauthorized');
+    }
+  }, [location.pathname, user?.role]);
 
   const handleGoBack = () => {
-    navigate(-1);
+    // Check if we can go back in history
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      // If no history, go to appropriate dashboard
+      handleGoHome();
+    }
   };
 
   const handleGoHome = () => {
     // Redirect to the appropriate homepage based on user role
     if (user) {
-      if (user.role === 'admin') {
-        navigate('/admin', { replace: true });
-      } else if (user.role === 'warehouse_manager') {
-        navigate('/manager', { replace: true });
-      } else if (user.role === 'field_operator') {
-        navigate('/field', { replace: true });
-      } else if (user.role === 'sales_operator') {
-        navigate('/sales', { replace: true });
-      } else if (user.role === 'customer') {
-        navigate('/customer/portal', { replace: true });
-      } else {
-        navigate('/', { replace: true });
-      }
+      const roleRoutes = {
+        admin: '/admin',
+        warehouse_manager: '/manager',
+        field_operator: '/operator',
+        sales_operator: '/sales',
+        customer: '/customer/portal'
+      };
+
+      const targetRoute = roleRoutes[user.role] || '/';
+      navigate(targetRoute, { replace: true });
     } else {
       navigate('/', { replace: true });
     }
   };
 
-  // Extra function to determine the correct dashboard based on URL
+  // Get dashboard link based on current URL path
   const getDashboardLink = () => {
     const path = location.pathname.toLowerCase();
     
@@ -82,6 +97,22 @@ const NotFound = () => {
             <li>You don't have permission to access this page</li>
           </ul>
         </div>
+
+        {suggestedPath && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+            <p className="text-amber-700 dark:text-amber-400">
+              <Search className="inline-block h-4 w-4 mr-2" />
+              Did you mean to go to{' '}
+              <button
+                onClick={() => navigate(suggestedPath)}
+                className="underline hover:text-amber-800 dark:hover:text-amber-300"
+              >
+                {suggestedPath}
+              </button>
+              ?
+            </p>
+          </div>
+        )}
         
         <div className="flex flex-col sm:flex-row gap-4 mt-8">
           <Button 
@@ -101,15 +132,17 @@ const NotFound = () => {
           </Button>
         </div>
         
-        <div className="mt-6">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => navigate(getDashboardLink())}
-          >
-            Return to Main Dashboard
-          </Button>
-        </div>
+        {user && getDashboardLink() !== '/' && (
+          <div className="mt-6">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate(getDashboardLink())}
+            >
+              Return to Main Dashboard
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

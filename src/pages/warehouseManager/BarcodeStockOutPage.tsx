@@ -15,7 +15,15 @@ interface LocationState {
   barcode?: string;
 }
 
-const BarcodeStockOutPage: React.FC = () => {
+interface BarcodeStockOutPageProps {
+  isAdminView?: boolean;
+  overrideBackNavigation?: () => boolean;
+}
+
+const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
+  isAdminView = false,
+  overrideBackNavigation
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { stockOutId } = useParams<{ stockOutId?: string }>();
@@ -146,7 +154,10 @@ const BarcodeStockOutPage: React.FC = () => {
   }, [location, navigate]);
 
   const handleBackClick = () => {
-    navigate('/manager/stock-out');
+    if (overrideBackNavigation && overrideBackNavigation()) {
+      return;
+    }
+    navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
   };
 
   const handleComplete = () => {
@@ -158,7 +169,7 @@ const BarcodeStockOutPage: React.FC = () => {
     
     // Navigate back to stock out page after a delay
     setTimeout(() => {
-      navigate('/manager/stock-out');
+      navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
     }, 2000);
   };
 

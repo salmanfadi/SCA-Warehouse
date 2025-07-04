@@ -1,4 +1,3 @@
-
 import React, { useState, ReactNode, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -7,6 +6,7 @@ import { useMobileDetector } from '@/hooks/use-mobile.tsx';
 import { OfflineDetector } from '@/components/pwa/OfflineDetector';
 import { EnhancedInstallPrompt } from '@/components/pwa/EnhancedInstallPrompt';
 import { StandaloneDetector } from '@/components/pwa/StandaloneDetector';
+import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
   children?: ReactNode;
@@ -27,18 +27,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }, [location.pathname, isMobile]);
   
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200">
       <StandaloneDetector />
       <OfflineDetector className="offline-indicator" />
       
-      <Header
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        isSidebarOpen={isSidebarOpen}
-      />
+      <div className={cn(
+        "transition-all duration-200 bg-white dark:bg-gray-900",
+        isSidebarOpen ? "pl-64" : "pl-16"
+      )}>
+        <Header
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+        />
+      </div>
       
       <div className="flex flex-1">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-        <main className={`flex-1 p-4 md:p-6 transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : ''}`}>
+        <main className={cn(
+          "flex-1 p-4 md:p-6 transition-all duration-200 bg-white dark:bg-gray-900",
+          isSidebarOpen ? "ml-64" : "ml-16"
+        )}>
           <div className="max-w-7xl mx-auto">
             {children || <Outlet />}
           </div>

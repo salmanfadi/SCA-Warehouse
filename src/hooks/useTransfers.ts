@@ -1,28 +1,25 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { Database } from '@/types/supabase';
+
+type InventoryTransfer = Database['public']['Tables']['inventory_transfers']['Row'];
+type InventoryTransferInsert = Database['public']['Tables']['inventory_transfers']['Insert'];
 
 // Define interface for TransferForm.tsx
 export interface TransferFormData {
-  // Database column names
   source_warehouse_id: string;
+  source_location_id?: string;
   destination_warehouse_id: string;
-  quantity: number;
+  destination_location_id?: string;
   notes?: string;
   
   // Form field names that match what's used in TransferForm.tsx
-  productId?: string;
-  product_id?: string;
   fromWarehouseId?: string;
   fromLocationId?: string;
-  source_location_id?: string;
   toWarehouseId?: string;
   toLocationId?: string;
-  destination_location_id?: string;
-  transferReason?: string;
-  transfer_reason?: string;
 }
 
 export const useTransfers = () => {
@@ -31,7 +28,7 @@ export const useTransfers = () => {
 
   // Fetch transfer history with proper relationship aliases
   const getTransferHistory = (filters?: Record<string, any>) => {
-    return useQuery({
+    return useQuery<InventoryTransfer[]>({
       queryKey: ['transfers-history', filters],
       queryFn: async () => {
         let query = supabase
@@ -39,11 +36,18 @@ export const useTransfers = () => {
           .select(`
             id,
             source_warehouse_id,
+            source_location_id,
             destination_warehouse_id,
+            destination_location_id,
             status,
             created_at,
             updated_at,
-            initiated_by
+            created_by,
+            approved_by,
+            received_by,
+            approved_at,
+            received_at,
+            notes
           `)
           .order('created_at', { ascending: false });
         
@@ -58,8 +62,8 @@ export const useTransfers = () => {
           if (filters.destinationWarehouseId) {
             query = query.eq('destination_warehouse_id', filters.destinationWarehouseId);
           }
-          if (filters.initiatedBy) {
-            query = query.eq('initiated_by', filters.initiatedBy);
+          if (filters.createdBy) {
+            query = query.eq('created_by', filters.createdBy);
           }
           if (filters.dateFrom) {
             query = query.gte('created_at', filters.dateFrom);
@@ -87,7 +91,7 @@ export const useTransfers = () => {
 
   // Get pending transfers for approval
   const getPendingTransfers = () => {
-    return useQuery({
+    return useQuery<InventoryTransfer[]>({
       queryKey: ['transfers-pending'],
       queryFn: async () => {
         const { data, error } = await supabase
@@ -95,10 +99,13 @@ export const useTransfers = () => {
           .select(`
             id,
             source_warehouse_id,
+            source_location_id,
             destination_warehouse_id,
+            destination_location_id,
             status,
             created_at,
-            initiated_by
+            created_by,
+            notes
           `)
           .eq('status', 'pending')
           .order('created_at', { ascending: true });
@@ -114,26 +121,29 @@ export const useTransfers = () => {
   };
 
   // Create new transfer
-  const createTransfer = useMutation({
+  const createTransfer = useMutation<InventoryTransfer, Error, TransferFormData>({
     mutationFn: async (transferData: TransferFormData) => {
       if (!user?.id) throw new Error('User not authenticated');
       
       // Map the form field names to the database column names
-      const transferPayload = {
-        source_warehouse_id: transferData.source_warehouse_id || transferData.fromWarehouseId,
-        destination_warehouse_id: transferData.destination_warehouse_id || transferData.toWarehouseId,
+      const transferPayload: InventoryTransferInsert = {
+        source_warehouse_id: transferData.source_warehouse_id || transferData.fromWarehouseId!,
+        destination_warehouse_id: transferData.destination_warehouse_id || transferData.toWarehouseId!,
+        source_location_id: transferData.source_location_id || transferData.fromLocationId,
+        destination_location_id: transferData.destination_location_id || transferData.toLocationId,
         notes: transferData.notes,
-        initiated_by: user.id,
-        status: 'pending' as const
+        created_by: user.id,
+        status: 'pending'
       };
       
       const { data, error } = await supabase
         .from('inventory_transfers')
         .insert(transferPayload)
-        .select();
+        .select()
+        .single();
       
       if (error) throw error;
-      return data[0];
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-history'] });
@@ -154,20 +164,23 @@ export const useTransfers = () => {
   });
 
   // Approve a transfer
-  const approveTransfer = useMutation({
+  const approveTransfer = useMutation<InventoryTransfer, Error, string>({
     mutationFn: async (transferId: string) => {
       if (!user?.id) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('inventory_transfers')
         .update({
-          status: 'completed' as const
+          status: 'completed',
+          approved_by: user.id,
+          approved_at: new Date().toISOString()
         })
         .eq('id', transferId)
-        .select();
+        .select()
+        .single();
       
       if (error) throw error;
-      return data[0];
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-pending'] });
@@ -188,20 +201,22 @@ export const useTransfers = () => {
   });
 
   // Reject a transfer
-  const rejectTransfer = useMutation({
+  const rejectTransfer = useMutation<InventoryTransfer, Error, { transferId: string; reason: string }>({
     mutationFn: async ({ transferId, reason }: { transferId: string; reason: string }) => {
       if (!user?.id) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('inventory_transfers')
         .update({
-          status: 'cancelled' as const
+          status: 'cancelled',
+          notes: reason
         })
         .eq('id', transferId)
-        .select();
+        .select()
+        .single();
       
       if (error) throw error;
-      return data[0];
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-pending'] });
@@ -222,20 +237,23 @@ export const useTransfers = () => {
   });
 
   // Mark transfer as complete
-  const completeTransfer = useMutation({
+  const completeTransfer = useMutation<InventoryTransfer, Error, string>({
     mutationFn: async (transferId: string) => {
       if (!user?.id) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('inventory_transfers')
         .update({
-          status: 'completed' as const
+          status: 'completed',
+          received_by: user.id,
+          received_at: new Date().toISOString()
         })
         .eq('id', transferId)
-        .select();
+        .select()
+        .single();
       
       if (error) throw error;
-      return data[0];
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-history'] });

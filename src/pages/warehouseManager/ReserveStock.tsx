@@ -6,195 +6,193 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useReserveStockOut } from '@/hooks/useReserveStockOut';
-
-interface DummyProduct {
-  id: string;
-  name: string;
-  sku?: string;
-}
-
-interface ReservedItem {
-  id: string;
-  product: DummyProduct;
-  quantity: number;
-  customer: string;
-  startDate: string;
-  endDate: string;
-  status: 'Active' | 'Expired' | 'Cancelled' | 'Processing Stock Out';
-}
+import { useReserveStock } from '@/hooks/useReserveStock';
+import { useProducts } from '@/hooks/useProducts';
+import { useWarehouses } from '@/hooks/useWarehouses';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
+import { useInventoryData } from '@/hooks/useInventoryData';
 
 const ReserveStock: React.FC = () => {
   const navigate = useNavigate();
-  const reserveStockOut = useReserveStockOut((id) => {
-    setReservedItems(prev => prev.map(item => 
-      item.id === id ? { ...item, status: 'Processing Stock Out' } : item
-    ));
-  });
+  const { 
+    reserveStockItems, 
+    isLoading: isLoadingReserveStock,
+    createReserveStock,
+    cancelReserveStock,
+    pushToStockOut
+  } = useReserveStock();
 
-  // Dummy product data for the combobox
-  const dummyProducts: DummyProduct[] = [
-    { id: 'prod-1', name: 'Laptop Pro X', sku: 'LPX-2023' },
-    { id: 'prod-2', name: 'Wireless Mouse', sku: 'WM-500' },
-    { id: 'prod-3', name: 'Mechanical Keyboard', sku: 'MK-Brown' },
-    { id: 'prod-4', name: 'USB-C Hub', sku: 'UCH-MULTI' },
-    { id: 'prod-5', name: 'Monitor Stand', sku: 'MS-ADJ' },
-  ];
+  const { products, isLoading: isLoadingProducts } = useProducts();
+  const { warehouses, isLoading: isLoadingWarehouses } = useWarehouses();
+  const { data: inventoryData, isLoading: isLoadingInventory } = useInventoryData();
 
   // State for creating a new reservation
   const [newReservation, setNewReservation] = useState({
-    productId: '',
-    quantity: 0,
-    customer: '',
-    startDate: '',
-    endDate: '',
+    product_id: '',
+    quantity: '',
+    customer_name: '',
+    start_date: '',
+    end_date: '',
+    warehouse_id: ''
   });
 
-  // State for the product name combobox (create form)
+  // State for product search
   const [productNameInput, setProductNameInput] = useState('');
   const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
-  const [filteredProducts, setFilteredProducts] = useState<DummyProduct[]>(dummyProducts);
-  const [selectedProduct, setSelectedProduct] = useState<DummyProduct | null>(null);
+  const [filteredProducts, setFilteredProducts] = useState(products || []);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
-  // State for the list of reserved items (dummy data)
-  const [reservedItems, setReservedItems] = useState<ReservedItem[]>([
-    {
-      id: 'res-1',
-      product: { id: 'prod-1', name: 'Laptop Pro X' },
-      quantity: 5,
-      customer: 'John Doe',
-      startDate: '2024-07-20',
-      endDate: '2024-08-20',
-      status: 'Active',
-    },
-    {
-      id: 'res-2',
-      product: { id: 'prod-2', name: 'Wireless Mouse' },
-      quantity: 10,
-      customer: 'Jane Smith',
-      startDate: '2024-07-10',
-      endDate: '2024-07-15',
-      status: 'Expired',
-    },
-  ]);
+  // Get available quantity for selected product and warehouse
+  const getAvailableQuantity = () => {
+    if (!selectedProduct || !newReservation.warehouse_id || !inventoryData) return null;
+    
+    const inventoryItem = inventoryData.find(
+      item => item.product_id === selectedProduct.id && 
+              item.warehouse_id === newReservation.warehouse_id
+    );
+    
+    return inventoryItem?.available_quantity || 0;
+  };
 
-  // Filter products based on input when productNameInput changes
+  // Filter products based on input
   useEffect(() => {
-    if (productNameInput) {
+    if (productNameInput && products) {
       const lowerCaseInput = productNameInput.toLowerCase();
-      const filtered = dummyProducts.filter(product =>
+      const filtered = products.filter(product =>
         product.name.toLowerCase().includes(lowerCaseInput) ||
         (product.sku && product.sku.toLowerCase().includes(lowerCaseInput))
       );
       setFilteredProducts(filtered);
     } else {
-      setFilteredProducts(dummyProducts);
+      setFilteredProducts(products || []);
     }
-  }, [productNameInput, dummyProducts]);
+  }, [productNameInput, products]);
 
-  // Handle input changes for new reservation form
+  // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    
+    if (name === 'quantity') {
+      const availableQty = getAvailableQuantity();
+      const numValue = parseInt(value);
+      
+      if (numValue > availableQty!) {
+        toast({
+          title: 'Invalid Quantity',
+          description: `Maximum available quantity is ${availableQty}`,
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+    
     setNewReservation(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle product name input change for combobox
-  const handleProductNameInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setProductNameInput(value);
-    setSelectedProduct(null);
-    setIsProductDropdownOpen(true);
-    setNewReservation(prev => ({ ...prev, productId: '', name: value }));
+  // Handle warehouse selection
+  const handleWarehouseChange = (value: string) => {
+    setNewReservation(prev => ({ ...prev, warehouse_id: value, quantity: '' }));
   };
 
-  // Handle product selection from combobox
-  const handleProductSelect = (product: DummyProduct) => {
+  // Handle product selection
+  const handleProductSelect = (product: any) => {
     setProductNameInput(product.name);
+    setNewReservation(prev => ({ ...prev, product_id: product.id, quantity: '' }));
     setSelectedProduct(product);
-    setNewReservation(prev => ({ ...prev, productId: product.id, name: product.name }));
     setIsProductDropdownOpen(false);
   };
 
-  // Handle creating a new reservation (dummy logic)
-  const handleCreateReservation = (e: React.FormEvent) => {
+  // Handle form submission
+  const handleCreateReservation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduct || newReservation.quantity <= 0 || !newReservation.customer || !newReservation.startDate || !newReservation.endDate) {
-      alert('Please fill in all required fields (Product, Quantity, Customer, Dates).');
+    
+    if (!newReservation.product_id || !newReservation.warehouse_id) {
+      toast({
+        title: 'Error',
+        description: 'Please select a product and warehouse.',
+        variant: 'destructive'
+      });
       return;
     }
 
-    const id = `res-${Date.now()}`;
-    const newReservedItem: ReservedItem = {
-      id,
-      product: selectedProduct,
-      quantity: newReservation.quantity,
-      customer: newReservation.customer,
-      startDate: newReservation.startDate,
-      endDate: newReservation.endDate,
-      status: 'Active',
-    };
-
-    setReservedItems(prev => [...prev, newReservedItem]);
-    // Reset form
-    setNewReservation({ productId: '', quantity: 0, customer: '', startDate: '', endDate: '' });
-    setProductNameInput('');
-    setSelectedProduct(null);
-    alert('Reservation created (dummy data)!');
-  };
-
-  // Check for expired reservations
-  useEffect(() => {
-    const checkExpiredReservations = () => {
-      const now = new Date();
-      setReservedItems(prev => {
-        const updated = prev.map(item => {
-          if (item.status === 'Active' && new Date(item.endDate) < now) {
-            return { ...item, status: 'Expired' as const };
-          }
-          return item;
-        });
-        
-        // Only update state if there are actual changes
-        const hasChanges = updated.some(
-          (item, index) => item.status !== prev[index].status
-        );
-        return hasChanges ? updated : prev;
+    const quantity = parseInt(newReservation.quantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a valid quantity.',
+        variant: 'destructive'
       });
-    };
+      return;
+    }
 
-    // Check immediately
-    checkExpiredReservations();
-
-    // Set up interval for future checks
-    const interval = setInterval(checkExpiredReservations, 60000);
-
-    return () => clearInterval(interval);
-  }, []); // Empty dependency array since we're not using any external values
-
-  // Basic action handlers
-  const handleCancelReservation = (id: string) => {
-    setReservedItems(prev => prev.map(item => {
-      if (item.id === id) {
-        return { ...item, status: 'Cancelled' };
-      }
-      return item;
-    }));
+    try {
+      await createReserveStock.mutateAsync({
+        ...newReservation,
+        quantity: parseInt(newReservation.quantity)
+      });
+      
+      // Reset form
+      setNewReservation({
+        product_id: '',
+        quantity: '',
+        customer_name: '',
+        start_date: '',
+        end_date: '',
+        warehouse_id: ''
+      });
+      setProductNameInput('');
+      setSelectedProduct(null);
+    } catch (error: any) {
+      console.error('Error creating reservation:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create reservation',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const handlePushToStockOut = (id: string) => {
-    const itemToPush = reservedItems.find(item => item.id === id);
-    if (!itemToPush) return;
-
-    // Create stock out request with proper structure
-    reserveStockOut.mutate({
-      product_id: itemToPush.product.id,
-      quantity: itemToPush.quantity,
-      destination: itemToPush.customer,
-      reservation_id: id
-    });
+  // Handle cancellation
+  const handleCancelReservation = async (id: string) => {
+    try {
+      await cancelReserveStock.mutateAsync(id);
+    } catch (error: any) {
+      console.error('Error cancelling reservation:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to cancel reservation',
+        variant: 'destructive'
+      });
+    }
   };
+
+  // Handle push to stock out
+  const handlePushToStockOut = async (id: string) => {
+    try {
+      await pushToStockOut.mutateAsync(id);
+    } catch (error: any) {
+      console.error('Error pushing to stock out:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to push to stock out',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  if (isLoadingReserveStock || isLoadingProducts || isLoadingWarehouses || isLoadingInventory) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  const availableQuantity = getAvailableQuantity();
 
   return (
     <div className="space-y-6">
@@ -226,20 +224,18 @@ const ReserveStock: React.FC = () => {
               <div className="relative">
                 <Input
                   id="productNameInput"
-                  name="productNameInput"
                   value={productNameInput}
-                  onChange={handleProductNameInputChange}
+                  onChange={(e) => setProductNameInput(e.target.value)}
                   onFocus={() => setIsProductDropdownOpen(true)}
-                  onBlur={() => setIsProductDropdownOpen(false)}
-                  placeholder="Search or select product"
+                  placeholder="Search for a product"
                   required
                 />
                 {isProductDropdownOpen && filteredProducts.length > 0 && (
-                  <ul className="absolute z-10 w-full bg-popover border border-border rounded-md mt-1 max-h-48 overflow-y-auto shadow-lg scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground">
-                    {filteredProducts.map(product => (
+                  <ul className="absolute z-10 w-full bg-popover border border-border rounded-md mt-1 max-h-48 overflow-y-auto shadow-lg">
+                    {filteredProducts.map((product) => (
                       <li
                         key={product.id}
-                        className="px-4 py-2 cursor-pointer hover:bg-gray-100"
+                        className="px-4 py-2 cursor-pointer hover:bg-accent"
                         onMouseDown={() => handleProductSelect(product)}
                       >
                         {product.name} {product.sku && `(${product.sku})`}
@@ -248,62 +244,92 @@ const ReserveStock: React.FC = () => {
                   </ul>
                 )}
               </div>
-              {selectedProduct && (
-                <p className="text-sm text-muted-foreground">Selected: {selectedProduct.name}</p>
-              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity*</Label>
+              <Label htmlFor="warehouse_id">Warehouse*</Label>
+              <Select
+                value={newReservation.warehouse_id}
+                onValueChange={handleWarehouseChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses?.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="quantity">
+                Quantity* {availableQuantity !== null && (
+                  <span className="text-sm text-muted-foreground">
+                    (Available: {availableQuantity})
+                  </span>
+                )}
+              </Label>
               <Input
                 id="quantity"
                 name="quantity"
                 type="number"
                 min="1"
+                max={availableQuantity || undefined}
                 value={newReservation.quantity}
                 onChange={handleInputChange}
                 required
+                disabled={!selectedProduct || !newReservation.warehouse_id}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="customer">Customer Name/ID*</Label>
+              <Label htmlFor="customer_name">Customer Name*</Label>
               <Input
-                id="customer"
-                name="customer"
-                value={newReservation.customer}
+                id="customer_name"
+                name="customer_name"
+                value={newReservation.customer_name}
                 onChange={handleInputChange}
-                placeholder="Enter customer name or ID"
+                placeholder="Enter customer name"
                 required
               />
             </div>
 
             <div className="flex gap-4">
               <div className="space-y-2 flex-1">
-                <Label htmlFor="startDate">Start Date*</Label>
+                <Label htmlFor="start_date">Start Date*</Label>
                 <Input
-                  id="startDate"
-                  name="startDate"
+                  id="start_date"
+                  name="start_date"
                   type="date"
-                  value={newReservation.startDate}
+                  value={newReservation.start_date}
                   onChange={handleInputChange}
                   required
                 />
               </div>
               <div className="space-y-2 flex-1">
-                <Label htmlFor="endDate">End Date*</Label>
+                <Label htmlFor="end_date">End Date*</Label>
                 <Input
-                  id="endDate"
-                  name="endDate"
+                  id="end_date"
+                  name="end_date"
                   type="date"
-                  value={newReservation.endDate}
+                  value={newReservation.end_date}
                   onChange={handleInputChange}
                   required
                 />
               </div>
             </div>
 
-            <Button type="submit">
+            <Button 
+              type="submit" 
+              disabled={createReserveStock.isPending || !availableQuantity}
+            >
+              {createReserveStock.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
               Create Reservation
             </Button>
           </form>
@@ -331,35 +357,67 @@ const ReserveStock: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reservedItems.length === 0 ? (
+                {!reserveStockItems?.length ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       No reserved items found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  reservedItems.map(item => (
+                  reserveStockItems.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.product.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {item.product.name}
+                        {item.product.sku && (
+                          <div className="text-sm text-muted-foreground">
+                            SKU: {item.product.sku}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{item.customer}</TableCell>
-                      <TableCell>{format(new Date(item.startDate), 'MMM d, yyyy')}</TableCell>
-                      <TableCell>{format(new Date(item.endDate), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>{item.customer_name}</TableCell>
+                      <TableCell>{format(new Date(item.start_date), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>{format(new Date(item.end_date), 'MMM d, yyyy')}</TableCell>
                       <TableCell>
-                        <span>{item.status}</span>
+                        <Badge
+                          variant={
+                            item.status === 'active' ? 'default' :
+                            item.status === 'expired' ? 'destructive' :
+                            item.status === 'cancelled' ? 'secondary' :
+                            'outline'
+                          }
+                        >
+                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        {item.status === 'Active' && (
+                        {item.status === 'active' && (
                           <>
-                            <Button size="sm" variant="outline" onClick={() => handlePushToStockOut(item.id)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePushToStockOut(item.id)}
+                              disabled={pushToStockOut.isPending}
+                            >
+                              {pushToStockOut.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : null}
                               Push to Stock Out
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleCancelReservation(item.id)}>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleCancelReservation(item.id)}
+                              disabled={cancelReserveStock.isPending}
+                            >
+                              {cancelReserveStock.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : null}
                               Cancel
                             </Button>
                           </>
                         )}
-                        {(item.status === 'Expired' || item.status === 'Cancelled') && (
+                        {(item.status === 'expired' || item.status === 'cancelled' || item.status === 'processed') && (
                           <span className="text-sm text-muted-foreground">No actions available</span>
                         )}
                       </TableCell>

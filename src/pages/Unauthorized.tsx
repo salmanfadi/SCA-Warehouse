@@ -1,35 +1,62 @@
 import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { Shield, Home } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Shield, Home, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 const Unauthorized: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   
-  // Auto-redirect admins to their dashboard
   useEffect(() => {
+    // Log unauthorized access attempt
+    console.warn('Unauthorized access attempt:', {
+      path: location.pathname,
+      user: user?.role,
+      timestamp: new Date().toISOString()
+    });
+
+    // Show toast notification
+    toast({
+      title: "Access Denied",
+      description: "You don't have permission to access this page. Redirecting to your dashboard...",
+      variant: "destructive",
+    });
+
+    // Auto-redirect admins to their dashboard after a short delay
     if (user?.role === 'admin') {
-      navigate('/admin', { replace: true });
+      const timer = setTimeout(() => {
+        navigate('/admin', { replace: true });
+      }, 2000);
+      return () => clearTimeout(timer);
     }
-  }, [user, navigate]);
+  }, [user, navigate, location.pathname]);
   
   // Determine correct dashboard route based on user role
   const getDashboardRoute = () => {
     if (!user) return '/';
     
-    switch (user.role) {
-      case 'admin':
-        return '/admin';
-      case 'warehouse_manager':
-        return '/manager';
-      case 'field_operator':
-        return '/operator';
-      case 'sales_operator':
-        return '/sales';
-      default:
-        return '/';
+    const roleRoutes = {
+      admin: '/admin',
+      warehouse_manager: '/manager',
+      field_operator: '/operator',
+      sales_operator: '/sales',
+      customer: '/customer/portal'
+    };
+
+    return roleRoutes[user.role] || '/';
+  };
+
+  // Handle back navigation
+  const handleGoBack = () => {
+    // Check if we can go back in history
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      // If no history, go to appropriate dashboard
+      navigate(getDashboardRoute(), { replace: true });
     }
   };
   
@@ -44,18 +71,39 @@ const Unauthorized: React.FC = () => {
           <p className="mt-2 text-gray-600 dark:text-gray-400">
             You don't have permission to access this page.
           </p>
+          {user && (
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Current role: {user.role}
+            </p>
+          )}
         </div>
         
         <div className="flex flex-col space-y-3">
           <Button 
+            variant="outline"
+            className="w-full"
+            onClick={handleGoBack}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go Back
+          </Button>
+          
+          <Button 
             variant="default" 
             className="w-full"
-            onClick={() => navigate(getDashboardRoute())}
+            onClick={() => navigate(getDashboardRoute(), { replace: true })}
           >
             <Home className="mr-2 h-4 w-4" />
             Return to Dashboard
           </Button>
         </div>
+
+        {/* Show additional help text for non-admin users */}
+        {user && user.role !== 'admin' && (
+          <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
+            <p>If you believe you should have access to this page, please contact your administrator.</p>
+          </div>
+        )}
       </div>
     </div>
   );
