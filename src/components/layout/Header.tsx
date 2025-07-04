@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -41,19 +41,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleSidebar}
-            className="lg:hidden"
-          >
-            {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-          
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
+      <div className="flex items-center justify-between h-16 px-4">
+        <div className="flex items-center">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">
             Warehouse Management
           </h1>
         </div>
@@ -62,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="relative">
+              <Button variant="ghost" size="sm" className="relative text-gray-700 dark:text-gray-300">
                 <Bell className="h-5 w-5" />
                 {notifications.length > 0 && (
                   <Badge 
@@ -76,15 +67,15 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <div className="p-2">
-                <h4 className="font-medium">Notifications</h4>
+                <h4 className="font-medium text-gray-900 dark:text-white">Notifications</h4>
                 {notifications.length === 0 ? (
-                  <p className="text-sm text-gray-500 mt-2">No new notifications</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">No new notifications</p>
                 ) : (
                   <div className="mt-2 space-y-2">
                     {notifications.map((notification: any) => (
-                      <div key={notification.id} className="p-2 border rounded">
-                        <p className="text-sm font-medium">{notification.title}</p>
-                        <p className="text-xs text-gray-500">{notification.message}</p>
+                      <div key={notification.id} className="p-2 border rounded border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{notification.title}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{notification.message}</p>
                       </div>
                     ))}
                   </div>
@@ -93,6 +84,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -100,18 +94,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
                 <div className="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-medium">
                   {getUserInitials()}
                 </div>
-                <span className="hidden md:block text-sm font-medium">
+                <span className="hidden md:block text-sm font-medium text-gray-900 dark:text-white">
                   {getDisplayName()}
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem className="text-gray-700 dark:text-gray-300">
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

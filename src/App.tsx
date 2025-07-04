@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from './context/AuthContext';
@@ -32,6 +32,7 @@ import AdminEnhancedInventoryView from './pages/admin/EnhancedInventoryView';
 import ProductInventoryView from './pages/admin/ProductInventoryView';
 import BatchDetailsPage from './pages/admin/BatchDetailsPage';
 import ReserveStock from './pages/admin/ReserveStock';
+import AdminBarcodeStockOutPage from './pages/admin/BarcodeStockOutPage';
 
 // Manager pages
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
@@ -101,7 +102,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light">
+    <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Router>
@@ -166,6 +167,8 @@ function App() {
                 <Route path="/admin/barcode" element={<AdminBarcodeLookup />} />
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
                 <Route path="/admin/stock-out" element={<StockOutManagement />} />
+                <Route path="/admin/stock-out/barcode-stock-out" element={<AdminBarcodeStockOutPage />} />
+                <Route path="/admin/stock-out/barcode-stock-out/:stockOutId" element={<AdminBarcodeStockOutPage />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
                 <Route path="/admin/reserve-stock" element={<ReserveStock />} />
                 
