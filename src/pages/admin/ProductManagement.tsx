@@ -197,7 +197,11 @@ const ProductManagement: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium">HSN Code</p>
-                  <p className="text-sm text-gray-600">{viewingProduct.hsn_code || '-'}</p>
+                  <Input
+                    value={viewingProduct.hsn_code || '-'}
+                    readOnly
+                    className="text-sm text-gray-600"
+                  />
                 </div>
                 <div>
                   <p className="text-sm font-medium">GST Rate</p>

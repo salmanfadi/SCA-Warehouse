@@ -148,11 +148,20 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
                 <Button
                   type="button"
                   onClick={() => setIsCameraOpen(true)}
-                  disabled={!isEnabled || isProcessing || !!currentBatchItem}
+                  disabled={!isEnabled || isProcessing || !!currentBatchItem || isCameraOpen}
                   variant="outline"
                 >
-                  <QrCode className="h-4 w-4" />
+                  Open Camera
                 </Button>
+                {isCameraOpen && (
+                  <Button
+                    type="button"
+                    onClick={() => setIsCameraOpen(false)}
+                    variant="outline"
+                  >
+                    Close Camera
+                  </Button>
+                )}
                 <Button
                   type="button"
                   onClick={handleSubmitBarcode}

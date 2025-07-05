@@ -411,12 +411,7 @@ const StockOutApproval: React.FC = () => {
                   <Scan className="h-4 w-4" />
                   Scan Barcode
                 </Button>
-                <Button 
-                  type="submit"
-                  disabled={approvedQuantity <= 0 || approvedQuantity > selectedStockOut.quantity || updateStockOutMutation.isPending}
-                >
-                  {updateStockOutMutation.isPending ? 'Processing...' : 'Approve Stock Out'}
-                </Button>
+                
               </DialogFooter>
             </form>
           )}

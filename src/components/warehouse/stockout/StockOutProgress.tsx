@@ -104,7 +104,7 @@ const StockOutProgress: React.FC<StockOutProgressProps> = ({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Barcode</TableHead>
+                      <TableHead>Box</TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead className="text-right">Quantity</TableHead>

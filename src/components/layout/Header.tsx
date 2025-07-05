@@ -106,8 +106,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Theme Toggle */}
-          <ThemeToggle />
 
           {/* User Menu */}
           <DropdownMenu>
