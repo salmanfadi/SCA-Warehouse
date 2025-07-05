@@ -400,12 +400,7 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
         progress
       });
       
-      // Also update progress asynchronously for more accuracy
-      calculateStockOutProgress(updatedStockOutRequest).then(asyncProgress => {
-        if (asyncProgress !== progress) {
-          updateState({ progress: asyncProgress });
-        }
-      });
+      
       
       // Show success toast
       toast({
