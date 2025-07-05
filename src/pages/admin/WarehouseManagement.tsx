@@ -77,13 +77,18 @@ const WarehouseManagement: React.FC = () => {
   // Create warehouse mutation
   const createWarehouseMutation = useMutation({
     mutationFn: async (warehouseData: typeof formData) => {
+      console.log('Attempting to create warehouse with data:', warehouseData);
+      
       const { data, error } = await supabase
         .from('warehouses')
         .insert(warehouseData)
         .select()
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Warehouse creation error:', error);
+        throw error;
+      }
       
       // Create locations if any
       if (locations.length > 0) {
@@ -93,11 +98,15 @@ const WarehouseManagement: React.FC = () => {
           zone: loc.zone
         }));
         
+        console.log('Creating warehouse locations:', locationData);
         const { error: locationError } = await supabase
           .from('warehouse_locations')
           .insert(locationData);
           
-        if (locationError) throw locationError;
+        if (locationError) {
+          console.error('Location creation error:', locationError);
+          throw locationError;
+        }
       }
       
       return data;
@@ -112,10 +121,19 @@ const WarehouseManagement: React.FC = () => {
       setIsDialogOpen(false);
     },
     onError: (error) => {
+      console.error('Full error object:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message.includes('warehouses_code_key') || (error as any).code === '23505'
+          ? 'A warehouse with this code already exists. Please use a different code or leave it empty.'
+          : error.message.includes('duplicate key') 
+            ? 'This warehouse already exists. Please check the name and code.'
+            : error.message
+        : 'Failed to create warehouse';
+        
       toast({
         variant: 'destructive',
         title: 'Error creating warehouse',
-        description: error instanceof Error ? error.message : 'Failed to create warehouse',
+        description: errorMessage,
       });
     },
   });
@@ -350,6 +368,9 @@ const WarehouseManagement: React.FC = () => {
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   />
+                  <p className="text-sm text-gray-500">
+                    Must be unique. Leave empty if not needed.
+                  </p>
                 </div>
               </div>
               

@@ -14,7 +14,7 @@ export interface WarehouseLocation {
   // Add other fields as needed
 }
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       barcode_logs: {
@@ -519,81 +519,24 @@ export type Database = {
       }
       products: {
         Row: {
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          id: string
-          is_active: boolean | null
-          name: string
-          sku: string | null
-          updated_at: string | null
-          updated_by: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          sku?: string | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          sku?: string | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "products_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "products_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+          id: string;
+          name: string;
+          sku: string | null;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['products']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['products']['Row']>;
       }
       profiles: {
         Row: {
-          active: boolean | null
-          created_at: string | null
-          id: string
-          full_name: string
-          role: string
-          username: string
-        }
-        Insert: {
-          active?: boolean | null
-          created_at?: string | null
-          id: string
-          full_name: string
-          role: string
-          username: string
-        }
-        Update: {
-          active?: boolean | null
-          created_at?: string | null
-          id?: string
-          full_name?: string
-          role?: string
-          username?: string
-        }
-        Relationships: []
+          id: string;
+          full_name: string;
+          role: 'admin' | 'warehouse_manager' | 'user';
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['profiles']['Row']>;
       }
       sales_inquiries: {
         Row: {
@@ -980,31 +923,78 @@ export type Database = {
       }
       warehouses: {
         Row: {
-          created_at: string | null
-          id: string
-          is_active: boolean | null
-          location: string | null
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          location?: string | null
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          location?: string | null
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
+          id: string;
+          name: string;
+          code: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['warehouses']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['warehouses']['Row']>;
       }
+      stock_out_requests: {
+        Row: {
+          id: string;
+          created_at: string;
+          created_by: string;
+          approved_by: string | null;
+          approved_at: string | null;
+          approved_quantity: number | null;
+          product_id: string;
+          warehouse_id: string;
+          customer_id: string | null;
+          quantity: number;
+          destination: string;
+          notes: string | null;
+          status: 'pending' | 'approved' | 'completed' | 'rejected';
+        };
+        Insert: Omit<Database['public']['Tables']['stock_out_requests']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['stock_out_requests']['Row']>;
+      }
+      customers: {
+        Row: {
+          id: string;
+          name: string;
+          company: string | null;
+          email: string | null;
+          phone: string | null;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['customers']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['customers']['Row']>;
+      }
+      reserve_stock: {
+        Row: {
+          id: string;
+          product_id: string;
+          warehouse_id: string;
+          customer_id: string | null;
+          customer_name: string;
+          quantity: number;
+          start_date: string;
+          end_date: string;
+          status: 'pending' | 'active' | 'completed' | 'cancelled' | 'converted_to_stockout';
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+          notes: string | null;
+          stock_out_id: string | null;
+        };
+        Insert: Omit<Database['public']['Tables']['reserve_stock']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['reserve_stock']['Row']>;
+      };
+      reserved_inventory: {
+        Row: {
+          id: string;
+          reserve_stock_id: string;
+          product_id: string;
+          warehouse_id: string;
+          quantity: number;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['reserved_inventory']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['reserved_inventory']['Row']>;
+      };
     }
     Views: {
       [_ in never]: never
@@ -1062,115 +1052,6 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+export type DatabaseTables = Database['public']['Tables'];
+export type TableName = keyof DatabaseTables;
 
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      inquiry_status: ["pending", "in_progress", "completed", "cancelled"],
-    },
-  },
-} as const

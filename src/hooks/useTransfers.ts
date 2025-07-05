@@ -104,8 +104,8 @@ export const useTransfers = () => {
             destination_location_id,
             status,
             created_at,
-            created_by,
-            notes
+            created_by
+
           `)
           .eq('status', 'pending')
           .order('created_at', { ascending: true });
@@ -133,7 +133,8 @@ export const useTransfers = () => {
         destination_location_id: transferData.destination_location_id || transferData.toLocationId,
         notes: transferData.notes,
         created_by: user.id,
-        status: 'pending'
+        status: 'pending' as const
+
       };
       
       const { data, error } = await supabase

@@ -1,68 +1,85 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from '@/hooks/use-toast';
 
-export interface ReserveStockItem {
-  id: string;
-  product_id: string;
-  product: {
-    id: string;
-    name: string;
-    sku: string;
-  };
-  quantity: number;
-  customer_name: string;
-  start_date: string;
-  end_date: string;
-  status: 'active' | 'expired' | 'cancelled' | 'processed';
-  warehouse_id: string;
-  created_at: string;
-  updated_at: string;
-}
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { DatabaseTables } from '@/types/supabase';
+
+type ReserveStock = DatabaseTables['reserve_stock']['Row'] & {
+  product: DatabaseTables['products']['Row'];
+  warehouse: DatabaseTables['warehouses']['Row'];
+};
 
 interface CreateReserveStockInput {
   product_id: string;
-  quantity: number;
+  warehouse_id: string;
   customer_name: string;
+  quantity: number;
   start_date: string;
   end_date: string;
-  warehouse_id: string;
+  notes?: string;
 }
 
-export const useReserveStock = () => {
-  const { user } = useAuth();
+interface UpdateReserveStockStatusInput {
+  id: string;
+  status: ReserveStock['status'];
+}
+
+interface ConvertToStockOutInput {
+  id: string;
+  destination: string;
+}
+
+export function useReserveStock() {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch all reserve stock items
-  const { data: reserveStockItems, isLoading, error } = useQuery({
-    queryKey: ['reserveStock'],
+  // Fetch all reserve stocks with related data
+  const { data: reserveStocks, isLoading, error } = useQuery({
+    queryKey: ['reserve-stocks'],
+
     queryFn: async () => {
       const { data, error } = await supabase
         .from('reserve_stock')
         .select(`
           *,
-          product:products (
-            id,
-            name,
-            sku
-          )
+
+          product:products(id, name, sku, description),
+          warehouse:warehouses(id, name, code)
+
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as ReserveStockItem[];
-    }
+
+      return data as ReserveStock[];
+    },
   });
 
-  // Create new reserve stock
-  const createReserveStock = useMutation({
+  // Create a new reserve stock
+  const { mutate: createReserveStock, isPending: isCreating } = useMutation({
     mutationFn: async (input: CreateReserveStockInput) => {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user?.id) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('reserve_stock')
         .insert({
-          ...input,
-          created_by: user?.id
+          product_id: input.product_id,
+          warehouse_id: input.warehouse_id,
+          customer_name: input.customer_name,
+          quantity: input.quantity,
+          start_date: input.start_date,
+          end_date: input.end_date,
+          notes: input.notes,
+          requested_by: user.data.user.id,
+          requested_at: new Date().toISOString(),
+          duration_days: 7,
+          return_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'pending',
+          customer_id: null,
+          stock_out_id: null,
+          location_id: null, // This should be set based on warehouse selection
+
         })
         .select()
         .single();
@@ -71,28 +88,32 @@ export const useReserveStock = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['reserveStock']);
+
+      queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
+
       toast({
         title: 'Success',
         description: 'Stock has been reserved successfully.',
       });
     },
-    onError: (error: Error) => {
+
+    onError: (error) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to reserve stock',
         variant: 'destructive',
       });
-    }
+    },
   });
 
-  // Cancel reserve stock
-  const cancelReserveStock = useMutation({
-    mutationFn: async (id: string) => {
+  // Update reserve stock status
+  const { mutate: updateStatus, isPending: isUpdating } = useMutation({
+    mutationFn: async (input: UpdateReserveStockStatusInput) => {
       const { data, error } = await supabase
         .from('reserve_stock')
-        .update({ status: 'cancelled' })
-        .eq('id', id)
+        .update({ status: input.status })
+        .eq('id', input.id)
+
         .select()
         .single();
 
@@ -100,84 +121,72 @@ export const useReserveStock = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['reserveStock']);
+
+      queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
       toast({
         title: 'Success',
-        description: 'Reservation has been cancelled.',
+        description: 'Reserve stock status updated successfully.',
       });
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to update status',
         variant: 'destructive',
       });
-    }
+    },
   });
 
-  // Push to stock out
-  const pushToStockOut = useMutation({
-    mutationFn: async (id: string) => {
-      const { data: reservation, error: fetchError } = await supabase
+  // Convert reserve stock to stock out
+  const { mutate: convertToStockOut, isPending: isConverting } = useMutation({
+    mutationFn: async (input: ConvertToStockOutInput) => {
+      const { data: reserveStock, error: fetchError } = await supabase
         .from('reserve_stock')
         .select('*')
-        .eq('id', id)
+        .eq('id', input.id)
         .single();
 
       if (fetchError) throw fetchError;
+      if (!reserveStock) throw new Error('Reserve stock not found');
 
-      // Create stock out request
-      const { data, error } = await supabase
-        .from('stock_out')
-        .insert({
-          product_id: reservation.product_id,
-          quantity: reservation.quantity,
-          destination: reservation.customer_name,
-          status: 'pending',
-          requested_by: user?.id,
-          warehouse_id: reservation.warehouse_id,
-          reserve_stock_id: id
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Update reserve stock status
       const { error: updateError } = await supabase
         .from('reserve_stock')
-        .update({ 
-          status: 'processed',
-          stock_out_id: data.id
+        .update({
+          status: 'converted_to_stockout',
+          stock_out_id: null, // Will be set by the trigger
         })
-        .eq('id', id);
+        .eq('id', input.id);
 
       if (updateError) throw updateError;
-
-      return data;
+      return true;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['reserveStock']);
+      queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
+      queryClient.invalidateQueries({ queryKey: ['stockOutRequests'] });
       toast({
         title: 'Success',
-        description: 'Stock out request has been created.',
+        description: 'Reserve stock converted to stock out successfully.',
       });
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to convert to stock out',
         variant: 'destructive',
       });
-    }
+    },
   });
 
   return {
-    reserveStockItems,
+    reserveStocks,
     isLoading,
     error,
     createReserveStock,
-    cancelReserveStock,
-    pushToStockOut
+    isCreating,
+    updateStatus,
+    isUpdating,
+    convertToStockOut,
+    isConverting,
   };
-}; 
+}
+
