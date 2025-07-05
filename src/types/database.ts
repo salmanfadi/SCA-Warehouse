@@ -1,4 +1,3 @@
-
 // Re-export all types from individual modules for backward compatibility
 export * from './auth';
 export * from './products';
@@ -89,27 +88,18 @@ export type StockInStatus = 'pending' | 'approved' | 'rejected' | 'processing' |
 export interface Product {
   id: string;
   name: string;
-  sku: string | null;
-  description: string | null;
-  hsn_code: string | null;
-  gst_rate: number | null;
-  created_at: string;
-  updated_at: string;
-  category: string | null;
-  barcode: string | null;
-  unit: string | null;
-  min_stock_level: number | null;
-  is_active: boolean | null;
-  gst_category: string | null;
-  image_url: string | null;
-  // Legacy fields for backward compatibility
-  active?: boolean | null;
-  created_by?: string | null;
-  updated_by?: string | null;
-  specifications?: any;
-  // Additional fields for product catalog
-  is_out_of_stock?: boolean;
-  in_stock_quantity?: number;
+  description?: string;
+  sku?: string;
+  barcode?: string;
+  category?: string;
+  unit?: string;
+  min_stock_level?: number;
+  is_active?: boolean;
+  hsn_code?: string;
+  gst_rate?: number;
+  gst_category?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface StockInRequest {

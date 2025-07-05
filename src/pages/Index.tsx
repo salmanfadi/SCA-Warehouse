@@ -9,14 +9,29 @@ const Index = () => {
   const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
   const [hasTimedOut, setHasTimedOut] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout>();
+  const redirectAttempts = useRef(0);
   
+  // Handle authentication timeout
   useEffect(() => {
     console.log('Index: Setting up auth check timeout...');
+    
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
     // Set a timeout to prevent infinite loading (10 seconds)
     timeoutRef.current = setTimeout(() => {
-      console.log('Index: Auth check timeout reached', { redirectTarget, isLoading });
+      console.warn('Index: Auth check timeout reached', { redirectTarget, isLoading });
+      
       if (!redirectTarget && !isLoading) {
-        console.warn('Index: Authentication check timed out. Redirecting to login.');
+        // Show timeout message to user
+        toast({
+          title: "Authentication Check Timeout",
+          description: "Taking longer than expected to verify your session. Redirecting to login...",
+          variant: "destructive",
+        });
+        
         setHasTimedOut(true);
         setRedirectTarget('/login');
       }
@@ -29,21 +44,41 @@ const Index = () => {
     };
   }, [redirectTarget, isLoading]);
 
+  // Handle auth state changes
   useEffect(() => {
     console.log('Index: Auth state changed', { isAuthenticated, user, isLoading });
+    
+    // Reset redirect attempts on auth state change
+    redirectAttempts.current = 0;
     
     // Determine the appropriate redirect target based on authentication status and user role
     const determineRedirectTarget = () => {
       console.log('Index: Determining redirect target', { isAuthenticated, user, isLoading });
+      
       if (isAuthenticated && user && !isLoading) {
         // Redirect to appropriate dashboard based on user role
         let targetRoute = '/';
         
-        if (user.role === 'admin') targetRoute = '/admin';
-        else if (user.role === 'warehouse_manager') targetRoute = '/manager';
-        else if (user.role === 'field_operator') targetRoute = '/operator';
-        else if (user.role === 'sales_operator') targetRoute = '/sales';
-        else if (user.role === 'customer') targetRoute = '/customer/portal';
+        switch (user.role) {
+          case 'admin':
+            targetRoute = '/admin';
+            break;
+          case 'warehouse_manager':
+            targetRoute = '/manager';
+            break;
+          case 'field_operator':
+            targetRoute = '/operator';
+            break;
+          case 'sales_operator':
+            targetRoute = '/sales';
+            break;
+          case 'customer':
+            targetRoute = '/customer/portal';
+            break;
+          default:
+            console.warn('Unknown user role:', user.role);
+            targetRoute = '/';
+        }
         
         setRedirectTarget(targetRoute);
         console.log(`User authenticated as ${user.role}, redirecting to: ${targetRoute}`);
@@ -59,20 +94,35 @@ const Index = () => {
     return () => clearTimeout(timer);
   }, [isAuthenticated, user, isLoading]);
   
-  // Effect for actual navigation once target is determined
+  // Handle actual navigation
   useEffect(() => {
-    console.log('Index: Redirect target changed', { redirectTarget });
-    if (redirectTarget) {
-      // Add a small timeout to ensure smooth transition
-      const redirectTimer = setTimeout(() => {
-        navigate(redirectTarget, { replace: true });
-      }, 100);
-      
-      return () => clearTimeout(redirectTimer);
+    if (!redirectTarget) return;
+    
+    console.log('Index: Redirect target changed', { redirectTarget, attempts: redirectAttempts.current });
+    
+    // Prevent infinite redirect loops
+    if (redirectAttempts.current >= 3) {
+      console.error('Index: Too many redirect attempts');
+      toast({
+        title: "Navigation Error",
+        description: "Unable to redirect to the correct page. Please try refreshing the page.",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    // Increment redirect attempts
+    redirectAttempts.current += 1;
+    
+    // Add a small timeout to ensure smooth transition
+    const redirectTimer = setTimeout(() => {
+      navigate(redirectTarget, { replace: true });
+    }, 100);
+    
+    return () => clearTimeout(redirectTimer);
   }, [redirectTarget, navigate]);
   
-  // Show simple loading while redirecting
+  // Show loading state
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
       <div className="text-center max-w-md mx-4">
@@ -92,6 +142,8 @@ const Index = () => {
               if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
               }
+              // Reset attempts counter
+              redirectAttempts.current = 0;
               // Force redirect to login
               window.location.href = '/login';
             }}

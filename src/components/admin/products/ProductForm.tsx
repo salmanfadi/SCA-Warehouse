@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/types/database';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,7 @@ import { getHSNForProduct } from '@/utils/hsnCodes';
 import { ProductBasicInfoForm } from './ProductBasicInfoForm';
 import { ProductCategoryForm } from './ProductCategoryForm';
 import { ProductHSNForm } from './ProductHSNForm';
-// Removed ProductBarcodeForm import as it's no longer needed
+import { ProductBarcodeForm } from './ProductBarcodeForm';
 
 interface ProductFormProps {
   product?: Product;
@@ -27,6 +26,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     name: '',
     description: '',
     sku: '',
+    barcode: '',
     category: '',
     unit: '',
     min_stock_level: 0,
@@ -42,6 +42,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         name: product.name || '',
         description: product.description || '',
         sku: product.sku || '',
+        barcode: product.barcode || '',
         category: product.category || '',
         unit: product.unit || '',
         min_stock_level: product.min_stock_level || 0,
@@ -86,6 +87,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <ProductBasicInfoForm 
+            formData={formData}
+            isSubmitting={isSubmitting}
+            onChange={handleChange}
+          />
+
+          <ProductBarcodeForm 
             formData={formData}
             isSubmitting={isSubmitting}
             onChange={handleChange}

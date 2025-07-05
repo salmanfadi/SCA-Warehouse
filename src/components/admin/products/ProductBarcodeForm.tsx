@@ -1,43 +1,41 @@
-
 import React from 'react';
 import { Product } from '@/types/database';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ProductBarcodeFormProps {
   formData: Partial<Product>;
-  isSubmitting: boolean;
   onChange: (field: keyof Product, value: any) => void;
+  isSubmitting?: boolean;
 }
 
 export const ProductBarcodeForm: React.FC<ProductBarcodeFormProps> = ({
   formData,
-  isSubmitting,
   onChange,
+  isSubmitting = false,
 }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <Label htmlFor="barcode">Barcode</Label>
-        <Input
-          id="barcode"
-          value={formData.barcode || ''}
-          onChange={(e) => onChange('barcode', e.target.value)}
-          placeholder="Enter barcode"
-          disabled={isSubmitting}
-        />
-      </div>
-      
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="is_active"
-          checked={formData.is_active ?? true}
-          onCheckedChange={(checked) => onChange('is_active', checked)}
-          disabled={isSubmitting}
-        />
-        <Label htmlFor="is_active">Active</Label>
-      </div>
-    </div>
+    <Card>
+      <CardContent className="pt-6">
+        <div className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="barcode">Barcode</Label>
+            <Input
+              id="barcode"
+              placeholder="Enter product barcode"
+              value={formData.barcode || ''}
+              onChange={(e) => onChange('barcode', e.target.value)}
+              disabled={isSubmitting}
+            />
+            <p className="text-sm text-muted-foreground">
+              Enter a unique barcode for the product. This will be used for scanning and inventory tracking.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
+
+export default ProductBarcodeForm;

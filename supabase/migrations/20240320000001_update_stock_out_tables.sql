@@ -90,4 +90,8 @@ create policy "Only admins and warehouse managers can update stock out details"
   using (auth.uid() in (
     select id from auth.users 
     where raw_user_meta_data->>'role' in ('admin', 'warehouse_manager')
-  )); 
+  ));
+
+-- Rename initiated_by to created_by in inventory_transfers table
+ALTER TABLE inventory_transfers 
+  RENAME COLUMN initiated_by TO created_by; 

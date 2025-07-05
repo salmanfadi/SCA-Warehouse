@@ -313,45 +313,61 @@ export interface Database {
       }
       inventory_transfers: {
         Row: {
-          created_at: string | null
-          destination_warehouse_id: string | null
           id: string
-          initiated_by: string | null
+          source_warehouse_id: string
+          source_location_id: string | null
+          destination_warehouse_id: string
+          destination_location_id: string | null
+          status: 'pending' | 'completed' | 'in_transit' | 'cancelled'
+          created_at: string
+          updated_at: string
+          created_by: string
+          approved_by: string | null
+          received_by: string | null
+          approved_at: string | null
+          received_at: string | null
           notes: string | null
-          product_id: string | null
-          quantity: number
-          source_warehouse_id: string | null
-          status: string | null
-          transfer_reason: string | null
-          updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
-          destination_warehouse_id?: string | null
           id?: string
-          initiated_by?: string | null
+          source_warehouse_id: string
+          source_location_id?: string | null
+          destination_warehouse_id: string
+          destination_location_id?: string | null
+          status?: 'pending' | 'completed' | 'in_transit' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+          created_by: string
+          approved_by?: string | null
+          received_by?: string | null
+          approved_at?: string | null
+          received_at?: string | null
           notes?: string | null
-          product_id?: string | null
-          quantity: number
-          source_warehouse_id?: string | null
-          status?: string | null
-          transfer_reason?: string | null
-          updated_at?: string | null
         }
         Update: {
-          created_at?: string | null
-          destination_warehouse_id?: string | null
           id?: string
-          initiated_by?: string | null
+          source_warehouse_id?: string
+          source_location_id?: string | null
+          destination_warehouse_id?: string
+          destination_location_id?: string | null
+          status?: 'pending' | 'completed' | 'in_transit' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+          created_by?: string
+          approved_by?: string | null
+          received_by?: string | null
+          approved_at?: string | null
+          received_at?: string | null
           notes?: string | null
-          product_id?: string | null
-          quantity?: number
-          source_warehouse_id?: string | null
-          status?: string | null
-          transfer_reason?: string | null
-          updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_transfers_source_warehouse_id_fkey"
+            columns: ["source_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_transfers_destination_warehouse_id_fkey"
             columns: ["destination_warehouse_id"]
@@ -360,19 +376,40 @@ export interface Database {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inventory_transfers_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "inventory_transfers_source_location_id_fkey"
+            columns: ["source_location_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "warehouse_locations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inventory_transfers_source_warehouse_id_fkey"
-            columns: ["source_warehouse_id"]
+            foreignKeyName: "inventory_transfers_destination_location_id_fkey"
+            columns: ["destination_location_id"]
             isOneToOne: false
-            referencedRelation: "warehouses"
+            referencedRelation: "warehouse_locations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inventory_transfers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
         ]
       }
       pricing_inquiries: {

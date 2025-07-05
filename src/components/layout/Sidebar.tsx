@@ -55,6 +55,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
       )}
       
       <div className={cn(
+
         "fixed inset-y-0 left-0 z-[50] transform transition-all duration-300 ease-in-out bg-slate-50 dark:bg-slate-900 border-r shadow-sm",
         isOpen ? "w-64" : "w-16"
       )}>
@@ -78,6 +79,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
             {/* Admin Navigation */}
             {user?.role === 'admin' && (
               <nav className="px-2 space-y-1">
+
                 {renderNavItem("/admin", <LayoutGrid className="h-5 w-5" />, "Dashboard")}
                 {renderNavItem("/admin/inventory", <Boxes className="h-5 w-5" />, "Inventory")}
                 {renderNavItem("/admin/products", <Package className="h-5 w-5" />, "Products")}
@@ -88,12 +90,14 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {renderNavItem("/admin/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
                 {renderNavItem("/admin/users", <Users className="h-5 w-5" />, "Users")}
                 {renderNavItem("/admin/sales-inquiries", <ShoppingBag className="h-5 w-5" />, "Sales Inquiries")}
+
               </nav>
             )}
             
             {/* Warehouse Manager Navigation */}
             {user?.role === 'warehouse_manager' && (
               <nav className="px-2 space-y-1">
+
                 {renderNavItem("/manager", <LayoutGrid className="h-5 w-5" />, "Dashboard")}
                 {renderNavItem("/manager/inventory", <Boxes className="h-5 w-5" />, "Inventory")}
                 {renderNavItem("/manager/stock-in", <PackageOpen className="h-5 w-5" />, "Stock In")}
@@ -101,6 +105,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {renderNavItem("/manager/reserve-stock", <Clock className="h-5 w-5" />, "Reserve Stock")}
                 {renderNavItem("/manager/transfers", <Warehouse className="h-5 w-5" />, "Transfers")}
                 {renderNavItem("/manager/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
+
               </nav>
             )}
             
@@ -113,17 +118,20 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {renderNavItem("/operator/submissions", <Boxes className="h-5 w-5" />, "Submissions")}
                 {renderNavItem("/operator/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
                 {renderNavItem("/operator/transfers", <Warehouse className="h-5 w-5" />, "Transfers")}
+
               </nav>
             )}
             
             {/* Sales Operator Navigation */}
             {user?.role === 'sales_operator' && (
               <nav className="px-2 space-y-1">
+
                 {renderNavItem("/sales", <LayoutGrid className="h-5 w-5" />, "Dashboard")}
                 {renderNavItem("/sales/inventory", <Boxes className="h-5 w-5" />, "Product Catalog")}
                 {renderNavItem("/sales/customers", <Users2 className="h-5 w-5" />, "Customers")}
                 {renderNavItem("/sales/inquiries", <MessageSquare className="h-5 w-5" />, "Sales Inquiries")}
                 {renderNavItem("/sales/orders", <Store className="h-5 w-5" />, "Orders")}
+
               </nav>
             )}
           </div>

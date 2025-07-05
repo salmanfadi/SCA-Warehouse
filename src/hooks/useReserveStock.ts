@@ -1,3 +1,4 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -35,17 +36,21 @@ export function useReserveStock() {
   // Fetch all reserve stocks with related data
   const { data: reserveStocks, isLoading, error } = useQuery({
     queryKey: ['reserve-stocks'],
+
     queryFn: async () => {
       const { data, error } = await supabase
         .from('reserve_stock')
         .select(`
           *,
+
           product:products(id, name, sku, description),
           warehouse:warehouses(id, name, code)
+
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
       return data as ReserveStock[];
     },
   });
@@ -74,6 +79,7 @@ export function useReserveStock() {
           customer_id: null,
           stock_out_id: null,
           location_id: null, // This should be set based on warehouse selection
+
         })
         .select()
         .single();
@@ -82,12 +88,15 @@ export function useReserveStock() {
       return data;
     },
     onSuccess: () => {
+
       queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
+
       toast({
         title: 'Success',
         description: 'Stock has been reserved successfully.',
       });
     },
+
     onError: (error) => {
       toast({
         title: 'Error',
@@ -104,6 +113,7 @@ export function useReserveStock() {
         .from('reserve_stock')
         .update({ status: input.status })
         .eq('id', input.id)
+
         .select()
         .single();
 
@@ -111,6 +121,7 @@ export function useReserveStock() {
       return data;
     },
     onSuccess: () => {
+
       queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
       toast({
         title: 'Success',
@@ -178,3 +189,4 @@ export function useReserveStock() {
     isConverting,
   };
 }
+

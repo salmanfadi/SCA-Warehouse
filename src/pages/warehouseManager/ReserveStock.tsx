@@ -43,6 +43,7 @@ const ReserveStock: React.FC = () => {
     setSelectedReservation(item.id);
   };
 
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -65,6 +66,7 @@ const ReserveStock: React.FC = () => {
       </div>
 
       <Card>
+
         <CardContent className="pt-6">
           <ReserveStockList onView={handleViewDetails} />
         </CardContent>
@@ -83,6 +85,7 @@ const ReserveStock: React.FC = () => {
               onSubmit={createReservation.mutate}
               isSubmitting={createReservation.isPending}
             />
+
           </div>
         </SheetContent>
       </Sheet>
