@@ -16,13 +16,15 @@ interface StockOutRequestModalProps {
   onOpenChange: (open: boolean) => void;
   stockOut: any;
   onReject: (stockOut: any) => void;
+  isAdminView?: boolean;
 }
 
 const StockOutRequestModal: React.FC<StockOutRequestModalProps> = ({
   open,
   onOpenChange,
   stockOut,
-  onReject
+  onReject,
+  isAdminView = false
 }) => {
   const navigate = useNavigate();
 
@@ -46,7 +48,7 @@ const StockOutRequestModal: React.FC<StockOutRequestModalProps> = ({
 
   const handleScanBarcode = () => {
     // Navigate to barcode scanning page with stockOut ID
-    navigate(`/manager/stock-out/barcode-stock-out/${stockOut.id}`);
+    navigate(`${isAdminView ? '/admin' : '/manager'}/stock-out/barcode-stock-out/${stockOut.id}`);
     onOpenChange(false);
   };
 

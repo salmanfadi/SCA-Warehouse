@@ -40,7 +40,11 @@ import { v4 as uuidv4 } from 'uuid';
  * 
  * It uses the useStockOut hook for all stockout-related functionality.
  */
-const BarcodeScannerPage = (): React.ReactNode => {
+interface BarcodeScannerPageProps {
+  isAdminView?: boolean;
+}
+
+const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams<{ stockOutId?: string }>();
@@ -158,7 +162,7 @@ const BarcodeScannerPage = (): React.ReactNode => {
 
   // Handle navigation back to stock out list
   const handleBackToList = () => {
-    navigate('/warehouse/stock-out');
+    navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
   };
 
   // Handle success state after completing stock out
