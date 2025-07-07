@@ -165,7 +165,11 @@ function App() {
                 <Route path="/admin/barcodes" element={<BarcodeManagement />} />
                 <Route path="/admin/barcode" element={<AdminBarcodeLookup />} />
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
-                <Route path="/admin/stock-out" element={<StockOutManagement />} />
+                <Route path="/admin/stock-out" element={<StockOutApproval isAdminView={true} />} />
+                <Route path="/admin/stock-out/barcode-scanner" element={<BarcodeScannerPage isAdminView={true} />} />
+                <Route path="/admin/stock-out/barcode-scanner/:stockOutId" element={<BarcodeScannerPage isAdminView={true} />} />
+                <Route path="/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
+                <Route path="/admin/stock-out/barcode-stock-out" element={<BarcodeStockOutPage isAdminView={true} />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
                 <Route path="/admin/reserve-stock" element={<ReserveStock />} />
                 
@@ -174,6 +178,7 @@ function App() {
                 <Route path="/admin/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/admin/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
                 <Route path="/admin/stock-in/:stockInId/unified" element={<AdminUnifiedBatchProcessingPage />} />
+                <Route path="/admin/stock-out" element={<StockOutApproval isAdminView={true} />} />
               </Route>
               
               {/* Warehouse Manager Routes */}
@@ -186,11 +191,11 @@ function App() {
                 <Route path="/manager/stock-in" element={<StockInProcessing />} />
                 <Route path="/manager/stock-in/:id" element={<StockInDetailsPage />} />
                 <Route path="/manager/stock-in/process/:id" element={<ProcessStockInPage />} />
-                <Route path="/manager/stock-out" element={<StockOutApproval />} />
-                <Route path="/manager/stock-out/barcode-scanner" element={<BarcodeScannerPage />} />
-                <Route path="/manager/stock-out/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
+                <Route path="/manager/stock-out" element={<StockOutApproval isAdminView={false} />} />
+                <Route path="/manager/stock-out/barcode-scanner" element={<BarcodeScannerPage isAdminView={false} />} />
+                <Route path="/manager/stock-out/barcode-scanner/:stockOutId" element={<BarcodeScannerPage isAdminView={false} />} />
                 <Route path="/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
-                <Route path="/manager/stock-out/barcode-stock-out" element={<BarcodeStockOutPage />} />
+                <Route path="/manager/stock-out/barcode-stock-out" element={<BarcodeStockOutPage isAdminView={false} />} />
                 <Route path="/manager/barcode" element={<BarcodeLookup />} />
                 <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
                 <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />
@@ -211,7 +216,7 @@ function App() {
                 <Route path="/inventory/batches/:batchId/barcodes" element={<BatchBarcodesPage />} />
                 <Route path="/inventory/batches/barcodes" element={<BatchBarcodesPage />} />
                 {/* Redirect route for backward compatibility */}
-                <Route path="/warehouse/stock-out" element={<StockOutApproval />} />
+                <Route path="/warehouse/stock-out" element={<StockOutApproval isAdminView={true} />} />
               </Route>
               
               {/* Field Operator Routes */}

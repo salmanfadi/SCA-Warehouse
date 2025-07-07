@@ -34,7 +34,11 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useStockOutRequests } from '@/hooks/useStockOutRequests';
 
-const StockOutApproval: React.FC = () => {
+interface StockOutApprovalProps {
+  isAdminView?: boolean;
+}
+
+const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -385,13 +389,11 @@ const StockOutApproval: React.FC = () => {
                   onClick={() => {
                     setIsApprovalDialogOpen(false);
                     // Navigate to the barcode scanner page with the stock out ID and product info
-                    // Ensure we have all the necessary data for the barcode scanner page
                     const enhancedStockOutRequest = {
                       ...selectedStockOut,
                       product_name: selectedStockOut.product_name || 'Unknown Product',
                       quantity: selectedStockOut.quantity || 0,
                       remaining_quantity: selectedStockOut.quantity || 0,
-                      // Add any other fields needed for the barcode scanner page
                       product_id: selectedStockOut.product_id,
                       product_sku: selectedStockOut.product_sku || null,
                       product_description: selectedStockOut.product_description || null,
@@ -400,7 +402,7 @@ const StockOutApproval: React.FC = () => {
                     
                     console.log('Navigating to barcode scanner with data:', enhancedStockOutRequest);
                     
-                    navigate(`/manager/stock-out/barcode-scanner/${selectedStockOut.id}`, {
+                    navigate(`${isAdminView ? '/admin' : '/manager'}/stock-out/barcode-scanner/${selectedStockOut.id}`, {
                       state: { 
                         stockOutRequest: enhancedStockOutRequest
                       }
