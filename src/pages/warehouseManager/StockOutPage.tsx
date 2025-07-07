@@ -172,7 +172,7 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/manager/stock-out/barcode-stock-out')}
+                onClick={() => navigate(`${isAdminView ? '/admin' : '/manager'}/stock-out/barcode-stock-out`)}
               >
                 <Barcode className="mr-2 h-4 w-4" />
                 Barcode Stock Out
