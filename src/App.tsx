@@ -1,11 +1,12 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider } from './context/ThemeContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from './context/AuthContext';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { MainLayout } from '@/layouts/MainLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
+import { toast } from 'sonner';
 
 // Public pages
 import Login from './pages/Login';
@@ -100,8 +101,13 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  React.useEffect(() => {
+    // Show a demo toast on first load to confirm sonner is working in production/PWA
+    toast.success('PWA & Sonner toast are working!');
+  }, []);
+
   return (
-    <ThemeProvider attribute="class" defaultTheme="light">
+    <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Router>
@@ -253,7 +259,6 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Router>
-          <Toaster />
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
