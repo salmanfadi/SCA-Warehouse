@@ -18,9 +18,10 @@ import { ModeToggle } from '@/components/ui/mode-toggle';
 interface HeaderProps {
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
+  title?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
+export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen, title }) => {
   const { user, logout } = useAuth();
   const [notifications] = useState([]);
 
@@ -62,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
             isSidebarOpen ? "left-[280px]" : "left-24"
           )}>
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Warehouse Management
+              {title || 'Warehouse Management'}
             </h1>
           </div>
 

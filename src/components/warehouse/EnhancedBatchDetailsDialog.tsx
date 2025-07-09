@@ -297,47 +297,80 @@ const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
 
         <div className="mt-4">
           <h3 className="text-lg font-medium mb-2">Items in Batch</h3>
-          <ScrollArea className="h-[400px]">
-            <Table className="batch-details-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Color</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Location</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedBatch.items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="min-w-[120px]">
-                      <div className="w-full flex justify-center">
-                        <Barcode 
-                          value={item.barcode} 
-                          format="CODE128"
-                          width={1.5}
-                          height={60}
-                          fontSize={12}
-                          margin={0}
-                          displayValue={false}
-                        />
-                      </div>
-                      <div className="text-center text-xs mt-1 font-mono">{item.barcode}</div>
-                    </TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>{item.color || '-'}</TableCell>
-                    <TableCell>{item.size || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{item.status || 'Unknown'}</Badge>
-                    </TableCell>
-                    <TableCell>{item.locationDetails || '-'}</TableCell>
+          {/* Desktop/tablet table with scroll hint */}
+          <div className="hidden sm:block relative">
+            <ScrollArea className="h-[400px]">
+              <Table className="batch-details-table min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Barcode</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Color</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Location</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {selectedBatch.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="min-w-[120px]">
+                        <div className="w-full flex justify-center">
+                          <Barcode 
+                            value={item.barcode} 
+                            format="CODE128"
+                            width={1.5}
+                            height={60}
+                            fontSize={12}
+                            margin={0}
+                            displayValue={false}
+                          />
+                        </div>
+                        <div className="text-center text-xs mt-1 font-mono">{item.barcode}</div>
+                      </TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{item.color || '-'}</TableCell>
+                      <TableCell>{item.size || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{item.status || 'Unknown'}</Badge>
+                      </TableCell>
+                      <TableCell>{item.locationDetails || '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+            {/* Right-edge gradient scroll hint */}
+            <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-gray-900 to-transparent" />
+          </div>
+          {/* Mobile stacked card view */}
+          <div className="sm:hidden space-y-3 max-h-[400px] overflow-y-auto pr-2">
+            {selectedBatch.items.map((item) => (
+              <div key={item.id} className="rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-mono text-xs">{item.barcode}</div>
+                  <Badge className="text-xs">{item.status || 'Unknown'}</Badge>
+                </div>
+                <div className="flex justify-center mb-2">
+                  <Barcode 
+                    value={item.barcode} 
+                    format="CODE128"
+                    width={1.5}
+                    height={60}
+                    fontSize={12}
+                    margin={0}
+                    displayValue={false}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs mb-2">
+                  <span>Qty: <span className="font-semibold">{item.quantity}</span></span>
+                  <span>Color: {item.color || '-'}</span>
+                  <span>Size: {item.size || '-'}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mb-1">Location: {item.locationDetails || '-'}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-6 hidden">

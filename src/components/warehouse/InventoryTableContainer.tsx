@@ -165,9 +165,9 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
         <div className="flex justify-between items-center">
           <CardTitle>{title}</CardTitle>
           <div className="flex gap-2">
-            <Button onClick={() => refetch()} variant="outline" size="sm">
+            <Button onClick={() => refetch()} variant="outline" size="sm" title="Sync" aria-label="Sync">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              Sync
             </Button>
             <Button 
               onClick={handleExport} 
@@ -186,61 +186,96 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
             <p className="text-muted-foreground">No inventory items found</p>
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Attributes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item) => (
-                  <TableRow 
-                    key={item.id}
-                    className={highlightedBarcode && item.barcode === highlightedBarcode ? 'bg-yellow-100' : ''}
-                  >
-                    <TableCell className="font-medium">
-                      {item.product_name}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.product_sku}
-                    </TableCell>
-                    <TableCell>{item.warehouse_name}</TableCell>
-                    <TableCell className="text-sm">
-                      {item.location_details}
-                    </TableCell>
-                    <TableCell className="text-center font-semibold">
-                      {item.quantity}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={
-                        item.status === 'available' ? 'bg-green-500' :
-                        item.status === 'reserved' ? 'bg-blue-500' :
-                        item.status === 'sold' ? 'bg-purple-500' :
-                        item.status === 'damaged' ? 'bg-red-500' : ''
-                      }>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {(item.color || item.size) ? (
-                        <div className="flex flex-wrap gap-1">
-                          {item.color && <Badge variant="outline" className="text-xs">{item.color}</Badge>}
-                          {item.size && <Badge variant="outline" className="text-xs">{item.size}</Badge>}
-                        </div>
-                      ) : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            {/* Desktop/tablet table with scroll hint */}
+            <div className="hidden sm:block relative">
+              <div className="overflow-x-auto">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Attributes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredItems.map((item) => (
+                      <TableRow 
+                        key={item.id}
+                        className={highlightedBarcode && item.barcode === highlightedBarcode ? 'bg-yellow-100' : ''}
+                      >
+                        <TableCell className="font-medium">
+                          {item.product_name}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {item.product_sku}
+                        </TableCell>
+                        <TableCell>{item.warehouse_name}</TableCell>
+                        <TableCell className="text-sm">
+                          {item.location_details}
+                        </TableCell>
+                        <TableCell className="text-center font-semibold">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={
+                            item.status === 'available' ? 'bg-green-500' :
+                            item.status === 'reserved' ? 'bg-blue-500' :
+                            item.status === 'sold' ? 'bg-purple-500' :
+                            item.status === 'damaged' ? 'bg-red-500' : ''
+                          }>
+                            {item.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {(item.color || item.size) ? (
+                            <div className="flex flex-wrap gap-1">
+                              {item.color && <Badge variant="outline" className="text-xs">{item.color}</Badge>}
+                              {item.size && <Badge variant="outline" className="text-xs">{item.size}</Badge>}
+                            </div>
+                          ) : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Right-edge gradient scroll hint */}
+              <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-gray-900 to-transparent" />
+            </div>
+            {/* Mobile stacked card view */}
+            <div className="sm:hidden space-y-3">
+              {filteredItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900 ${highlightedBarcode && item.barcode === highlightedBarcode ? 'ring-2 ring-yellow-400' : ''}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-bold text-lg">{item.product_name}</div>
+                    <Badge className="text-xs">{item.status}</Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-1">SKU: {item.product_sku}</div>
+                  <div className="text-xs text-muted-foreground mb-1">Warehouse: {item.warehouse_name}</div>
+                  <div className="text-xs text-muted-foreground mb-1">Location: {item.location_details}</div>
+                  <div className="flex flex-wrap gap-2 text-sm mb-2">
+                    <span>Qty: <span className="font-semibold">{item.quantity}</span></span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
+                    {(item.color || item.size) ? (
+                      <>
+                        {item.color && <Badge variant="outline" className="text-xs">{item.color}</Badge>}
+                        {item.size && <Badge variant="outline" className="text-xs">{item.size}</Badge>}
+                      </>
+                    ) : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

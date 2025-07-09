@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface StockInRequestsTableProps {
   status?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   onReject?: (stockIn: StockInRequestData) => void;
   userId?: string;
   adminMode?: boolean;
@@ -148,7 +148,9 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
 
   return (
     <>
-      <div className="overflow-x-auto">
+      {/* Table for desktop/tablet */}
+      <div className="hidden sm:block relative overflow-x-auto">
+        <div className="absolute top-0 right-0 h-full w-8 pointer-events-none bg-gradient-to-l from-white/90 to-transparent z-10" />
         <Table>
           <TableHeader>
             <TableRow>
@@ -210,6 +212,52 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
             ))}
           </TableBody>
         </Table>
+      </div>
+      {/* Stacked card view for mobile */}
+      <div className="sm:hidden flex flex-col gap-4 p-4">
+        {stockInRequests.map((item) => (
+          <div key={item.id} className="rounded-lg border p-4 shadow-sm bg-white">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy')}</span>
+              <StatusBadge status={item.status} />
+            </div>
+            <div className="font-semibold text-base mb-1">{item.product?.name}</div>
+            <div className="text-sm text-gray-700 mb-1">Boxes: {item.boxes}</div>
+            <div className="text-xs text-gray-500 mb-1">Source: {item.source}</div>
+            <div className="text-xs text-gray-500 mb-1">Submitted By: {item.submitter?.name || 'Unknown'}</div>
+            <div className="text-xs text-gray-500 mb-1">Notes: {item.notes || '-'}</div>
+            <div className="flex flex-col gap-2 mt-2">
+              {item.status === 'pending' && (
+                <Button 
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleProcess(item)}
+                >
+                  <Box className="mr-1 h-4 w-4" />
+                  Process
+                </Button>
+              )}
+              {item.status === 'processing' && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleContinueProcessing(item)}
+                >
+                  Continue Processing
+                </Button>
+              )}
+              {item.status === 'pending' && onReject && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleReject(item)}
+                >
+                  Reject
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Pagination Controls */}

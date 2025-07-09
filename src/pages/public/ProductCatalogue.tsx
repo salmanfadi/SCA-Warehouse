@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +22,7 @@ import {
   XCircle 
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const ProductCatalogue: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -83,9 +83,12 @@ const ProductCatalogue: React.FC = () => {
   }, [searchTerm, products]);
   
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto py-8">
+      <PageHeader
+        title="Product Catalogue"
+        description="Browse available products"
+      />
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Product Catalogue</h1>
         <Link to="/cart">
           <Button variant="outline" className="flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />

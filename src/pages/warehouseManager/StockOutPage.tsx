@@ -28,6 +28,38 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { useNavigate } from 'react-router-dom';
 
+interface StockOutRequestItem {
+  id: string;
+  created_at: string;
+  destination: string;
+  status: string;
+  notes?: string;
+  stock_out_details?: Array<{
+    id: string;
+    product_id: string;
+    quantity: number;
+    product?: { id: string; name: string; sku?: string };
+  }>;
+  product?: { id: string; name: string; sku?: string } | null;
+  quantity?: number;
+}
+
+interface RawStockOutDetail {
+  id: string;
+  product_id: string;
+  quantity: number;
+  product?: { id: string; name: string; sku?: string };
+}
+
+interface RawStockOut {
+  id: string;
+  created_at: string;
+  destination: string;
+  status: string;
+  notes?: string;
+  stock_out_details?: RawStockOutDetail[];
+}
+
 interface StockOutPageProps {
   isAdminView?: boolean;
   overrideBackNavigation?: () => boolean;
@@ -40,7 +72,7 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [selectedStockOut, setSelectedStockOut] = useState<any | null>(null);
+  const [selectedStockOut, setSelectedStockOut] = useState<StockOutRequestItem | null>(null);
   const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -55,11 +87,11 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
   };
 
   // Fetch stock out requests
-  const { data: stockOutRequests, isLoading } = useQuery({
+  const { data: stockOutRequests, isLoading } = useQuery<StockOutRequestItem[]>({
     queryKey: ['stock-out-requests', isAdminView],
     queryFn: async () => {
       const { data, error } = await executeQuery('stock_out', async (supabase) => {
-        let query = supabase
+        const query = supabase
           .from('stock_out')
           .select(`
             *,
@@ -75,8 +107,18 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
       if (error) throw error;
       
       // Transform the data to make it easier to work with
-      return data?.map(stockOut => ({
+      return data?.map((stockOut: RawStockOut) => ({
         ...stockOut,
+        stock_out_details: (stockOut.stock_out_details || []).map((detail: RawStockOutDetail) => ({
+          id: detail.id,
+          product_id: detail.product_id,
+          quantity: detail.quantity,
+          product: detail.product ? {
+            id: detail.product.id,
+            name: detail.product.name,
+            sku: detail.product.sku
+          } : undefined
+        })),
         // Extract the first product for display in the table
         // (We'll handle multiple products in the ProcessStockOutForm)
         product: stockOut.stock_out_details?.[0]?.product || null,
@@ -85,13 +127,13 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
     },
   });
 
-  const handleProcess = (stockOut: any) => {
+  const handleProcess = (stockOut: StockOutRequestItem) => {
     // Make sure we pass the full stock_out_details to the form
     setSelectedStockOut(stockOut);
     setIsProcessingDialogOpen(true);
   };
 
-  const handleReject = async (stockOut: any) => {
+  const handleReject = async (stockOut: StockOutRequestItem) => {
     try {
       const { error } = await executeQuery('stock_out', async (supabase) => {
         return await supabase
@@ -193,24 +235,71 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
           ) : !stockOutRequests?.length ? (
             <div className="text-center py-4">No pending stock out requests</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Destination</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stockOutRequests.map((stockOut: any) => (
-                  <TableRow key={stockOut.id}>
-                    <TableCell>
-                      {format(new Date(stockOut.created_at), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>{stockOut.destination}</TableCell>
-                    <TableCell>
+            <>
+              {/* Table for desktop/tablet */}
+              <div className="hidden sm:block relative overflow-x-auto">
+                <div className="absolute top-0 right-0 h-full w-8 pointer-events-none bg-gradient-to-l from-white/90 to-transparent z-10" />
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Destination</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockOutRequests.map((stockOut: StockOutRequestItem) => (
+                      <TableRow key={stockOut.id}>
+                        <TableCell>
+                          {format(new Date(stockOut.created_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell>{stockOut.destination}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              stockOut.status === 'pending'
+                                ? 'default'
+                                : stockOut.status === 'approved'
+                                ? 'secondary'
+                                : 'destructive'
+                            }
+                          >
+                            {stockOut.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{stockOut.notes || 'N/A'}</TableCell>
+                        <TableCell>
+                          {stockOut.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleProcess(stockOut)}
+                              >
+                                Process
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleReject(stockOut)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Stacked card view for mobile */}
+              <div className="sm:hidden flex flex-col gap-4">
+                {stockOutRequests.map((stockOut: StockOutRequestItem) => (
+                  <div key={stockOut.id} className="rounded-lg border p-4 shadow-sm bg-white">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-gray-500">{format(new Date(stockOut.created_at), 'MMM d, yyyy')}</span>
                       <Badge
                         variant={
                           stockOut.status === 'pending'
@@ -222,31 +311,32 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
                       >
                         {stockOut.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell>{stockOut.notes || 'N/A'}</TableCell>
-                    <TableCell>
-                      {stockOut.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleProcess(stockOut)}
-                          >
-                            Process
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleReject(stockOut)}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="font-semibold text-base mb-1">{stockOut.destination}</div>
+                    <div className="text-sm text-gray-700 mb-1">Notes: {stockOut.notes || 'N/A'}</div>
+                    {stockOut.status === 'pending' && (
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleProcess(stockOut)}
+                        >
+                          Process
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => handleReject(stockOut)}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

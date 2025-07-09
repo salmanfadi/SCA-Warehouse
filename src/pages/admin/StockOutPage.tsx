@@ -27,10 +27,22 @@ interface StockOutPageProps {
   initialBarcode?: string;
 }
 
+// Type for stock out request
+interface StockOutRequest {
+  id: string;
+  created_at: string;
+  product?: { name?: string; sku?: string };
+  customer?: { name?: string; company?: string };
+  warehouse?: { name?: string };
+  quantity: number;
+  status: string;
+  created_by?: { full_name?: string };
+}
+
 const StockOutPage: React.FC<StockOutPageProps> = ({ initialBarcode }) => {
   const { user } = useUser();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStockOut, setSelectedStockOut] = useState<any>(null);
+  const [selectedStockOut, setSelectedStockOut] = useState<StockOutRequest | null>(null);
   const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -42,18 +54,18 @@ const StockOutPage: React.FC<StockOutPageProps> = ({ initialBarcode }) => {
     queryFn: async () => {
       let query = supabase
         .from('stock_out_requests')
-        .select(\`
-          *,
-          product:products(id, name, sku),
-          customer:customers(id, name, company),
-          created_by:profiles!stock_out_requests_created_by_fkey(id, full_name),
-          warehouse:warehouses(id, name, code)
-        \`)
+        .select(
+          '*,' +
+          'product:products(id, name, sku),' +
+          'customer:customers(id, name, company),' +
+          'created_by:profiles!stock_out_requests_created_by_fkey(id, full_name),' +
+          'warehouse:warehouses(id, name, code)'
+        )
         .order('created_at', { ascending: false });
 
       if (searchTerm) {
         query = query.or(
-          \`product.name.ilike.%\${searchTerm}%,product.sku.ilike.%\${searchTerm}%,customer.name.ilike.%\${searchTerm}%\`
+          'product.name.ilike.%' + searchTerm + '%,product.sku.ilike.%' + searchTerm + '%,customer.name.ilike.%' + searchTerm + '%'
         );
       }
 
@@ -123,55 +135,92 @@ const StockOutPage: React.FC<StockOutPageProps> = ({ initialBarcode }) => {
               No stock out requests found
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stockOutRequests.map((stockOut: any) => (
-                  <TableRow key={stockOut.id}>
-                    <TableCell>
-                      {format(new Date(stockOut.created_at), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{stockOut.product?.name}</div>
-                      {stockOut.product?.sku && (
-                        <div className="text-sm text-gray-500">SKU: {stockOut.product.sku}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div>{stockOut.customer?.name}</div>
-                      {stockOut.customer?.company && (
-                        <div className="text-sm text-gray-500">{stockOut.customer.company}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>{stockOut.warehouse?.name}</TableCell>
-                    <TableCell>{stockOut.quantity}</TableCell>
-                    <TableCell>{getStatusBadge(stockOut.status)}</TableCell>
-                    <TableCell>{stockOut.created_by?.full_name}</TableCell>
-                    <TableCell>
-                      {stockOut.status === 'pending' && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleProcess(stockOut)}
-                        >
-                          Process
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
+            <>
+              {/* Table for desktop/tablet */}
+              <div className="hidden sm:block relative overflow-x-auto">
+                <div className="absolute top-0 right-0 h-full w-8 pointer-events-none bg-gradient-to-l from-white/90 to-transparent z-10" />
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created By</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockOutRequests.map((stockOut: StockOutRequest) => (
+                      <TableRow key={stockOut.id}>
+                        <TableCell>
+                          {format(new Date(stockOut.created_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{stockOut.product?.name}</div>
+                          {stockOut.product?.sku && (
+                            <div className="text-sm text-gray-500">SKU: {stockOut.product.sku}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div>{stockOut.customer?.name}</div>
+                          {stockOut.customer?.company && (
+                            <div className="text-sm text-gray-500">{stockOut.customer.company}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>{stockOut.warehouse?.name}</TableCell>
+                        <TableCell>{stockOut.quantity}</TableCell>
+                        <TableCell>{getStatusBadge(stockOut.status)}</TableCell>
+                        <TableCell>{stockOut.created_by?.full_name}</TableCell>
+                        <TableCell>
+                          {stockOut.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleProcess(stockOut)}
+                            >
+                              Process
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Stacked card view for mobile */}
+              <div className="sm:hidden flex flex-col gap-4 p-4">
+                {stockOutRequests.map((stockOut: StockOutRequest) => (
+                  <div key={stockOut.id} className="rounded-lg border p-4 shadow-sm bg-white">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-gray-500">{format(new Date(stockOut.created_at), 'MMM d, yyyy')}</span>
+                      {getStatusBadge(stockOut.status)}
+                    </div>
+                    <div className="font-semibold text-base mb-1">{stockOut.product?.name}</div>
+                    {stockOut.product?.sku && (
+                      <div className="text-xs text-gray-500 mb-1">SKU: {stockOut.product.sku}</div>
+                    )}
+                    <div className="text-sm text-gray-700 mb-1">Customer: {stockOut.customer?.name}</div>
+                    {stockOut.customer?.company && (
+                      <div className="text-xs text-gray-500 mb-1">{stockOut.customer.company}</div>
+                    )}
+                    <div className="text-xs text-gray-500 mb-1">Warehouse: {stockOut.warehouse?.name}</div>
+                    <div className="text-xs text-gray-500 mb-1">Quantity: {stockOut.quantity}</div>
+                    <div className="text-xs text-gray-500 mb-1">Created By: {stockOut.created_by?.full_name}</div>
+                    {stockOut.status === 'pending' && (
+                      <Button
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => handleProcess(stockOut)}
+                      >
+                        Process
+                      </Button>
+                    )}
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

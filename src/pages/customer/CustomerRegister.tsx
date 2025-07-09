@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export interface Product {
   id: string;
@@ -76,11 +77,15 @@ const CustomerRegister: React.FC = () => {
         setConfirmPassword('');
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
+      let message = 'An error occurred during registration.';
+      if (isErrorWithMessage(error)) {
+        message = error.message;
+      }
       toast({
         title: "Registration Failed",
-        description: error.message || 'An error occurred during registration.',
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -88,14 +93,26 @@ const CustomerRegister: React.FC = () => {
     }
   };
 
+  function isErrorWithMessage(error: unknown): error is { message: string } {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'message' in error &&
+      typeof (error as { message: unknown }).message === 'string'
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 p-4">
+      <div className="mb-8 w-full max-w-md mx-auto">
+        <PageHeader
+          title="Create Account"
+          description="Register to access your customer portal"
+        />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Create Account</CardTitle>
-          <CardDescription className="text-center">
-            Enter your email and password to create an account
-          </CardDescription>
+          <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
         </CardHeader>
 
         <CardContent>

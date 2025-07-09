@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, LogOut, Package, MessageSquare, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 interface MockInquiry {
   id: string;
@@ -48,12 +49,12 @@ const CustomerPortal: React.FC = () => {
       if (data.session.user.id) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name')
+          .select('name')
           .eq('id', data.session.user.id)
           .single();
           
-        if (profile?.full_name) {
-          setUserName(profile.full_name);
+        if (profile?.name) {
+          setUserName(profile.name);
         } else {
           // For OTP users without a profile, extract name from email
           setUserName(`${data.session.user.email?.split('@')[0] || 'Guest'}`);
@@ -189,12 +190,10 @@ const CustomerPortal: React.FC = () => {
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-800 mb-2">
-            Welcome, {userName || 'Guest'}!
-          </h1>
-          <p className="text-slate-600">
-            View your inquiries and check product availability
-          </p>
+          <PageHeader
+            title={`Welcome, ${userName || 'Guest'}!`}
+            description="View your inquiries and check product availability"
+          />
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

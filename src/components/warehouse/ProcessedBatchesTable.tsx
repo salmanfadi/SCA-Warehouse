@@ -14,6 +14,7 @@ import { Eye, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { useProcessedBatches, ProcessedBatchType } from '@/hooks/useProcessedBatches';
 import { ProcessedBatchWithItems } from '@/hooks/useProcessedBatchesWithItems';
+import { Badge } from '@/components/ui/badge';
 
 export interface ProcessedBatchesTableProps {
   batches?: ProcessedBatchWithItems[];
@@ -169,57 +170,94 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
           Refresh Data
         </Button>
       </div>
-      
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Batch ID</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Boxes</TableHead>
-              <TableHead>Processed By</TableHead>
-              <TableHead>Processed Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {batches.map((batch) => (
-              <TableRow 
-                key={batch.id} 
-                className={batch.id === highlightBatchId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
-              >
-                <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{batch.product?.name || batch.product_name || 'Unknown Product'}</div>
-                    <div className="text-sm text-muted-foreground">SKU: {batch.product?.sku || batch.product_sku || 'N/A'}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{batch.totalQuantity || batch.total_quantity || 0}</TableCell>
-                <TableCell>{batch.totalBoxes || batch.boxes || 0}</TableCell>
-                <TableCell>{batch.processorName || batch.processor_name || 'Unknown'}</TableCell>
-                <TableCell>
-                  {batch.created_at ? format(new Date(batch.created_at), 'MMM d, yyyy h:mm a') : 'N/A'}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end space-x-2">
-                    <Button 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDetails(batch.id)}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View Barcodes
-                    </Button>
-                  </div>
-                </TableCell>
+      {/* Desktop/tablet table with scroll hint */}
+      <div className="hidden sm:block relative">
+        <div className="overflow-x-auto">
+          <Table className="min-w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Batch ID</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Boxes</TableHead>
+                <TableHead>Processed By</TableHead>
+                <TableHead>Processed Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {batches.map((batch) => (
+                <TableRow 
+                  key={batch.id} 
+                  className={batch.id === highlightBatchId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+                >
+                  <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{batch.product?.name || batch.product_name || 'Unknown Product'}</div>
+                      <div className="text-sm text-muted-foreground">SKU: {batch.product?.sku || batch.product_sku || 'N/A'}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{batch.totalQuantity || batch.total_quantity || 0}</TableCell>
+                  <TableCell>{batch.totalBoxes || batch.boxes || 0}</TableCell>
+                  <TableCell>{batch.processorName || batch.processor_name || 'Unknown'}</TableCell>
+                  <TableCell>
+                    {batch.created_at ? format(new Date(batch.created_at), 'MMM d, yyyy h:mm a') : 'N/A'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-2">
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewDetails(batch.id)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Barcodes
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        {/* Right-edge gradient scroll hint */}
+        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-gray-900 to-transparent" />
       </div>
-      
+      {/* Mobile stacked card view */}
+      <div className="sm:hidden space-y-3">
+        {batches.map((batch) => (
+          <div
+            key={batch.id}
+            className={`rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900 ${batch.id === highlightBatchId ? 'ring-2 ring-blue-400' : ''}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-bold text-lg">Batch #{batch.id.slice(0, 8)}</div>
+              <Badge className="text-xs">{batch.status || 'N/A'}</Badge>
+            </div>
+            <div className="text-sm text-muted-foreground mb-1">{batch.product?.name || batch.product_name || 'Unknown Product'}</div>
+            <div className="text-xs text-muted-foreground mb-2">SKU: {batch.product?.sku || batch.product_sku || 'N/A'}</div>
+            <div className="flex flex-wrap gap-2 text-sm mb-2">
+              <span>Qty: <span className="font-semibold">{batch.totalQuantity || batch.total_quantity || 0}</span></span>
+              <span>Boxes: <span className="font-semibold">{batch.totalBoxes || batch.boxes || 0}</span></span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
+              <span>Processed By: {batch.processorName || batch.processor_name || 'Unknown'}</span>
+              <span>Date: {batch.created_at ? format(new Date(batch.created_at), 'MMM d, yyyy h:mm a') : 'N/A'}</span>
+            </div>
+            <div className="flex justify-end">
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => handleViewDetails(batch.id)}
+              >
+                <Eye className="h-4 w-4 mr-1" />
+                View Barcodes
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
       {/* Pagination Controls */}
       {finalTotalPages > 1 && (
         <div className="flex justify-center items-center gap-2 py-4">

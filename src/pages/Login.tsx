@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -97,6 +98,12 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 p-4 relative overflow-hidden">
+      <div className="mb-8 w-full max-w-md mx-auto">
+        <PageHeader
+          title="Staff Login"
+          description="Enter your credentials to access the system"
+        />
+      </div>
       {/* Animated background elements */}
       <motion.div 
         className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none z-0"
@@ -150,12 +157,11 @@ const Login: React.FC = () => {
                 <Warehouse className="h-12 w-12 text-primary" />
               </div>
             </motion.div>
-            <CardTitle className="text-2xl font-bold text-center">Staff Login</CardTitle>
-            <CardDescription className="text-center text-blue-100">
-              Enter your credentials to access the system
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
+            <h1 className="text-2xl font-bold text-center mb-1">Staff Login</h1>
+            <p className="text-center text-muted-foreground mb-4">Enter your credentials to access the system</p>
             <form onSubmit={handleSubmit} className="space-y-5">
               <motion.div 
                 className="space-y-2"
