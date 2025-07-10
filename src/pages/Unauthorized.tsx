@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Shield, Home, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const Unauthorized: React.FC = () => {
   const navigate = useNavigate();
@@ -19,11 +19,7 @@ const Unauthorized: React.FC = () => {
     });
 
     // Show toast notification
-    toast({
-      title: "Access Denied",
-      description: "You don't have permission to access this page. Redirecting to your dashboard...",
-      variant: "destructive",
-    });
+    toast.error("You don't have permission to access this page. Redirecting to your dashboard...");
 
     // Auto-redirect admins to their dashboard after a short delay
     if (user?.role === 'admin') {

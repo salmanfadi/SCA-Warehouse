@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ArrowLeft, Home, AlertTriangle, Search } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const NotFound = () => {
   const location = useLocation();
@@ -19,11 +19,7 @@ const NotFound = () => {
     );
     
     // Display a toast notification when a 404 error occurs
-    toast({
-      variant: "destructive",
-      title: "Page Not Found",
-      description: `The page "${location.pathname}" does not exist.`
-    });
+    toast.error(`The page "${location.pathname}" does not exist.`);
 
     // Try to suggest a similar path based on the current URL
     const currentPath = location.pathname.toLowerCase();
@@ -85,8 +81,7 @@ const NotFound = () => {
         <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
         <h1 className="text-5xl font-bold mb-6 text-red-500">404</h1>
         <PageHeader 
-          title="Page not found" 
-          description={`The page "${location.pathname}" doesn't exist or has been moved`} 
+          description="The page you are looking for does not exist."
         />
         
         <div className="text-sm text-gray-500 dark:text-gray-400 mt-4 mb-6">

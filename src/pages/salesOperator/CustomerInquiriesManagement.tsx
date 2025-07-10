@@ -114,66 +114,115 @@ export default function CustomerInquiriesManagement() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+          {/* Table for desktop/tablet */}
+          <div className="hidden sm:block relative overflow-x-auto">
+            <div className="absolute top-0 right-0 h-full w-8 pointer-events-none bg-gradient-to-l from-white/90 to-transparent z-10" />
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <div className="flex justify-center">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-                    </div>
-                    <p className="text-sm text-gray-500 mt-2">Loading inquiries...</p>
-                  </TableCell>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ) : filteredInquiries.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <p className="text-sm text-gray-500">No customer inquiries found.</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredInquiries.map((inquiry) => (
-                  <TableRow 
-                    key={inquiry.id} 
-                    onClick={() => handleRowClick(inquiry)}
-                    className="cursor-pointer hover:bg-gray-50"
-                  >
-                    <TableCell>{formatDate(inquiry.created_at)}</TableCell>
-                    <TableCell>{inquiry.customer_name}</TableCell>
-                    <TableCell>{inquiry.customer_email}</TableCell>
-                    <TableCell>{getStatusBadge(inquiry.status)}</TableCell>
-                    <TableCell>
-                      {inquiry.status === 'pending' && (
-                        <Button 
-                          size="sm" 
-                          onClick={(e) => handleMoveToOrders(inquiry.id, e)}
-                          disabled={moveToOrders.isPending}
-                        >
-                          {moveToOrders.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Processing
-                            </>
-                          ) : (
-                            'Move to Orders'
-                          )}
-                        </Button>
-                      )}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">Loading inquiries...</p>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : filteredInquiries.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <p className="text-sm text-gray-500">No customer inquiries found.</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInquiries.map((inquiry) => (
+                    <TableRow 
+                      key={inquiry.id} 
+                      onClick={() => handleRowClick(inquiry)}
+                      className="cursor-pointer hover:bg-gray-50"
+                    >
+                      <TableCell>{formatDate(inquiry.created_at)}</TableCell>
+                      <TableCell>{inquiry.customer_name}</TableCell>
+                      <TableCell>{inquiry.customer_email}</TableCell>
+                      <TableCell>{getStatusBadge(inquiry.status)}</TableCell>
+                      <TableCell>
+                        {inquiry.status === 'pending' && (
+                          <Button 
+                            size="sm" 
+                            onClick={(e) => handleMoveToOrders(inquiry.id, e)}
+                            disabled={moveToOrders.isPending}
+                          >
+                            {moveToOrders.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Processing
+                              </>
+                            ) : (
+                              'Move to Orders'
+                            )}
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {/* Stacked card view for mobile */}
+          <div className="sm:hidden flex flex-col gap-4 p-4">
+            {isLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-500 mx-auto" />
+                <p className="text-sm text-gray-500 mt-2">Loading inquiries...</p>
+              </div>
+            ) : filteredInquiries.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-500">No customer inquiries found.</p>
+              </div>
+            ) : (
+              filteredInquiries.map((inquiry) => (
+                <div
+                  key={inquiry.id}
+                  className="rounded-lg border p-4 shadow-sm bg-white cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleRowClick(inquiry)}
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-gray-500">{formatDate(inquiry.created_at)}</span>
+                    {getStatusBadge(inquiry.status)}
+                  </div>
+                  <div className="font-semibold text-base mb-1">{inquiry.customer_name}</div>
+                  <div className="text-sm text-gray-700 mb-1">{inquiry.customer_email}</div>
+                  {inquiry.status === 'pending' && (
+                    <Button
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={(e) => handleMoveToOrders(inquiry.id, e)}
+                      disabled={moveToOrders.isPending}
+                    >
+                      {moveToOrders.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing
+                        </>
+                      ) : (
+                        'Move to Orders'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 

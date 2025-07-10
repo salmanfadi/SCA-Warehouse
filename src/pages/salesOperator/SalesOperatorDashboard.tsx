@@ -37,8 +37,7 @@ const SalesOperatorDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Sales Dashboard" 
-        description="Welcome to the Sales Operator Portal"
+        description="Sales operator dashboard overview."
       />
       
       <div className="grid gap-4 md:grid-cols-3">

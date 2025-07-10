@@ -3,12 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Warehouse, AlertCircle, Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { motion } from 'framer-motion';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +20,6 @@ const Login: React.FC = () => {
   const { login, isAuthenticated, isLoading: authLoading, user, error: authError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
   const emailInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -50,13 +50,21 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (authError) {
-      toast({
-        title: "Authentication Error",
-        description: authError instanceof Error ? authError.message : String(authError),
-        variant: "destructive"
-      });
+      const errorMessage = authError instanceof Error ? authError.message : String(authError);
+      
+      // Special handling for inactive user accounts
+      if (errorMessage.includes('deactivated by an administrator')) {
+        toast.error('Account Inactive', {
+          description: 'Your account has been deactivated by an administrator. Please contact support for assistance.',
+          duration: 6000
+        });
+      } else {
+        toast.error('Login Failed', {
+          description: errorMessage
+        });
+      }
     }
-  }, [authError, toast]);
+  }, [authError]);
 
   useEffect(() => {
     const lastEmail = localStorage.getItem('lastUsedEmail');
@@ -69,10 +77,8 @@ const Login: React.FC = () => {
     e.preventDefault();
     
     if (!email || !password) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both email and password",
-        variant: "destructive"
+      toast.error("Login Failed", {
+        description: "Please enter both email and password"
       });
       return;
     }
@@ -85,11 +91,9 @@ const Login: React.FC = () => {
       localStorage.setItem('lastUsedEmail', email);
     } catch (error) {
       console.error("Login error:", error);
-      toast({
-        title: "Login Failed",
-        description: error instanceof Error ? error.message : "Invalid email or password",
-        variant: "destructive"
-      });
+      
+      // Error handling is now done in the useEffect that watches authError
+      // This prevents duplicate toast notifications
     } finally {
       setIsLoading(false);
     }
@@ -150,10 +154,8 @@ const Login: React.FC = () => {
                 <Warehouse className="h-12 w-12 text-primary" />
               </div>
             </motion.div>
-            <CardTitle className="text-2xl font-bold text-center">Staff Login</CardTitle>
-            <CardDescription className="text-center text-blue-100">
-              Enter your credentials to access the system
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-center text-white">Staff Login</CardTitle>
+            <p className="text-center text-white">Enter your credentials to access the system</p>
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-5">

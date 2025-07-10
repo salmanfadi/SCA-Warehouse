@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Printer, Check, Box, Loader2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useStockInBatches } from '@/hooks/useStockInBatches';
 import { useStockInData } from '@/hooks/useStockInData';
 import { BoxMetadata, ProcessedBatch } from '@/types/batchStockIn';
@@ -22,7 +22,6 @@ const BarcodeAssignmentPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
   const { data: batches, isLoading: batchesLoading, error: batchesError } = useStockInBatches(stockInId);
   const { stockInData, isLoadingStockIn, error: stockInError } = useStockInData(stockInId);
 
@@ -61,15 +60,10 @@ const BarcodeAssignmentPage: React.FC = () => {
       
       // If coming from batch processing with errors, show a toast notification
       if (fromBatchProcessing && hasErrors) {
-        toast({
-          title: "Barcode Processing Issues",
-          description: "Some barcodes could not be processed automatically. Please review and fix before proceeding.",
-          // Change 'warning' to 'default' with a descriptive message
-          variant: "default",
-        });
+        toast.error("Some barcodes could not be processed automatically. Please review and fix before proceeding.");
       }
     }
-  }, [batches, fromBatchProcessing, hasErrors, toast]);
+  }, [batches, fromBatchProcessing, hasErrors]);
 
   // Count total boxes across all batches
   const totalBoxes = batches?.reduce((acc, batch) => {
@@ -88,11 +82,7 @@ const BarcodeAssignmentPage: React.FC = () => {
 
   const generateFinalBarcodes = async () => {
     if (!stockInData?.product || !batches || batches.length === 0) {
-      toast({ 
-        title: "Error", 
-        description: "Missing product or batch data", 
-        variant: "destructive" 
-      });
+      toast.error("Missing product or batch data");
       return;
     }
     
@@ -134,19 +124,12 @@ const BarcodeAssignmentPage: React.FC = () => {
       }
       
       setBoxesWithMetadata(updatedBoxesWithMetadata);
-      toast({
-        title: "Barcodes Generated",
-        description: `Successfully generated ${Object.keys(updatedBoxesWithMetadata).length} barcodes`
-      });
+      toast.success(`Successfully generated ${Object.keys(updatedBoxesWithMetadata).length} barcodes`);
       
       setCurrentStep(3); // Move to step 3
     } catch (error) {
       console.error('Error generating barcodes:', error);
-      toast({
-        title: "Failed to Generate Barcodes",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive"
-      });
+      toast.error(error instanceof Error ? error.message : "Unknown error occurred");
     } finally {
       setProcessingBarcodes(false);
     }
@@ -219,21 +202,14 @@ const BarcodeAssignmentPage: React.FC = () => {
         })
         .eq('id', stockInId);
       
-      toast({
-        title: "Processing Completed",
-        description: "Stock-in has been successfully processed and inventory updated"
-      });
+      toast.success("Stock-in has been successfully processed and inventory updated");
       
       // Navigate to the overview page
       navigate(`/manager/stock-in/batches/${stockInId}`);
       
     } catch (error) {
       console.error('Error completing processing:', error);
-      toast({
-        title: "Failed to Complete Processing",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive"
-      });
+      toast.error(error instanceof Error ? error.message : "Unknown error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -278,8 +254,7 @@ const BarcodeAssignmentPage: React.FC = () => {
       </div>
       
       <PageHeader 
-        title="Assign Barcodes to Boxes" 
-        description="Generate final barcodes and add box details for inventory" 
+        description="Assign barcodes to batches."
       />
 
       {/* Error message when barcode processing had issues */}

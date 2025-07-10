@@ -1,6 +1,6 @@
  import { useQuery } from '@tanstack/react-query';
 import { executeQuery } from '@/lib/supabase';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 // Define stock out detail type
 type StockOutDetail = {
@@ -69,7 +69,6 @@ export const useStockOutRequests = (
   enabled = true,
   refetchInterval?: number
 ) => {
-  const { toast } = useToast();
   return useQuery<{ data: StockOutRequestData[]; totalCount: number }, Error>({
     queryKey: ['stock-out-requests', filter, page, pageSize],
     enabled,
@@ -128,11 +127,7 @@ export const useStockOutRequests = (
 
         if (error) {
           console.error('Error fetching stock out requests:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to fetch stock out requests',
-            variant: 'destructive',
-          });
+          toast.error('Failed to fetch stock out requests');
           return { data: [], totalCount: 0 };
         }
         
@@ -197,10 +192,8 @@ export const useStockOutRequests = (
       } catch (error) {
         console.error('Failed to fetch stock out requests:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        toast({
-          variant: 'destructive',
-          title: 'Failed to load stock out requests',
-          description: errorMessage,
+        toast.error('Failed to load stock out requests', {
+          description: errorMessage
         });
         return { data: [], totalCount: 0 };
       }

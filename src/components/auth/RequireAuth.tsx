@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/auth";
-import { toast } from "@/hooks/use-toast";
+import { toast } from 'sonner';
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -39,11 +39,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
     console.log('Redirecting to login from:', location.pathname);
     
     // Show toast notification for unauthenticated access attempt
-    toast({
-      title: "Authentication Required",
-      description: "Please log in to access this page.",
-      variant: "destructive",
-    });
+    toast.error('You must be logged in to access this page.');
     
     // Save the attempted path for redirect after login
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
@@ -58,11 +54,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
     });
 
     // Show toast notification for unauthorized access attempt
-    toast({
-      title: "Access Denied",
-      description: "You don't have permission to access this page.",
-      variant: "destructive",
-    });
+    toast.error('You do not have permission to access this page.');
 
     // Determine appropriate redirect based on user role
     let redirectPath = '/unauthorized';
@@ -81,11 +73,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
   if (!isLoading && !session) {
     console.log('Session expired:', location.pathname);
     
-    toast({
-      title: "Session Expired",
-      description: "Your session has expired. Please log in again.",
-      variant: "destructive",
-    });
+    toast.error('Your session has expired. Please log in again.');
     
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }

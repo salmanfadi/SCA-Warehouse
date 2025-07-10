@@ -1,12 +1,11 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 export const useReserveStockOut = (onStatusUpdate?: (id: string) => void) => {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -65,9 +64,8 @@ export const useReserveStockOut = (onStatusUpdate?: (id: string) => void) => {
       }
     },
     onSuccess: (_, variables) => {
-      toast({
-        title: 'Stock Out Request Created',
-        description: `Created from reservation for ${variables.destination}. Awaiting approval.`,
+      toast.success('Stock Out Request Created', {
+        description: `Created from reservation for ${variables.destination}. Awaiting approval.`
       });
       
       // Navigate to the appropriate stock out page based on user role
@@ -77,10 +75,8 @@ export const useReserveStockOut = (onStatusUpdate?: (id: string) => void) => {
       navigate(`${basePath}/stock-out`);
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to Create Stock Out',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      toast.error('Failed to Create Stock Out', {
+        description: error instanceof Error ? error.message : 'An unknown error occurred'
       });
     }
   });

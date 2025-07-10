@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -100,17 +100,14 @@ export const RejectStockInDialog: React.FC<RejectStockInDialogProps> = ({
     onSuccess: () => {
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-      toast({
-        title: 'Stock In Rejected',
-        description: 'The stock in request has been rejected.',
+      toast.success('Stock In Rejected', {
+        description: 'The stock in request has been rejected.'
       });
     },
     onError: (error) => {
       console.error('Error in rejection mutation:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Rejection failed',
-        description: error instanceof Error ? error.message : 'Failed to reject stock in',
+      toast.error('Rejection failed', {
+        description: error instanceof Error ? error.message : 'Failed to reject stock in'
       });
     },
   });

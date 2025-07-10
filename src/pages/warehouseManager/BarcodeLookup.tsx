@@ -24,8 +24,7 @@ const ManagerBarcodeLookup: React.FC = () => {
           Back to Dashboard
         </Button>
         <PageHeader 
-          title="" 
-          description=""
+          description="Lookup barcodes in the system."
         />
       </div>
       

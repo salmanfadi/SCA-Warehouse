@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Menu, X, User, LogOut, Bell } from 'lucide-react';
@@ -18,11 +18,19 @@ import { ModeToggle } from '@/components/ui/mode-toggle';
 interface HeaderProps {
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
+  title?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }) => {
+export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen, title }) => {
   const { user, logout } = useAuth();
   const [notifications] = useState([]);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 30);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -44,8 +52,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
   };
 
   return (
-
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+    <header className={cn(
+      "bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 transition-opacity duration-300 z-50 sticky top-0",
+      scrolled ? "opacity-0 pointer-events-none" : "opacity-100"
+    )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <Button
@@ -61,8 +71,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen }
             "fixed transition-all duration-300 ease-in-out",
             isSidebarOpen ? "left-[280px]" : "left-24"
           )}>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Warehouse Management
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white transition-opacity duration-300" style={{ opacity: scrolled ? 0 : 1 }}>
+              {title || 'Warehouse Management'}
             </h1>
           </div>
 

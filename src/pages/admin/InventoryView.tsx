@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, BoxesIcon } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
@@ -70,16 +70,9 @@ const AdminInventoryView = () => {
     const item = inventoryItems?.find(item => item.barcode === barcode);
     
     if (item) {
-      toast({
-        title: 'Item Found',
-        description: `Found ${item.productName} in ${item.warehouseName}`,
-      });
+      toast.success(`Found ${item.productName} in ${item.warehouseName}`);
     } else {
-      toast({
-        title: 'Item Not Found',
-        description: `No inventory item with barcode ${barcode} was found.`,
-        variant: 'destructive'
-      });
+      toast.error(`No inventory item with barcode ${barcode} was found.`);
       
       // After a brief delay, refresh again to make sure we check database
       setTimeout(() => {
@@ -93,10 +86,7 @@ const AdminInventoryView = () => {
     queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
     queryClient.invalidateQueries({ queryKey: ['warehouses'] });
     queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-    toast({
-      title: 'Refreshing Inventory',
-      description: 'Getting the latest inventory data...'
-    });
+    toast('Getting the latest inventory data...');
   };
 
   return (

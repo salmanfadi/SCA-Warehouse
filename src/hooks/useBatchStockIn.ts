@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { BatchData, StockInBatchSubmission } from '@/types/batchStockIn';
 import { v4 as uuidv4 } from 'uuid';
@@ -38,7 +38,6 @@ export const useBatchStockIn = (userId: string = '') => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [barcodeErrors, setBarcodeErrors] = useState<any[]>([]);
-  const { toast } = useToast();
 
   // Add a batch to the state
   const addBatch = (batchData: any) => {
@@ -83,10 +82,8 @@ export const useBatchStockIn = (userId: string = '') => {
       setBatches(updatedBatches);
     } catch (error) {
       console.error('Error deleting batch:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete batch. Please try again.',
-        variant: 'destructive'
+      toast.error('Error', {
+        description: 'Failed to delete batch. Please try again.'
       });
     }
   };
@@ -304,21 +301,13 @@ export const useBatchStockIn = (userId: string = '') => {
         return { success: true, processed_batch_id, barcodeErrors };
       }
       
-      toast({
-        title: 'Batch processed successfully',
-        description: `${boxes.length} boxes have been processed and added to inventory.`,
-        variant: 'default',
-      });
+      toast.success("Batch processed successfully");
       
       return { success: true, processed_batch_id };
     } catch (error) {
       console.error('Error processing batch:', error);
       
-      toast({
-        title: 'Error processing batch',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'An unknown error occurred');
       
       return { success: false, processed_batch_id: '', barcodeErrors: [] };
     } finally {
@@ -396,11 +385,7 @@ export const useBatchStockIn = (userId: string = '') => {
     } catch (error) {
       console.error('Error submitting stock in:', error);
       
-      toast({
-        title: 'Error submitting batch',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'An unknown error occurred');
       
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     } finally {

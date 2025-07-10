@@ -7,14 +7,13 @@ import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import ScanDataDisplay from '@/components/barcode/ScanDataDisplay';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useBarcodeProcessor } from '@/components/barcode/useBarcodeProcessor';
 
 const BarcodeLookup: React.FC = () => {
   const [lastScan, setLastScan] = useState<ScanResponse['data'] | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { user } = useAuth();
   
   const { processScan, loading, error, scanData } = useBarcodeProcessor({

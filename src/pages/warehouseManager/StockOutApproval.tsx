@@ -20,7 +20,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { ArrowLeft, CheckCircle, XCircle, Scan } from 'lucide-react';
 import {
   Dialog,
@@ -92,17 +92,10 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
       setIsApprovalDialogOpen(false);
-      toast({
-        title: 'Stock Out Updated',
-        description: 'The stock out request has been updated successfully.',
-      });
+      toast.success('The stock out request has been updated successfully.');
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Update failed',
-        description: error instanceof Error ? error.message : 'Failed to update stock out status',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to update stock out status');
     },
   });
 
@@ -126,11 +119,7 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
       setIsApprovalDialogOpen(true);
     } catch (error) {
       console.error('Error in handleApprove:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error checking inventory',
-        description: error instanceof Error ? error.message : 'Failed to check available inventory',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to check available inventory');
     }
   };
   
@@ -181,8 +170,7 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <PageHeader 
-          title="Stock Out Approval" 
-          description="Review and approve stock out requests"
+          description="Approve or reject stock out requests."
         />
       </div>
       <Card>
@@ -337,18 +325,11 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
                     approvedQuantity
                   );
                   
-                  toast({
-                    title: 'Stock Out Approved',
-                    description: `Approved ${approvedQuantity} items for stock out request.`,
-                  });
+                  toast.success(`Approved ${approvedQuantity} items for stock out request.`);
                   
                   setIsApprovalDialogOpen(false);
                 } catch (error) {
-                  toast({
-                    variant: 'destructive',
-                    title: 'Approval failed',
-                    description: error instanceof Error ? error.message : 'Failed to approve stock out request',
-                  });
+                  toast.error(error instanceof Error ? error.message : 'Failed to approve stock out request');
                 }
               };
               handleConfirmApproval();

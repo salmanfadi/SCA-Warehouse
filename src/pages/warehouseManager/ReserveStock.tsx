@@ -8,14 +8,13 @@ import { ReserveStockList } from '@/components/reserve-stock/ReserveStockList';
 import { ReserveStockForm } from '@/components/reserve-stock/ReserveStockForm';
 import { ReserveStockDetail } from '@/components/reserve-stock/ReserveStockDetail';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reserveStockService, ReserveStockWithDetails } from '@/services/reserveStockService';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 const ReserveStock: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedReservation, setSelectedReservation] = useState<string | null>(null);
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
@@ -25,17 +24,10 @@ const ReserveStock: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
       setIsCreateFormOpen(false);
-      toast({
-        title: 'Success',
-        description: 'Reservation created successfully.',
-      });
+      toast.success('Reservation created successfully.');
     },
     onError: (error) => {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create reservation',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to create reservation');
     },
   });
 
@@ -55,9 +47,8 @@ const ReserveStock: React.FC = () => {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <PageHeader
-            title="Reserve Stock Management"
-            description="Create and manage stock reservations"
+          <PageHeader 
+            description="Reserve stock for future use."
           />
         </div>
         <Button onClick={() => setIsCreateFormOpen(true)}>

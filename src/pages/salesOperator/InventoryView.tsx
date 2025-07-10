@@ -27,8 +27,7 @@ const InventoryView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Product Inventory" 
-        description="View current inventory levels and stock information"
+        description="View and manage sales inventory."
       />
       
       <Card>

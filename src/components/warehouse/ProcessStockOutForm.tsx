@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { executeQuery } from '@/lib/supabase';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -56,7 +56,6 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
 }) => {
   const [approvedQuantity, setApprovedQuantity] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   if (!stockOut) return null;
@@ -104,11 +103,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
       const availableQuantity = Array.isArray(inventoryData) ? inventoryData.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0;
 
       if (availableQuantity < approvedQuantity) {
-        toast({
-          title: 'Error',
-          description: `Not enough inventory available. Only ${availableQuantity} units in stock.`,
-          variant: 'destructive',
-        });
+        toast.error(`Not enough inventory available. Only ${availableQuantity} units in stock.`);
         setIsSubmitting(false);
         return;
       }
@@ -145,11 +140,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
           code: errorCode
         });
         
-        toast({
-          title: 'Error',
-          description: `Failed to approve stock out: ${errorMessage}`,
-          variant: 'destructive',
-        });
+        toast.error(`Failed to approve stock out: ${errorMessage}`);
         setIsSubmitting(false);
         return;
       }
@@ -158,10 +149,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
 
       // Success
       queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
-      toast({
-        title: 'Success',
-        description: 'Stock out request has been approved.',
-      });
+      toast.success('Stock out request has been approved.');
       onOpenChange(false);
     } catch (error) {
       console.error('Error processing stock out:', error);
@@ -182,11 +170,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
         });
       }
       
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to process stock out request',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to process stock out request');
     } finally {
       setIsSubmitting(false);
     }

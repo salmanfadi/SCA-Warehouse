@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useCart } from '@/hooks/useCart';
-import { Product } from '@/types/database';
+import { Product as BaseProduct } from '@/types/database';
 import {
   Card,
   CardContent,
@@ -22,15 +21,24 @@ import {
   Loader2
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
+
+const PLACEHOLDER_IMAGE = '/placeholder.svg';
+
+type LocalProduct = BaseProduct & {
+  image_url?: string;
+  is_out_of_stock?: boolean;
+  in_stock_quantity?: number;
+  specifications?: string;
+};
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<LocalProduct | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [requirements, setRequirements] = useState('');
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
-  const { toast } = useToast();
   
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -42,40 +50,28 @@ const ProductDetail: React.FC = () => {
         
         if (error) {
           console.error('Error invoking product-stock function:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load product information',
-            variant: 'destructive',
-          });
+          toast.error('Failed to load product information');
           return;
         }
         
-        const foundProduct = productStock.find((p: any) => p.id === id);
+        const foundProduct = productStock.find((p: LocalProduct) => p.id === id);
         
         if (!foundProduct) {
-          toast({
-            title: 'Error',
-            description: 'Product not found',
-            variant: 'destructive',
-          });
+          toast.error('Product not found');
           return;
         }
         
         setProduct(foundProduct);
       } catch (error) {
         console.error('Error fetching product details:', error);
-        toast({
-          title: 'Error',
-          description: 'Something went wrong. Please try again.',
-          variant: 'destructive',
-        });
+        toast.error('Something went wrong. Please try again.');
       } finally {
         setLoading(false);
       }
     };
     
     fetchProductDetails();
-  }, [id, toast]);
+  }, [id]);
   
   const handleAddToCart = () => {
     if (!product) return;
@@ -86,52 +82,21 @@ const ProductDetail: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Link to="/products">
-        <Button variant="ghost" className="flex items-center mb-8">
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back to Products
-        </Button>
-      </Link>
-      
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-gray-100 rounded-lg">
-            <Skeleton className="h-80 w-full" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-10 w-3/4" />
-            <Skeleton className="h-6 w-1/4" />
-            <div className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          </div>
-        </div>
-      ) : product ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-gray-100 rounded-lg flex items-center justify-center p-6">
-            {product.image_url ? (
+    <div className="container mx-auto py-8">
+      <PageHeader
+        title={product.name}
+        description={product.description || ''}
+      />
+      <div className="flex flex-col md:flex-row gap-8">
+        <div className="md:w-1/2 flex flex-col items-center">
               <img
-                src={product.image_url}
+            src={product.image_url || PLACEHOLDER_IMAGE}
                 alt={product.name}
-                className="object-contain max-h-80 w-full"
+            className="w-full max-w-xs rounded-lg shadow-md mb-4"
               />
-            ) : (
-              <div className="text-center">
-                <Package className="h-24 w-24 mx-auto text-gray-400" />
-                <p className="mt-4 text-gray-500">No image available</p>
               </div>
-            )}
-          </div>
-          
-          <div className="space-y-6">
-            <h1 className="text-3xl font-bold">{product.name}</h1>
+        <div className="md:w-1/2">
+          <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
             <div className="flex items-center">
               <p className="text-sm text-gray-500">SKU: {product.sku || 'N/A'}</p>
               <div className="ml-auto flex items-center">
@@ -211,18 +176,6 @@ const ProductDetail: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : (
-        <div className="text-center py-12">
-          <Package className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium mb-2">Product not found</h3>
-          <p className="text-gray-500 mb-8">
-            The product you're looking for does not exist or has been removed.
-          </p>
-          <Link to="/products">
-            <Button>Browse Other Products</Button>
-          </Link>
-        </div>
-      )}
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { Loader2, Plus, Trash2, Check, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
@@ -147,37 +147,29 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
   const handleAddBatch = () => {
     // Validate inputs
     if (!newBatch.warehouse_id || !newBatch.location_id) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please select both warehouse and location',
-        variant: 'destructive',
+      toast.error('Missing Information', {
+        description: 'Please select both warehouse and location'
       });
       return;
     }
     
     if (newBatch.boxCount <= 0) {
-      toast({
-        title: 'Invalid Box Count',
-        description: 'Number of boxes must be greater than zero',
-        variant: 'destructive',
+      toast.error('Invalid Box Count', {
+        description: 'Number of boxes must be greater than zero'
       });
       return;
     }
     
     if (newBatch.quantityPerBox <= 0) {
-      toast({
-        title: 'Invalid Quantity',
-        description: 'Quantity per box must be greater than zero',
-        variant: 'destructive',
+      toast.error('Invalid Quantity', {
+        description: 'Quantity per box must be greater than zero'
       });
       return;
     }
     
     if (newBatch.boxCount > remainingBoxes) {
-      toast({
-        title: 'Too Many Boxes',
-        description: `You can only add ${remainingBoxes} more boxes to match the original request`,
-        variant: 'destructive',
+      toast.error('Too Many Boxes', {
+        description: `You can only add ${remainingBoxes} more boxes to match the original request`
       });
       return;
     }
@@ -206,19 +198,13 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
     
     setSelectedWarehouse('');
     
-    toast({
-      title: 'Batch Added',
-      description: `Added a new batch with ${newBatchWithId.boxCount} boxes`,
-    });
+    toast.success(`Added a new batch with ${newBatchWithId.boxCount} boxes`);
   };
   
   // Remove a batch
   const handleRemoveBatch = (batchId: string) => {
     setBatches(batches.filter(batch => batch.id !== batchId));
-    toast({
-      title: 'Batch Removed',
-      description: 'The batch has been removed',
-    });
+    toast.success('The batch has been removed');
   };
   
   return (

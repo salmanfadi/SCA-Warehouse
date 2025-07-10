@@ -1,17 +1,20 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider } from './context/ThemeContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from './context/AuthContext';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { MainLayout } from '@/layouts/MainLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
+import { toast } from 'sonner';
 
 // Public pages
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import Index from './pages/Index';
 import Unauthorized from './pages/Unauthorized';
+import AuthCallback from './pages/auth/callback';
+import ResetPassword from './pages/auth/reset-password';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -53,7 +56,6 @@ import ManagerInventoryView from './pages/warehouseManager/InventoryView';
 // Field operator pages
 import OperatorDashboard from './pages/fieldOperator/OperatorDashboard';
 import StockInForm from './pages/fieldOperator/StockInForm';
-import StockOutForm from './pages/fieldOperator/StockOutForm';
 import Submissions from './pages/fieldOperator/Submissions';
 import FieldOperatorBarcodeLookup from './pages/fieldOperator/BarcodeLookup';
 import Transfers from './pages/fieldOperator/Transfers';
@@ -67,16 +69,6 @@ import SalesInventoryView from './pages/salesOperator/InventoryView';
 import ProductView from './pages/salesOperator/ProductView';
 import OrdersManagement from './pages/salesOperator/OrdersManagement';
 import CustomersPage from './pages/salesOperator/CustomersPage';
-
-// Customer pages
-import CustomerPortal from './pages/customer/CustomerPortal';
-import CustomerLogin from './pages/customer/CustomerLogin';
-import CustomerRegister from './pages/customer/CustomerRegister';
-import CustomerLanding from './pages/customer/CustomerLanding';
-import CustomerProducts from './pages/customer/CustomerProducts';
-import CustomerInquiry from './pages/customer/CustomerInquiry';
-import CustomerInquirySuccess from './pages/customer/CustomerInquirySuccess';
-import ResetPassword from './pages/customer/ResetPassword';
 
 // Public pages
 import ProductCatalogue from './pages/public/ProductCatalogue';
@@ -100,8 +92,13 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  React.useEffect(() => {
+    // Show a demo toast on first load to confirm sonner is working in production/PWA
+    // toast.success('PWA & Sonner toast are working!');
+  }, []);
+
   return (
-    <ThemeProvider attribute="class" defaultTheme="light">
+    <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Router>
@@ -112,40 +109,14 @@ function App() {
               <Route element={<PublicLayout />}>
                 <Route path="/login" element={<Login />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
-                
-                {/* Customer Public Routes */}
-                <Route path="/customer/login" element={<CustomerLogin />} />
-                <Route path="/customer/register" element={<CustomerRegister />} />
-                <Route path="/customer/reset-password" element={<ResetPassword />} />
-                <Route path="/customer" element={<CustomerLanding />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
                 
                 {/* Product Catalog */}
                 <Route path="/products" element={<ProductCatalogue />} />
                 <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
               </Route>
-              
-              {/* Customer Portal */}
-              <Route path="/customer/portal" element={
-                <RequireAuth allowedRoles={['customer']}>
-                  <CustomerPortal />
-                </RequireAuth>
-              } />
-              <Route path="/customer/products" element={
-                <RequireAuth allowedRoles={['customer']}>
-                  <CustomerProducts />
-                </RequireAuth>
-              } />
-              <Route path="/customer/inquiry" element={
-                <RequireAuth allowedRoles={['customer']}>
-                  <CustomerInquiry />
-                </RequireAuth>
-              } />
-              <Route path="/customer/inquiry/success" element={
-                <RequireAuth allowedRoles={['customer']}>
-                  <CustomerInquirySuccess />
-                </RequireAuth>
-              } />
               
               {/* Admin Routes */}
               <Route element={
@@ -227,7 +198,6 @@ function App() {
               }>
                 <Route path="/operator" element={<OperatorDashboard />} />
                 <Route path="/operator/stock-in" element={<StockInForm />} />
-                <Route path="/operator/stock-out" element={<StockOutForm />} />
                 <Route path="/operator/submissions" element={<Submissions />} />
                 <Route path="/operator/barcode" element={<FieldOperatorBarcodeLookup />} />
                 <Route path="/operator/transfers" element={<Transfers />} />
@@ -253,7 +223,6 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Router>
-          <Toaster />
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

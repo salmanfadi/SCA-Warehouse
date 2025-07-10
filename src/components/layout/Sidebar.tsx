@@ -5,7 +5,7 @@ import {
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, Warehouse, PanelLeft,
   MessageSquare, Users2, Store, Clock,
-  BarChart3, BarChart, ChartBar
+  BarChart3, BarChart, ChartBar, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -90,6 +90,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {renderNavItem("/admin/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
                 {renderNavItem("/admin/users", <Users className="h-5 w-5" />, "Users")}
                 {renderNavItem("/admin/sales-inquiries", <ShoppingBag className="h-5 w-5" />, "Sales Inquiries")}
+                {renderNavItem("/admin/test-navigation-error", <AlertTriangle className="h-5 w-5 text-red-500" />, "Test Navigation Error")}
 
               </nav>
             )}
@@ -114,7 +115,6 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
               <nav className="px-2 space-y-1">
                 {renderNavItem("/operator", <LayoutGrid className="h-5 w-5" />, "Dashboard")}
                 {renderNavItem("/operator/stock-in", <PackageOpen className="h-5 w-5" />, "Stock In")}
-                {renderNavItem("/operator/stock-out", <Package className="h-5 w-5" />, "Stock Out")}
                 {renderNavItem("/operator/submissions", <Boxes className="h-5 w-5" />, "Submissions")}
                 {renderNavItem("/operator/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
                 {renderNavItem("/operator/transfers", <Warehouse className="h-5 w-5" />, "Transfers")}
@@ -128,7 +128,6 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
 
                 {renderNavItem("/sales", <LayoutGrid className="h-5 w-5" />, "Dashboard")}
                 {renderNavItem("/sales/inventory", <Boxes className="h-5 w-5" />, "Product Catalog")}
-                {renderNavItem("/sales/customers", <Users2 className="h-5 w-5" />, "Customers")}
                 {renderNavItem("/sales/inquiries", <MessageSquare className="h-5 w-5" />, "Sales Inquiries")}
                 {renderNavItem("/sales/orders", <Store className="h-5 w-5" />, "Orders")}
 

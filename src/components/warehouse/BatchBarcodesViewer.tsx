@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Download, ArrowLeft, Box as BoxIcon } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { showErrorToast } from '@/lib/toast';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -60,7 +59,7 @@ const BatchBarcodesViewer: React.FC = () => {
           .eq('stock_in_id', stockInIdParam);
 
         if (relatedError) {
-          showErrorToast('Error loading batches', relatedError.message);
+          toast.error(`Error loading batches: ${relatedError.message}`);
           throw relatedError;
         }
 
@@ -114,7 +113,7 @@ const BatchBarcodesViewer: React.FC = () => {
           .single();
 
         if (batchError) {
-          showErrorToast('Error loading batch', batchError.message);
+          toast.error(`Error loading batch: ${batchError.message}`);
           throw batchError;
         }
 
@@ -184,7 +183,7 @@ const BatchBarcodesViewer: React.FC = () => {
           .limit(10);
 
         if (recentError) {
-          showErrorToast('Error loading recent batches', recentError.message);
+          toast.error(`Error loading recent batches: ${recentError.message}`);
           throw recentError;
         }
 
@@ -356,17 +355,10 @@ const BatchBarcodesViewer: React.FC = () => {
       
       doc.save(filename);
       
-      toast({
-        title: 'Success',
-        description: `PDF with ${batchesToProcess.length} batch(es) generated successfully`,
-      });
+      toast.success(`PDF with ${batchesToProcess.length} batch(es) generated successfully`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to generate PDF',
-        variant: 'destructive',
-      });
+      toast.error('Failed to generate PDF');
     } finally {
       setIsGeneratingPdf(false);
     }

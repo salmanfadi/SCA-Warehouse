@@ -17,7 +17,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useStockOut } from '@/hooks/useStockOut';
 import BarcodeScanner from '@/components/warehouse/stockout/BarcodeScanner';
 import BatchItemDetails from '@/components/warehouse/stockout/BatchItemDetails';
@@ -48,7 +48,6 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams<{ stockOutId?: string }>();
-  const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -181,17 +180,13 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
   const handleComplete = async () => {
     try {
       await handleCompleteStockOut();
-      toast({
-        title: 'Stock out completed successfully',
+      toast.success('Stock out completed successfully', {
         description: 'The stock out request has been completed.',
-        variant: 'default',
       });
       handleSuccess();
     } catch (error) {
-      toast({
-        title: 'Error completing stock out',
+      toast.error('Error completing stock out', {
         description: error instanceof Error ? error.message : 'An unknown error occurred',
-        variant: 'destructive',
       });
     }
   };

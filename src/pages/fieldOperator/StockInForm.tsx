@@ -23,7 +23,7 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ArrowLeft } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/types/database.types';
@@ -114,19 +114,12 @@ const StockInForm: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['operator-stats', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['operator-recent-activities', user?.id] });
       
-      toast({
-        title: 'Stock In request submitted!',
-        description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
-      });
+      toast.success(`${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`);
       navigate('/operator/submissions');
     },
     onError: (error) => {
       console.error("Submission error:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Submission failed',
-        description: error instanceof Error ? error.message : 'Failed to submit stock in request',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to submit stock in request');
     },
   });
   
@@ -191,11 +184,7 @@ const StockInForm: React.FC = () => {
     // Validate product
     if (!formData.productId) {
       valid = false;
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Please select a product',
-      });
+      toast.error('Please select a product');
       return valid;
     }
     
@@ -231,11 +220,7 @@ const StockInForm: React.FC = () => {
     }
     
     if (!user?.id) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication required',
-        description: 'You must be logged in to submit stock in requests',
-      });
+      toast.error('You must be logged in to submit stock in requests');
       return;
     }
     
@@ -245,11 +230,7 @@ const StockInForm: React.FC = () => {
   
   const handleConfirmSubmit = () => {
     if (!user?.id) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication required',
-        description: 'You must be logged in to submit stock in requests',
-      });
+      toast.error('You must be logged in to submit stock in requests');
       return;
     }
     

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, Package, Save, X, InfoIcon } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { StockInData } from '@/hooks/useStockInBoxes';
 
 type WarehouseLocationRow = {
@@ -177,11 +177,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
       batchData.boxes_count < 1 ||
       (maxBoxes !== undefined && batchData.boxes_count > maxBoxes && !editingBatch)
     ) {
-      toast({
-        title: 'Invalid box count',
-        description: `Please enter a valid number of boxes (1 or more, up to ${maxBoxes ?? 'N/A'}).`,
-        variant: 'destructive'
-      });
+      toast.error(`Please enter a valid number of boxes (1 or more, up to ${maxBoxes ?? 'N/A'}).`);
       return;
     }
     

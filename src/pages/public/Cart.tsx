@@ -1,11 +1,20 @@
-
 import React from 'react';
 import { useCart } from '@/hooks/useCart';
+import { Product as BaseProduct } from '@/types/database';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Minus, Plus, Trash2, Package } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
+
+type LocalProduct = BaseProduct & {
+  image_url?: string;
+};
+
+type LocalCartItem = Omit<import('@/types/database').CartItem, 'product'> & {
+  product: LocalProduct;
+};
 
 const Cart: React.FC = () => {
   const { 
@@ -30,10 +39,15 @@ const Cart: React.FC = () => {
     updateRequirements(productId, requirements);
   };
 
-  if (items.length === 0) {
+  const localItems: LocalCartItem[] = items as LocalCartItem[];
+
+  if (localItems.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+        <PageHeader
+          title="Your Cart"
+          description="Review and manage your selected products"
+        />
         <div className="text-center py-12">
           <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h3>
@@ -45,6 +59,10 @@ const Cart: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <PageHeader
+        title="Your Cart"
+        description="Review and manage your selected products"
+      />
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Shopping Cart</h1>
         <Button variant="outline" onClick={clearCart}>
@@ -54,7 +72,7 @@ const Cart: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
+          {localItems.map((item) => (
             <Card key={item.product_id}>
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">

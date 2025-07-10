@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, QrCode, Check, X } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { Progress } from '@/components/ui/progress';
 import { BatchItem } from '@/services/stockout/types';
@@ -23,7 +23,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   currentBatchItem,
   initialBarcode
 }) => {
-  const { toast } = useToast();
   const [barcode, setBarcode] = useState<string>('');
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
   const [loadingProgress, setLoadingProgress] = useState<number>(0);
@@ -77,11 +76,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       setBarcode('');
     } catch (error) {
       console.error('Error submitting barcode:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to process barcode. Please try again.',
-        variant: 'destructive'
-      });
+      toast.error('Failed to process barcode. Please try again.');
       setLoadingProgress(0);
     }
   };
@@ -103,10 +98,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     }, 500);
     
     // Show success toast
-    toast({
-      title: 'Barcode Scanned',
-      description: `Successfully scanned barcode: ${scannedBarcode.substring(0, 8)}...`,
-    });
+    toast.success(`Successfully scanned barcode: ${scannedBarcode.substring(0, 8)}...`);
   };
 
   // Handle Enter key press in the barcode input

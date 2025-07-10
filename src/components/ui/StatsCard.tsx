@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -24,7 +23,13 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   trend
 }) => {
   return (
-    <Card className={cn("stats-card", className)}>
+    <Card
+      className={cn(
+        "stats-card transition-all duration-200 cursor-pointer hover:bg-slate-100 hover:shadow-md active:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-300",
+        className
+      )}
+      tabIndex={0}
+    >
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         {icon && <div className="text-muted-foreground">{icon}</div>}

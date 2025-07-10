@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { Loader2, ScanLine } from 'lucide-react';
 import {
   Select,
@@ -41,7 +41,6 @@ export const CreateStockOutForm: React.FC<CreateStockOutFormProps> = ({
   open,
   onOpenChange
 }) => {
-  const { toast } = useToast();
   const [destination, setDestination] = useState('');
   const [notes, setNotes] = useState('');
   const [barcode, setBarcode] = useState(initialBarcode || '');
@@ -66,11 +65,7 @@ export const CreateStockOutForm: React.FC<CreateStockOutFormProps> = ({
       
       if (error) {
         if (error.code !== 'PGRST116') { // PGRST116 is the "no rows returned" error
-          toast({
-            title: 'Error',
-            description: 'Failed to find product with this barcode',
-            variant: 'destructive',
-          });
+          toast.error('Failed to find product with this barcode');
         }
         return null;
       }
@@ -85,10 +80,7 @@ export const CreateStockOutForm: React.FC<CreateStockOutFormProps> = ({
     if (product) {
       setProductId(product.id);
       setProductName(product.name);
-      toast({
-        title: 'Product Found',
-        description: `Found: ${product.name}`,
-      });
+      toast.success(`Found: ${product.name}`);
     }
   }, [product, toast]);
 

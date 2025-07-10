@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle, XCircle, Clock, Package } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Transfer {
@@ -43,10 +43,8 @@ export const TransferApprovalList: React.FC<TransferApprovalListProps> = ({ onRe
 
       if (error) {
         console.error('Error fetching transfers:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to fetch pending transfers',
+        toast.error('Error', {
+          description: 'Failed to fetch pending transfers'
         });
         return;
       }
@@ -54,10 +52,8 @@ export const TransferApprovalList: React.FC<TransferApprovalListProps> = ({ onRe
       setTransfers(data || []);
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch transfer data',
+      toast.error('Error', {
+        description: 'Failed to fetch transfer data'
       });
     } finally {
       setIsLoading(false);
@@ -80,9 +76,9 @@ export const TransferApprovalList: React.FC<TransferApprovalListProps> = ({ onRe
 
       if (error) throw error;
 
-      toast({
-        title: `Transfer ${action === 'approve' ? 'Approved' : 'Rejected'}`,
-        description: `Transfer has been ${action === 'approve' ? 'approved and is now in transit' : 'rejected'}`,
+      toast.success(`Transfer has been ${action === 'approve' ? 'approved and is now in transit' : 'rejected'}`);
+      toast.success(`Transfer ${action === 'approve' ? 'Approved' : 'Rejected'}`, {
+        description: `Transfer has been ${action === 'approve' ? 'approved and is now in transit' : 'rejected'}`
       });
 
       // Refresh the list
@@ -90,10 +86,8 @@ export const TransferApprovalList: React.FC<TransferApprovalListProps> = ({ onRe
       if (onRefresh) onRefresh();
     } catch (error) {
       console.error(`Error ${action}ing transfer:`, error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: `Failed to ${action} transfer`,
+      toast.error('Error', {
+        description: `Failed to ${action} transfer`
       });
     } finally {
       setProcessingTransfers(prev => {

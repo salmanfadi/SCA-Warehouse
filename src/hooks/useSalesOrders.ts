@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { executeQuery } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
 export interface SalesOrderItem {
@@ -44,7 +44,6 @@ export interface SalesOrder {
 
 export const useSalesOrders = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Function to refresh sales orders data
@@ -53,18 +52,15 @@ export const useSalesOrders = () => {
     try {
       await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       await refetch();
-      toast({
-        title: 'Refreshed',
+      toast.success('Refreshed', {
         description: 'Sales orders data has been refreshed',
-        duration: 3000,
+        duration: 3000
       });
     } catch (error) {
       console.error('Error refreshing sales orders:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Refresh Failed',
+      toast.error('Refresh Failed', {
         description: 'Failed to refresh sales orders data',
-        duration: 3000,
+        duration: 3000
       });
     } finally {
       setIsRefreshing(false);
@@ -230,17 +226,14 @@ export const useSalesOrders = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] }); // Also invalidate orders query
-      toast({
-        title: 'Success',
-        description: 'Sales order created successfully',
+      toast.success('Success', {
+        description: 'Sales order created successfully'
       });
     },
     onError: (error: Error) => {
       console.error('Sales order creation error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to create sales order',
+      toast.error('Error', {
+        description: 'Failed to create sales order'
       });
     },
   });
@@ -258,9 +251,8 @@ export const useSalesOrders = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
-      toast({
-        title: 'Success',
-        description: 'Order status updated successfully',
+      toast.success('Success', {
+        description: 'Order status updated successfully'
       });
     },
   });
@@ -482,10 +474,9 @@ export const useSalesOrders = () => {
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
       queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
       
-      toast({
-        title: 'Success',
+      toast.success('Success', {
         description: `Order ${salesOrder.sales_order_number || salesOrder.id.substring(0, 8)} pushed to stock-out successfully`,
-        duration: 5000,
+        duration: 5000
       });
     },
     onError: (error: Error, salesOrder, context) => {
@@ -508,11 +499,9 @@ export const useSalesOrders = () => {
         queryClient.setQueryData(['salesOrders'], context.previousOrders);
       }
       
-      toast({
-        variant: 'destructive',
-        title: 'Error',
+      toast.error('Error', {
         description: `Failed to push order to stock-out: ${error.message}`,
-        duration: 5000,
+        duration: 5000
       });
     },
   });

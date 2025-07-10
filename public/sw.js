@@ -100,10 +100,8 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => {
-          // Fallback to cached page or offline page
-          return caches.match(request).then(response => {
-            return response || caches.match('/offline.html');
-          });
+          // Instead of serving offline.html, just throw to let the app handle navigation errors
+          return Response.error();
         })
     );
     return;

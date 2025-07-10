@@ -26,8 +26,7 @@ const ManagerDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title={`Welcome, ${userName}`} 
-        description="Manage warehouse operations and inventory"
+        description="Overview of warehouse operations."
       />
       
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

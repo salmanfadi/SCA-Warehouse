@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useCallback, useEffect } from 'react';
 
 interface Product {
@@ -81,7 +81,6 @@ export interface StockInRequestData {
 
 export const useStockInRequests = (filters: Record<string, any> = {}, page: number = 1, pageSize: number = 20) => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const fetchStockInRequests = useCallback(async () => {
     console.log('Fetching stock in requests with filter:', filters, 'page:', page, 'pageSize:', pageSize);
@@ -223,14 +222,12 @@ return { data: processedData, totalCount: totalCount ?? 0 };
     } catch (error) {
       console.error('Failed to fetch stock in requests:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast({
-        variant: 'destructive',
-        title: 'Failed to load stock requests',
-        description: errorMessage,
+      toast.error('Failed to load stock requests', {
+        description: errorMessage
       });
       return { data: [], totalCount: 0 };
     }
-  }, [filters, page, pageSize, toast]);
+  }, [filters, page, pageSize]);
 
   const queryResult = useQuery({
     queryKey: ['stock-in-requests', filters, page, pageSize],

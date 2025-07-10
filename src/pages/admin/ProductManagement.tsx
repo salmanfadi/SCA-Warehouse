@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ProductForm from '@/components/admin/products/ProductForm';
 import ProductsTable from '@/components/admin/products/ProductsTable';
 import { Plus, Search, Download } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { getHSNCodeByCategory, getGSTRateByCategory } from '@/utils/hsnCodes';
 
 const ProductManagement: React.FC = () => {
@@ -50,10 +50,7 @@ const ProductManagement: React.FC = () => {
       await createProduct.mutateAsync(dataWithHSN);
       
       setShowForm(false);
-      toast({
-        title: 'Success',
-        description: 'Product created successfully',
-      });
+      toast.success('Product created successfully');
     } catch (error) {
       console.error('Error creating product:', error);
     }
@@ -70,10 +67,7 @@ const ProductManagement: React.FC = () => {
       
       setEditingProduct(null);
       setShowForm(false);
-      toast({
-        title: 'Success',
-        description: 'Product updated successfully',
-      });
+      toast.success('Product updated successfully');
     } catch (error) {
       console.error('Error updating product:', error);
     }
@@ -85,10 +79,7 @@ const ProductManagement: React.FC = () => {
     try {
       await deleteProduct.mutateAsync(deletingProductId);
       setDeletingProductId(null);
-      toast({
-        title: 'Success',
-        description: 'Product deleted successfully',
-      });
+      toast.success('Product deleted successfully');
     } catch (error) {
       console.error('Error deleting product:', error);
     }
