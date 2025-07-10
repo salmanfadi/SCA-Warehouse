@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Install Agile Warehouse App</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      background-color: #f9fafb;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 500px;
+      padding: 40px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: #2563eb;
+    }
+    p {
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    .install-button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      transition: background-color 0.2s;
+    }
+    .install-button:hover {
+      background-color: #1d4ed8;
+    }
+    .install-button svg {
+      margin-right: 8px;
+    }
+    .instructions {
+      margin-top: 2rem;
+      text-align: left;
+      background-color: #f3f4f6;
+      padding: 1rem;
+      border-radius: 6px;
+    }
+    .instructions h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+    }
+    .instructions ol {
+      padding-left: 1.5rem;
+    }
+    .instructions li {
+      margin-bottom: 0.5rem;
+    }
+    .browser-specific {
+      display: none;
+    }
+    .browser-chrome .chrome-instructions,
+    .browser-safari .safari-instructions,
+    .browser-firefox .firefox-instructions,
+    .browser-other .other-instructions {
+      display: block;
+    }
+    .platform-ios .ios-note,
+    .platform-android .android-note {
+      display: block;
+    }
+    .ios-note, .android-note {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📦</div>
+    <h1>Install Agile Warehouse App</h1>
+    <p>Install our app for a better experience with offline support and faster loading times.</p>
+    
+    <button id="install-button" class="install-button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      Install App
+    </button>
+    
+    <div class="instructions">
+      <h2>Installation Instructions</h2>
+      
+      <div class="browser-specific chrome-instructions">
+        <ol>
+          <li>Tap the install button above</li>
+          <li>If no prompt appears, tap the menu button (⋮) in Chrome</li>
+          <li>Select "Install app" or "Add to Home Screen"</li>
+        </ol>
+      </div>
+      
+      <div class="browser-specific safari-instructions">
+        <ol>
+          <li>Tap the share button (rectangle with arrow)</li>
+          <li>Scroll down and select "Add to Home Screen"</li>
+          <li>Tap "Add" in the top right corner</li>
+        </ol>
+        <p class="ios-note">Note: Safari on iOS is the only browser that supports adding to home screen.</p>
+      </div>
+      
+      <div class="browser-specific firefox-instructions">
+        <ol>
+          <li>Tap the menu button (⋮) in Firefox</li>
+          <li>Select "Install" or "Add to Home Screen"</li>
+        </ol>
+      </div>
+      
+      <div class="browser-specific other-instructions">
+        <ol>
+          <li>Open this page in Chrome or Safari</li>
+          <li>Follow the instructions for your browser</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Detect browser
+    function detectBrowser() {
+      const userAgent = navigator.userAgent.toLowerCase();
+      if (userAgent.indexOf('chrome') > -1) {
+        document.body.classList.add('browser-chrome');
+      } else if (userAgent.indexOf('safari') > -1) {
+        document.body.classList.add('browser-safari');
+      } else if (userAgent.indexOf('firefox') > -1) {
+        document.body.classList.add('browser-firefox');
+      } else {
+        document.body.classList.add('browser-other');
+      }
+
+      // Detect platform
+      if (/iphone|ipad|ipod/.test(userAgent)) {
+        document.body.classList.add('platform-ios');
+      } else if (/android/.test(userAgent)) {
+        document.body.classList.add('platform-android');
+      }
+    }
+    
+    detectBrowser();
+    
+    // Handle install button
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent Chrome from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+    });
+    
+    document.getElementById('install-button').addEventListener('click', async () => {
+      if (!deferredPrompt) {
+        alert('To install this app, follow the instructions below for your browser.');
+        return;
+      }
+      
+      // Show the install prompt
+      deferredPrompt.prompt();
+      
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      // Reset the deferred prompt variable
+      deferredPrompt = null;
+      
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+    });
+    
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches || 
+        navigator.standalone || 
+        document.referrer.includes('android-app://')) {
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>

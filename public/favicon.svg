@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Warehouse Building Base -->
+    <path d="M4 28V12L16 4L28 12V28H4Z" fill="#3B82F6" stroke="#1D4ED8" stroke-width="2"/>
+    
+    <!-- Box/Package Icon -->
+    <path d="M12 16L16 14L20 16L16 18L12 16Z" fill="#BFDBFE"/>
+    <path d="M12 16V20L16 22V18L12 16Z" fill="#93C5FD"/>
+    <path d="M16 18V22L20 20V16L16 18Z" fill="#60A5FA"/>
+    
+    <!-- Door -->
+    <rect x="13" y="20" width="6" height="8" fill="#1D4ED8" rx="1"/>
+    
+    <!-- Windows -->
+    <rect x="7" y="14" width="3" height="3" fill="#BFDBFE" rx="0.5"/>
+    <rect x="22" y="14" width="3" height="3" fill="#BFDBFE" rx="0.5"/>
+    
+    <!-- Roof Details -->
+    <path d="M4 12L16 4L28 12" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"/>
+</svg>

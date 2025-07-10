@@ -1,0 +1,278 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 221 83% 53%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+    
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 224.3 76.3% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 
+      'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 
+      'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Apple-style form element styling */
+  input, select, textarea {
+    @apply rounded-lg transition-all duration-200 shadow-sm;
+  }
+  
+  button {
+    @apply rounded-lg transition-all duration-200;
+  }
+  
+  /* Responsive container for all pages */
+  .responsive-container {
+    @apply w-full px-4 sm:px-6 md:px-8 mx-auto;
+    max-width: 1280px;
+  }
+  
+  /* Consistent page title styling */
+  .page-title {
+    @apply text-2xl md:text-3xl font-bold mb-2;
+  }
+  
+  .page-description {
+    @apply text-sm md:text-base text-gray-500 dark:text-gray-400 mb-6;
+  }
+}
+
+@layer utilities {
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  
+  .status-badge-pending {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500;
+  }
+  
+  .status-badge-approved {
+    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500;
+  }
+  
+  .status-badge-rejected {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500;
+  }
+  
+  .status-badge-completed {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-500;
+  }
+
+  /* Card styling with Apple-inspired design */
+  .stats-card {
+    @apply flex flex-col p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow dark:bg-slate-800 dark:border-slate-700;
+  }
+  
+  /* Apple-style shadows */
+  .apple-shadow-sm {
+    @apply shadow-[0_2px_6px_rgba(0,0,0,0.05)];
+  }
+  
+  .apple-shadow {
+    @apply shadow-[0_4px_10px_rgba(0,0,0,0.06)];
+  }
+  
+  .apple-shadow-md {
+    @apply shadow-[0_8px_20px_rgba(0,0,0,0.07)];
+  }
+  
+  .apple-shadow-lg {
+    @apply shadow-[0_12px_30px_rgba(0,0,0,0.08)];
+  }
+  
+  /* Glassmorphism effects - Apple style */
+  .glass {
+    @apply bg-white/90 backdrop-blur-lg dark:bg-slate-900/90 border border-white/20 dark:border-slate-700/30;
+  }
+  
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out forwards;
+  }
+  
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  /* Improved scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-600;
+  }
+  
+  /* Responsive helpers */
+  .hide-on-mobile {
+    @apply hidden md:block;
+  }
+  
+  .show-on-mobile {
+    @apply block md:hidden;
+  }
+  
+  /* Apple-style card and content transitions */
+  .card-hover {
+    @apply transition-all duration-200 hover:translate-y-[-2px] hover:shadow-md;
+  }
+  
+  /* Subtle hover effect for interactive elements */
+  .hover-lift {
+    @apply transition-transform duration-200 hover:-translate-y-0.5;
+  }
+  
+  /* Responsive grid layouts */
+  .responsive-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+  }
+  
+  .responsive-grid-2-3 {
+    @apply grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4;
+  }
+  
+  .responsive-grid-1-2 {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  }
+  
+  /* Table overflow handling */
+  .table-container {
+    @apply w-full overflow-x-auto scrollbar-thin;
+  }
+
+  /* Consistent form layout */
+  .form-container {
+    @apply space-y-4 w-full max-w-md mx-auto;
+  }
+  
+  /* Responsive spacing */
+  .section-spacing {
+    @apply my-6 md:my-8;
+  }
+  
+  /* Responsive text */
+  .responsive-text {
+    @apply text-sm sm:text-base;
+  }
+  
+  /* Card grid layout for dashboard */
+  .dashboard-card-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+  }
+}

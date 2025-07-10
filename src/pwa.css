@@ -1,0 +1,252 @@
+
+/* Enhanced PWA-specific styles for better mobile experience */
+
+/* Styles for when app is running in standalone mode (installed as PWA) */
+body.pwa-standalone {
+  /* Remove browser-like UI elements when in standalone mode */
+  overscroll-behavior: none; /* Prevents pull-to-refresh and bounce effects */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+  touch-action: manipulation; /* Optimize for touch */
+  user-select: none; /* Prevent text selection by default */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* Disable callout on long-press */
+}
+
+/* iOS-specific PWA adjustments */
+body.pwa-ios {
+  /* Add safe area insets for notches and home indicators */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  
+  /* iOS specific optimizations */
+  -webkit-overflow-scrolling: touch;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Android-specific PWA adjustments */
+body.pwa-android {
+  /* Android specific optimizations */
+  font-smoothing: antialiased;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Adjust main layout for PWA */
+body.pwa-standalone .main-layout {
+  /* Ensure content doesn't get hidden under iOS home indicator */
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* Adjust fixed elements for PWA */
+body.pwa-standalone .fixed-bottom {
+  bottom: env(safe-area-inset-bottom);
+}
+
+body.pwa-standalone .fixed-top {
+  top: env(safe-area-inset-top);
+}
+
+/* Enhanced responsive design */
+.container {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Prevent iOS zoom on input focus */
+body.pwa-standalone input,
+body.pwa-standalone select,
+body.pwa-standalone textarea {
+  font-size: 16px; /* Prevent iOS zoom on focus */
+  -webkit-appearance: none; /* Remove browser styling */
+  appearance: none;
+  border-radius: 8px; /* Better touch targets */
+}
+
+/* Better touch targets for mobile */
+body.pwa-standalone button,
+body.pwa-standalone .btn {
+  min-height: 44px; /* iOS recommended touch target */
+  min-width: 44px;
+  padding: 12px 16px;
+  touch-action: manipulation;
+}
+
+/* Enhanced link styling for mobile */
+body.pwa-standalone a {
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Disable pull-to-refresh and overscroll */
+html, body {
+  overscroll-behavior: none;
+  height: 100%;
+  height: -webkit-fill-available;
+}
+
+body.pwa-standalone {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  height: -webkit-fill-available;
+  overflow: auto;
+}
+
+/* Better scrolling on iOS */
+.scrollable {
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+}
+
+/* Hide browser UI elements when in standalone mode */
+body.pwa-standalone .browser-only {
+  display: none !important;
+}
+
+/* Show elements only in PWA mode */
+.pwa-only {
+  display: none;
+}
+
+body.pwa-standalone .pwa-only {
+  display: block;
+}
+
+/* Enhanced offline indicator */
+.offline-indicator {
+  display: none;
+  position: fixed;
+  top: env(safe-area-inset-top, 0);
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+  color: white;
+  text-align: center;
+  padding: 12px;
+  z-index: 9999;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: slide-down 0.3s ease-out;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+body:not(.online) .offline-indicator {
+  display: block;
+}
+
+/* Loading states for better UX */
+.pwa-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.pwa-loading::after {
+  content: '';
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #2563eb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Better card shadows for mobile */
+body.pwa-standalone .card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03);
+  border-radius: 12px;
+}
+
+/* Enhanced button styles for mobile */
+body.pwa-standalone .btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: none;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  transition: all 0.2s ease;
+}
+
+body.pwa-standalone .btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+/* Better spacing for mobile */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .grid {
+    gap: 12px;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 16px;
+  }
+  
+  .space-y-4 > * + * {
+    margin-top: 12px;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (orientation: landscape) and (max-height: 600px) {
+  body.pwa-standalone {
+    padding-top: 0;
+  }
+  
+  .main-layout {
+    padding-bottom: 0;
+  }
+}
+
+/* Dark mode adjustments for PWA */
+@media (prefers-color-scheme: dark) {
+  body.pwa-standalone {
+    background-color: #0f172a;
+    color: #f1f5f9;
+  }
+  
+  .offline-indicator {
+    background: linear-gradient(90deg, #dc2626, #b91c1c);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  body.pwa-standalone {
+    filter: contrast(1.2);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
