@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase, executeQuery } from '@/lib/supabase';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { Product } from '@/types/database';
 
 export interface StockInData {
@@ -28,7 +28,6 @@ export interface StockInData {
 
 export const useStockInData = (stockInId: string | undefined) => {
   const [stockInData, setStockInData] = useState<StockInData | null>(null);
-  const { toast } = useToast();
 
   const { isLoading, error } = useQuery({
     queryKey: ['stock-in', stockInId],
@@ -143,10 +142,8 @@ export const useStockInData = (stockInId: string | undefined) => {
         return stockInDataObject;
       } catch (error) {
         console.error("Error in useStockInData:", error);
-        toast({
-          title: "Failed to load stock in data",
-          description: error instanceof Error ? error.message : "An unknown error occurred",
-          variant: "destructive"
+        toast.error('Failed to load stock in data', {
+          description: error instanceof Error ? error.message : 'An unknown error occurred'
         });
         throw error;
       }

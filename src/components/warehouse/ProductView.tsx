@@ -29,7 +29,7 @@ import { supabase } from '@/lib/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { getHSNDescription } from '@/utils/hsnCodes';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export const ProductView: React.FC = () => {
   // State for pagination
@@ -43,8 +43,6 @@ export const ProductView: React.FC = () => {
   // State for HSN code editing
   const [editingHSN, setEditingHSN] = useState<string | null>(null);
   const [hsnValue, setHsnValue] = useState<string>('');
-  
-  const { toast } = useToast();
   
   // Fetch product batches data
   const { 
@@ -86,11 +84,8 @@ export const ProductView: React.FC = () => {
   // Handle refresh
   const handleRefresh = useCallback(() => {
     refetch();
-    toast({
-      title: "Data refreshed",
-      description: "Product inventory data has been updated.",
-    });
-  }, [refetch, toast]);
+    toast.success('Product inventory data has been updated.');
+  }, [refetch]);
   
   // Function to update HSN code
   const updateHSNCode = async (productId: string, newHSNCode: string) => {
@@ -104,20 +99,13 @@ export const ProductView: React.FC = () => {
         throw error;
       }
       
-      toast({
-        title: "HSN Code Updated",
-        description: `HSN Code has been updated to ${newHSNCode}.`,
-      });
+      toast.success(`HSN Code has been updated to ${newHSNCode}.`);
       
       // Refresh data
       refetch();
     } catch (error) {
       console.error('Error updating HSN code:', error);
-      toast({
-        title: "Update Failed",
-        description: "Failed to update HSN code. Please try again.",
-        variant: "destructive"
-      });
+      toast.error('Failed to update HSN code. Please try again.');
     }
   };
   

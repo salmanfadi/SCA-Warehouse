@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export interface BoxData {
   id: string;
@@ -91,10 +91,8 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
   // Apply default values to all boxes
   const applyDefaultsToAll = () => {
     if (!defaultValues.warehouse || !defaultValues.location) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing defaults',
-        description: 'Please select a warehouse and location before applying to all boxes.',
+      toast.error('Missing defaults', {
+        description: 'Please select a warehouse and location before applying to all boxes.'
       });
       return;
     }
@@ -114,9 +112,8 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
     // Update the state with the new array
     setBoxesData(updatedBoxes);
     
-    toast({
-      title: 'Defaults Applied',
-      description: 'Default values have been applied to all boxes.',
+    toast.success('Defaults Applied', {
+      description: 'Default values have been applied to all boxes.'
     });
   };
 

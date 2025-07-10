@@ -1,7 +1,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
 export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
@@ -118,18 +118,15 @@ export const useCreateInventoryMovement = () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       
-      toast({
-        title: 'Movement Created',
-        description: 'Inventory movement has been recorded.',
-      });
+      toast.success(
+        "Inventory movement created successfully."
+      );
     },
     onError: (error: any) => {
       console.error('Failed to create inventory movement:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to create inventory movement',
-      });
+      toast.error(
+        "Failed to create inventory movement."
+      );
     }
   });
 };

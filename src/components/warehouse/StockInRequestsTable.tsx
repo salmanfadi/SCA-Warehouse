@@ -15,7 +15,7 @@ import { Box, AlertTriangle } from 'lucide-react';
 import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import ProcessStockInForm from './ProcessStockInForm';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface StockInRequestsTableProps {
   status?: string;
@@ -34,7 +34,6 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
 }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -66,11 +65,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
     // Validate that userId is available
     if (!userId) {
       console.error("User ID is missing when trying to process stock in");
-      toast({
-        title: "Authentication error",
-        description: "Unable to identify the current user. Please try logging in again.",
-        variant: "destructive"
-      });
+      toast.error('Unable to identify the current user. Please try logging in again.');
       return;
     }
     

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Product } from '@/types/database';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -109,10 +109,8 @@ export function useProducts() {
       return newProduct;
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create product',
+      toast.error('Error', {
+        description: error instanceof Error ? error.message : 'Failed to create product'
       });
     },
   });
@@ -159,20 +157,17 @@ export function useProducts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: 'Success',
-        description: 'Product updated successfully',
+      toast.success('Success', {
+        description: 'Product updated successfully'
       });
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
+      toast.error('Error', {
         description: error instanceof Error ? 
           (error.message.includes('products_sku_unique') ? 
             'A product with this SKU already exists' : 
             error.message) : 
-          'Failed to update product',
+          'Failed to update product'
       });
     },
   });
@@ -190,16 +185,13 @@ export function useProducts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: 'Success',
-        description: 'Product deleted successfully',
+      toast.success('Success', {
+        description: 'Product deleted successfully'
       });
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete product',
+      toast.error('Error', {
+        description: error instanceof Error ? error.message : 'Failed to delete product'
       });
     },
   });

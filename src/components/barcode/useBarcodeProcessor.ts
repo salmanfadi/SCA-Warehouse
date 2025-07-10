@@ -48,40 +48,26 @@ export function useBarcodeProcessor({
           onScanComplete(formattedResponse.data);
         }
         
-        toast({
-          title: 'Item Found',
-          description: `Found ${item.products?.name} in ${item.warehouses?.name}`,
-        });
+        toast.success(`Found ${item.products?.name} in ${item.warehouses?.name}`);
       } else {
         // If no direct match, try the serverless function for more complex lookup logic
         const response = await serverlessBarcodeService.processBarcode(scannedBarcode, user?.id, user?.role);
         
         if (response.status === 'error' || !response.data) {
           setError(response.error || 'Failed to retrieve product information');
-          toast({
-            variant: 'destructive',
-            title: 'Scan Failed',
-            description: response.error || 'Failed to retrieve product information',
-          });
+          toast.error(response.error || 'Failed to retrieve product information');
         } else {
           setScanData(response.data);
           if (onScanComplete) {
             onScanComplete(response.data);
           }
-          toast({
-            title: 'Barcode Scanned',
-            description: `Found ${response.data.product.name}`,
-          });
+          toast.success(`Found ${response.data.product.name}`);
         }
       }
     } catch (err) {
       console.error('Scan error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      toast({
-        variant: 'destructive',
-        title: 'Scan Error',
-        description: err instanceof Error ? err.message : 'Failed to process barcode scan',
-      });
+      toast.error(err instanceof Error ? err.message : 'Failed to process barcode scan');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation } from '@tanstack/react-query';
@@ -19,7 +19,6 @@ interface ScannedItem {
 }
 
 export const useTransferLogic = () => {
-  const { toast } = useToast();
   const { user } = useAuth();
   
   const [currentScannedBarcode, setCurrentScannedBarcode] = useState('');
@@ -33,10 +32,8 @@ export const useTransferLogic = () => {
     
     // Check if barcode already scanned
     if (scannedItems.some(item => item.barcode === barcode)) {
-      toast({
-        variant: 'destructive',
-        title: 'Duplicate barcode',
-        description: 'This item has already been scanned.',
+      toast.error('Duplicate barcode', {
+        description: 'This item has already been scanned.'
       });
       return;
     }
@@ -66,10 +63,8 @@ export const useTransferLogic = () => {
       if (error) throw error;
       
       if (!data) {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid barcode',
-          description: 'No inventory found with this barcode.',
+        toast.error('Invalid barcode', {
+          description: 'No inventory found with this barcode.'
         });
         return;
       }
@@ -93,16 +88,13 @@ export const useTransferLogic = () => {
       
       setCurrentScannedBarcode('');
       
-      toast({
-        title: 'Item scanned',
-        description: `Added ${product.name} to transfer list.`,
+      toast.success('Item scanned', {
+        description: `Added ${product.name} to transfer list.`
       });
     } catch (error) {
       console.error('Error fetching barcode details:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error scanning barcode',
-        description: error instanceof Error ? error.message : 'Failed to process barcode',
+      toast.error('Error scanning barcode', {
+        description: error instanceof Error ? error.message : 'Failed to process barcode'
       });
     }
   };
@@ -151,9 +143,8 @@ export const useTransferLogic = () => {
       return { success: true };
     },
     onSuccess: () => {
-      toast({
-        title: 'Transfer submitted',
-        description: `Successfully transferred ${scannedItems.length} items.`,
+      toast.success('Transfer submitted', {
+        description: `Successfully transferred ${scannedItems.length} items.`
       });
       setScannedItems([]);
       setTargetWarehouseId('');
@@ -161,10 +152,8 @@ export const useTransferLogic = () => {
       setReason('');
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Transfer failed',
-        description: error instanceof Error ? error.message : 'Failed to process transfer',
+      toast.error('Transfer failed', {
+        description: error instanceof Error ? error.message : 'Failed to process transfer'
       });
     },
   });

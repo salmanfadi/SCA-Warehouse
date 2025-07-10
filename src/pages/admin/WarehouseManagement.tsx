@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Plus, Search, Edit, Trash2, Warehouse, MapPin } from 'lucide-react';
 
 interface WarehouseType {
@@ -113,10 +113,7 @@ const WarehouseManagement: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-      toast({
-        title: 'Warehouse created',
-        description: 'The warehouse has been created successfully.',
-      });
+      toast.success('The warehouse has been created successfully.');
       resetForm();
       setIsDialogOpen(false);
     },
@@ -130,11 +127,7 @@ const WarehouseManagement: React.FC = () => {
             : error.message
         : 'Failed to create warehouse';
         
-      toast({
-        variant: 'destructive',
-        title: 'Error creating warehouse',
-        description: errorMessage,
-      });
+      toast.error(errorMessage);
     },
   });
 
@@ -174,20 +167,13 @@ const WarehouseManagement: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-      toast({
-        title: 'Warehouse updated',
-        description: 'The warehouse has been updated successfully.',
-      });
+      toast.success('The warehouse has been updated successfully.');
       resetForm();
       setIsDialogOpen(false);
       setEditingWarehouse(null);
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error updating warehouse',
-        description: error instanceof Error ? error.message : 'Failed to update warehouse',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to update warehouse');
     },
   });
 
@@ -203,17 +189,10 @@ const WarehouseManagement: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-      toast({
-        title: 'Warehouse deleted',
-        description: 'The warehouse has been deleted successfully.',
-      });
+      toast.success('The warehouse has been deleted successfully.');
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error deleting warehouse',
-        description: error instanceof Error ? error.message : 'Failed to delete warehouse',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to delete warehouse');
     },
   });
 

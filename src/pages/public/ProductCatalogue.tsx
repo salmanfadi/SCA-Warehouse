@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/hooks/useCart';
 import { Product } from '@/types/database';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { 
   Card, 
   CardContent, 
@@ -30,7 +30,6 @@ const ProductCatalogue: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const { addToCart, cartCount } = useCart();
-  const { toast } = useToast();
   
   useEffect(() => {
     const fetchProducts = async () => {
@@ -40,11 +39,7 @@ const ProductCatalogue: React.FC = () => {
         
         if (error) {
           console.error('Error invoking product-stock function:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load products. Please try again.",
-            variant: "destructive"
-          });
+          toast.error("Failed to load products. Please try again.");
           return;
         }
         
@@ -52,18 +47,14 @@ const ProductCatalogue: React.FC = () => {
         setFilteredProducts(data || []);
       } catch (error) {
         console.error('Error fetching products:', error);
-        toast({
-          title: "Error",
-          description: "Something went wrong. Please try again.",
-          variant: "destructive"
-        });
+        toast.error("Something went wrong. Please try again.");
       } finally {
         setLoading(false);
       }
     };
     
     fetchProducts();
-  }, [toast]);
+  }, []);
   
   // Filter products based on search term
   useEffect(() => {

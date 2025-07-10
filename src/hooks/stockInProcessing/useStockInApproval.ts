@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export const useStockInApproval = (stockInId?: string) => {
   const [approvalNotes, setApprovalNotes] = useState<string>('');
@@ -31,18 +31,15 @@ export const useStockInApproval = (stockInId?: string) => {
         throw error;
       }
       
-      toast({
-        title: `Stock-in request ${isApproved ? 'approved' : 'rejected'}`,
-        description: isApproved ? 'The stock-in request has been approved' : 'The stock-in request has been rejected',
+      toast.success(`Stock-in request ${isApproved ? 'approved' : 'rejected'}`, {
+        description: isApproved ? 'The stock-in request has been approved' : 'The stock-in request has been rejected'
       });
       
       // Navigate back to the stock-in list
       navigate('/manager/stock-in');
     } catch (error) {
       console.error('Error updating stock-in:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
+      toast.error('Error', {
         description: `Failed to ${isApproved ? 'approve' : 'reject'} the stock-in request.`
       });
     } finally {

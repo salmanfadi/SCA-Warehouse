@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { Product } from '@/types/database';
 
@@ -18,7 +18,6 @@ interface ProductFormProps {
 
 export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onOpenChange }) => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
@@ -101,27 +100,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onOpenChange }
         is_active: true,
       });
       setSelectedImage(null);
-      toast({
-        title: 'Success',
-        description: 'Product added successfully',
-      });
+      toast.success('Product added successfully');
     },
     onError: (error: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to add product',
-      });
+      toast.error(error.message || 'Failed to add product');
     },
   });
 
   const handleAddProduct = () => {
     if (!newProduct.name) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Product name is required',
-      });
+      toast.error('Product name is required');
       return;
     }
 

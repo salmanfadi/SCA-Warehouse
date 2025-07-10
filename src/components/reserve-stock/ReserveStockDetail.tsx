@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reserveStockService, ReserveStockWithDetails } from '@/services/reserveStockService';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -35,17 +35,10 @@ export const ReserveStockDetail: React.FC<ReserveStockDetailProps> = ({ id, onCl
       reserveStockService.updateStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
-      toast({
-        title: 'Success',
-        description: 'Reserve stock status updated successfully.',
-      });
+      toast.success('Reserve stock status updated successfully');
     },
     onError: (error) => {
-      toast({
-        title: 'Error',
-        description: 'Failed to update reserve stock status.',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to update reserve stock status');
       console.error('Error updating reserve stock status:', error);
     },
   });
@@ -54,18 +47,11 @@ export const ReserveStockDetail: React.FC<ReserveStockDetailProps> = ({ id, onCl
     mutationFn: () => reserveStockService.convertToStockOut(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reserve-stocks'] });
-      toast({
-        title: 'Success',
-        description: 'Reserve stock converted to stock out successfully.',
-      });
+      toast.success('Reserve stock converted to stock out successfully');
       onClose();
     },
     onError: (error) => {
-      toast({
-        title: 'Error',
-        description: 'Failed to convert reserve stock to stock out.',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to convert reserve stock to stock out');
       console.error('Error converting reserve stock to stock out:', error);
     },
   });

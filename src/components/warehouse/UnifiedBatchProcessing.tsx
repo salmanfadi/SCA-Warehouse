@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn } from '@/hooks/useBatchStockIn';
 import { useStockInData } from '@/hooks/useStockInData';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { BackButton } from '@/components/warehouse/BackButton';
 import { 
   Card, 
@@ -183,19 +183,15 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
       
       // Show success message
       if (barcodeErrors && barcodeErrors.length > 0) {
-        toast({
-          title: 'Batch Processed with Warnings',
-          description: 'There were some issues with barcode processing. Please continue to barcode assignment.',
-          variant: 'default',
+        toast('Batch Processed with Warnings', {
+          description: 'There were some issues with barcode processing. Please continue to barcode assignment.'
         });
         
         // Automatically move to barcode assignment step
         setActiveStep('barcode-assignment');
       } else {
-        toast({
-          title: 'Batch Processed Successfully',
-          description: 'All batches have been processed. You can now assign barcodes.',
-          variant: 'default',
+        toast.success('Batch Processed Successfully', {
+          description: 'All batches have been processed. You can now assign barcodes.'
         });
         
         // Automatically move to barcode assignment step
@@ -221,10 +217,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
 
     // Check if adding this batch would exceed the remaining boxes
     if (effectiveNewBoxes > remainingBoxes && editingIndex === null) {
-      toast({
-        title: 'Box count exceeds limit',
-        description: `You can only add ${remainingBoxes} more boxes. Please adjust the quantity.`,
-        variant: 'destructive'
+      toast.error('Box count exceeds limit', {
+        description: `You can only add ${remainingBoxes} more boxes. Please adjust the quantity.`
       });
       return;
     }
@@ -251,10 +245,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
   // Apply a template to quickly create a batch
   const applyTemplate = (template: BatchTemplate) => {
     if (!stockInData?.product) {
-      toast({
-        title: 'Missing product information',
-        description: 'Please select a product before applying a template',
-        variant: 'destructive'
+      toast.error('Missing product information', {
+        description: 'Please select a product before applying a template'
       });
       return;
     }
@@ -283,10 +275,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
     
     if (!user) return;
     if (batches.length === 0) {
-      toast({
-        title: 'No batches added',
-        description: 'Please add at least one batch before submitting',
-        variant: 'destructive'
+      toast.error('No batches added', {
+        description: 'Please add at least one batch before submitting'
       });
       return;
     }
@@ -302,10 +292,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
       productId = batches[0].product_id;
     } else {
       console.error("No product ID found in either stockInData or batches");
-      toast({
-        title: 'Error',
-        description: 'Could not determine product ID for batch submission',
-        variant: 'destructive'
+      toast.error('Error', {
+        description: 'Could not determine product ID for batch submission'
       });
       return;
     }
@@ -330,10 +318,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
   // Generate barcodes for all boxes
   const generateBarcodes = async () => {
     if (!stockInData?.product) {
-      toast({ 
-        title: "Error", 
-        description: "Missing product information", 
-        variant: "destructive" 
+      toast.error('Error', {
+        description: 'Missing product information'
       });
       return;
     }
@@ -381,17 +367,14 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
       }
       
       setBoxesWithMetadata(updatedBoxesWithMetadata);
-      toast({
-        title: "Barcodes Generated",
+      toast.success('Barcodes Generated', {
         description: `Successfully generated ${Object.keys(updatedBoxesWithMetadata).length} barcodes`
       });
       
     } catch (error) {
       console.error('Error generating barcodes:', error);
-      toast({
-        title: "Failed to Generate Barcodes",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive"
+      toast.error('Failed to Generate Barcodes', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
       });
     } finally {
       setProcessingBarcodes(false);
@@ -401,10 +384,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
   // Process all metadata updates and finish processing
   const completeProcessing = async () => {
     if (!finalStockInId || !batches || batches.length === 0 || Object.keys(boxesWithMetadata).length === 0) {
-      toast({
-        title: 'Missing data',
-        description: 'Please ensure batches and barcodes are properly set up before completing',
-        variant: 'destructive'
+      toast.error('Missing data', {
+        description: 'Please ensure batches and barcodes are properly set up before completing'
       });
       return;
     }
@@ -469,9 +450,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
         })
         .eq('id', finalStockInId);
       
-      toast({
-        title: "Processing Completed",
-        description: "Stock-in has been successfully processed and inventory updated"
+      toast.success('Processing Completed', {
+        description: 'Stock-in has been successfully processed and inventory updated'
       });
       
       setProcessingComplete(true);
@@ -498,10 +478,8 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
       
     } catch (error) {
       console.error('Error completing processing:', error);
-      toast({
-        title: "Failed to Complete Processing",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive"
+      toast.error('Failed to Complete Processing', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
       });
     } finally {
       setProcessingBarcodes(false);
@@ -531,8 +509,7 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
       return updated;
     });
     
-    toast({
-      title: "Metadata Applied",
+    toast.success('Metadata Applied', {
       description: `Applied metadata to ${selectedBarcodes.length} box(es)`
     });
   };

@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 // Define BatchData type with all required fields
 type BatchData = {
@@ -185,8 +185,6 @@ export const BarcodeViewerDialog: React.FC<BarcodeViewerDialogProps> = ({
   const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
   const [currentBatchIndex, setCurrentBatchIndex] = React.useState(0);
 
-  const { toast } = useToast();
-  
   // Get current batch safely
   const safeCurrentBatch = React.useMemo(() => {
     return currentBatch || (batches && batches.length > 0 ? batches[currentBatchIndex] : null);
@@ -248,11 +246,7 @@ export const BarcodeViewerDialog: React.FC<BarcodeViewerDialogProps> = ({
       );
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to generate PDF. Please try again.',
-        variant: 'destructive',
-      });
+      toast.error('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPdf(false);
     }

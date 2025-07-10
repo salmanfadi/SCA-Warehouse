@@ -13,7 +13,6 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'mask-icon.svg'],
       manifest: require('./public/manifest.json'),
       workbox: {
-        navigateFallback: '/offline.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
       },
       devOptions: {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { Database } from '@/types/supabase';
 
@@ -149,16 +149,13 @@ export const useTransfers = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-history'] });
       
-      toast({
-        title: 'Transfer Created',
+      toast.success('Transfer Created', {
         description: 'Your inventory transfer request has been submitted for approval.',
       });
     },
     onError: (error: any) => {
       console.error('Failed to create transfer:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Transfer Failed',
+      toast.error('Transfer Failed', {
         description: error.message || 'Could not create inventory transfer',
       });
     }
@@ -187,15 +184,12 @@ export const useTransfers = () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-pending'] });
       queryClient.invalidateQueries({ queryKey: ['transfers-history'] });
       
-      toast({
-        title: 'Transfer Approved',
+      toast.success('Transfer Approved', {
         description: 'The inventory transfer has been approved.',
       });
     },
     onError: (error: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Approval Failed',
+      toast.error('Approval Failed', {
         description: error.message || 'Could not approve the transfer',
       });
     }
@@ -223,15 +217,12 @@ export const useTransfers = () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-pending'] });
       queryClient.invalidateQueries({ queryKey: ['transfers-history'] });
       
-      toast({
-        title: 'Transfer Rejected',
+      toast.success('Transfer Rejected', {
         description: 'The inventory transfer has been rejected.',
       });
     },
     onError: (error: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Rejection Failed',
+      toast.error('Rejection Failed', {
         description: error.message || 'Could not reject the transfer',
       });
     }
@@ -259,15 +250,12 @@ export const useTransfers = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-history'] });
       
-      toast({
-        title: 'Transfer Completed',
+      toast.success('Transfer Completed', {
         description: 'The inventory transfer has been marked as completed.',
       });
     },
     onError: (error: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Completion Failed',
+      toast.error('Completion Failed', {
         description: error.message || 'Could not mark the transfer as completed',
       });
     }

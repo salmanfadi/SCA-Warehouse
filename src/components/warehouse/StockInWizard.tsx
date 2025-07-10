@@ -10,7 +10,7 @@ import { BatchFormData } from './StockInStepBatches';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from "@/components/ui/toast";
 
@@ -180,7 +180,6 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
 
   // Hooks
   const navigate = useNavigate();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -220,11 +219,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
       navigateToStep('batches');
     } catch (error) {
       console.error("Error proceeding to box details:", error);
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Something went wrong. Please try again.");
     }
   };
 
@@ -265,11 +260,8 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
       }))
     );
 
-    toast({
-      title: "Applied to All",
-      description: "Default values have been applied to all boxes",
-    });
-  }, [boxesData, defaultValues, toast]);
+    toast.success("Default values have been applied to all boxes");
+  }, [boxesData, defaultValues]);
 
   // Group boxes by warehouse/location to create batches
   // This is now handled by the Edge Function
@@ -292,20 +284,12 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
   // Submit the processed stock in via Edge Function
   const handleSubmit = async (): Promise<void> => {
     if (!stockIn.id || !userId) {
-      toast({
-        title: "Error",
-        description: "Missing stock in information or user ID",
-        variant: "destructive",
-      });
+      toast.error("Missing stock in information or user ID");
       return;
     }
 
     if (batches.length === 0) {
-      toast({
-        title: "No Batches",
-        description: "Please create at least one batch before submitting",
-        variant: "destructive",
-      });
+      toast.error("Please create at least one batch before submitting");
       return;
     }
 
@@ -315,11 +299,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
     );
 
     if (invalidBatches.length > 0) {
-      toast({
-        title: "Invalid Data",
-        description: `${invalidBatches.length} batches have missing or invalid data`,
-        variant: "destructive",
-      });
+      toast.error(`${invalidBatches.length} batches have missing or invalid data`);
       return;
     }
     
@@ -446,45 +426,25 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
             setBatches(batchesData);
             setShowBarcodeDialog(true);
           } else {
-            toast({
-              title: 'No Batch Data',
-              description: 'Could not load batch details',
-              variant: 'destructive',
-            });
+            toast.error('Could not load batch details');
           }
         } catch (error) {
           console.error('Error fetching batch details:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load batch details',
-            variant: 'destructive',
-          });
+          toast.error('Failed to load batch details');
         } finally {
           setIsLoading(false);
         }
       };
 
       // Show toast with action button
-      const toastId = toast({
-        variant: "default",
-        title: 'Stock-In Processed Successfully',
-        description: (
-          <div className="flex flex-col gap-2">
-            <p>{`${batchCount} ${batchCount === 1 ? 'batch' : 'batches'} processed`}</p>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                showBarcodes();
-                toastId.dismiss();
-              }}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 mt-2"
-            >
-              View Barcodes
-            </button>
-          </div>
-        ),
-        duration: 15000,
-      });
+      const toastId = toast.promise(
+        showBarcodes(),
+        {
+          loading: 'Processing stock-in...',
+          success: `${batchCount} ${batchCount === 1 ? 'batch' : 'batches'} processed`,
+          error: 'Failed to process stock-in',
+        }
+      );
       
       console.log('Enhanced toast with action created for', batchCount, 'batches');
       
@@ -492,7 +452,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
       console.log('Toast with action created for batch ID:', firstBatchId);
 
       if (onComplete && data.batch_ids?.length) {
-        onComplete(data.batch_ids[0]);
+        onComplete(data.batch_ids);
       }
       
       // Navigate to success step or next view
@@ -508,11 +468,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
         errorMessage = String(error.message);
       }
       
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      toast.error(errorMessage);
       
       // Try to update stock_in to rejected status
       try {

@@ -2,7 +2,7 @@
  * Custom hook for managing stock out operations
  */
 import { useState, useCallback } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -27,7 +27,6 @@ interface UseStockOutOptions {
 }
 
 export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: UseStockOutOptions) => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   
   // Initialize state
@@ -74,11 +73,7 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       // Validate input
       if (!barcode || !state.stockOutRequest) {
         console.error('Invalid barcode or stock out request');
-        toast({
-          title: 'Error',
-          description: 'No stock out request available',
-          variant: 'destructive'
-        });
+        toast.error('No stock out request available');
         return;
       }
       
@@ -91,10 +86,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       const batchItem = await fetchBatchItemByBarcode(barcode);
       
       if (!batchItem) {
-        toast({
-          title: 'Invalid Barcode',
-          description: 'Barcode not found in any batch items',
-          variant: 'destructive'
+        toast.error('Invalid Barcode', {
+          description: 'Barcode not found in any batch items'
         });
         updateState({ isLoading: false });
         return;
@@ -102,10 +95,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       
       // Check if the product matches
       if (batchItem.product_id !== state.stockOutRequest.product_id) {
-        toast({
-          title: 'Invalid Product',
-          description: 'Product does not match the stock out request',
-          variant: 'destructive'
+        toast.error('Invalid Product', {
+          description: 'Product does not match the stock out request'
         });
         updateState({ isLoading: false });
         return;
@@ -144,12 +135,10 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       console.log('Max deductible:', maxDeductible);
       
       if (maxDeductible <= 0) {
-        toast({
-          title: 'Cannot Process',
+        toast.error('Cannot Process', {
           description: availableQuantityInBatch <= 0 ? 
             'This batch item has no more available quantity' : 
-            'No more quantity needed for this stock out',
-          variant: 'destructive'
+            'No more quantity needed for this stock out'
         });
         updateState({ isLoading: false });
         return;
@@ -173,10 +162,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       
     } catch (error) {
       console.error('Error scanning barcode:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to scan barcode',
-        variant: 'destructive'
+      toast.error('Failed to scan barcode', {
+        description: error instanceof Error ? error.message : 'Failed to scan barcode'
       });
       updateState({ isLoading: false });
     }
@@ -188,10 +175,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
   const handleQuantityChange = useCallback((quantity: number) => {
     // Ensure quantity is positive
     if (quantity <= 0) {
-      toast({
-        title: 'Invalid Quantity',
-        description: 'Quantity must be greater than zero',
-        variant: 'destructive'
+      toast.error('Invalid Quantity', {
+        description: 'Quantity must be greater than zero'
       });
       return;
     }
@@ -244,20 +229,16 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
     
     // Ensure quantity doesn't exceed available batch quantity
     if (quantity > availableQuantityInBatch) {
-      toast({
-        title: 'Invalid Quantity',
-        description: `Maximum available quantity is ${availableQuantityInBatch}`,
-        variant: 'destructive'
+      toast.error(`Maximum available quantity is ${availableQuantityInBatch}`, {
+        description: 'Invalid Quantity'
       });
       return;
     }
     
     // Ensure quantity doesn't exceed remaining quantity in stock out request
     if (quantity > remainingNeeded) {
-      toast({
-        title: 'Invalid Quantity',
-        description: `Maximum remaining quantity is ${remainingNeeded}`,
-        variant: 'destructive'
+      toast.error(`Maximum remaining quantity is ${remainingNeeded}`, {
+        description: 'Invalid Quantity'
       });
       return;
     }
@@ -403,10 +384,7 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       
       
       // Show success toast
-      toast({
-        title: 'Item Processed',
-        description: `Successfully deducted ${quantityToDeduct} units.`
-      });
+      toast.success(`Successfully deducted ${quantityToDeduct} units.`);
       
       // If the remaining quantity is now zero, enable completion
       if (updatedStockOutRequest.remaining_quantity <= 0) {
@@ -414,10 +392,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       }
     } catch (error) {
       console.error('Error processing batch item:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to process batch item',
-        variant: 'destructive'
+      toast.error('Failed to process batch item', {
+        description: error instanceof Error ? error.message : 'Failed to process batch item'
       });
       updateState({ isProcessing: false });
     }
@@ -433,10 +409,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
     }
 
     if (state.processedItems.length === 0) {
-      toast({
-        title: 'No Items Processed',
-        description: 'Please process at least one batch item before completing the stock out.',
-        variant: 'destructive'
+      toast.error('Please process at least one batch item before completing the stock out.', {
+        description: 'No Items Processed'
       });
       return;
     }
@@ -452,10 +426,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
     
     // Check if all items have been processed
     if (remainingQuantity > 0) {
-      toast({
-        title: 'Incomplete Stock Out',
-        description: `Please scan all required items (${remainingQuantity} remaining) before completing the stock out.`,
-        variant: 'destructive'
+      toast.error(`Please scan all required items (${remainingQuantity} remaining) before completing the stock out.`, {
+        description: 'Incomplete Stock Out'
       });
       return;
     }
@@ -465,10 +437,8 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       updateState({ isLoading: true });
       
       // Show processing toast
-      toast({
-        title: 'Processing Stock Out',
-        description: 'Please wait while we complete the stock out process...',
-        duration: 5000,
+      toast.info('Processing Stock Out', {
+        description: 'Please wait while we complete the stock out process...'
       });
       
       // Complete the stock out
@@ -493,17 +463,12 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       queryClient.invalidateQueries({ queryKey: ['customer-inquiries'] });
       
       // Show success toast
-      toast({
-        title: 'Stock Out Completed',
-        description: 'The stock out has been successfully processed.'
-      });
+      toast.success('The stock out has been successfully processed.');
       
     } catch (error) {
       console.error('Error completing stock out:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to complete stock out',
-        variant: 'destructive'
+      toast.error('Failed to complete stock out', {
+        description: error instanceof Error ? error.message : 'Failed to complete stock out'
       });
       updateState({ isLoading: false });
     }
@@ -668,16 +633,11 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
         });
       }, 200);
       
-      toast({
-        title: 'Item Removed',
-        description: 'The processed item has been removed successfully.'
-      });
+      toast.success('The processed item has been removed successfully.');
     } catch (error) {
       console.error('Error deleting processed item:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete the processed item.',
-        variant: 'destructive'
+      toast.error('Failed to delete the processed item.', {
+        description: 'Error'
       });
     }
   }, [state, toast, updateState, calculateStockOutProgress, fetchBatchItemByBarcode, getProcessedQuantityForBatchItem]);

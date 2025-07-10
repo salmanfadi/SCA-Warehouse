@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { executeQuery } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -70,7 +70,6 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
   overrideBackNavigation
 }) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [selectedStockOut, setSelectedStockOut] = useState<StockOutRequestItem | null>(null);
   const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
@@ -148,17 +147,10 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
 
       if (error) throw error;
 
-      toast({
-        title: 'Success',
-        description: 'Stock out request has been rejected.',
-      });
+      toast.success('Stock out request has been rejected.');
     } catch (error) {
       console.error('Error rejecting stock out:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to reject stock out request',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to reject stock out request');
     }
   };
 
@@ -168,10 +160,7 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
     setIsScannerOpen(false);
     
     // Show a toast notification for the scanned barcode
-    toast({
-      title: "Barcode Scanned",
-      description: `Scanned barcode: ${barcode}`,
-    });
+    toast.info(`Scanned barcode: ${barcode}`);
     
     // Automatically open create dialog with the scanned barcode
     setIsCreateDialogOpen(true);

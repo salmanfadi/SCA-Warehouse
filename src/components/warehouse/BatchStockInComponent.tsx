@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn, BatchType } from '@/hooks/useBatchStockIn'; 
 import { BatchForm } from '@/components/warehouse/BatchForm';
 import { useStockInData } from '@/hooks/useStockInData';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { BackButton } from '@/components/warehouse/BackButton';
 import { StockInRequestDetails } from '@/components/warehouse/StockInRequestDetails';
 import { BatchList } from '@/components/warehouse/BatchList';
@@ -115,16 +115,12 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       
       // Show success message
       if (barcodeErrors && barcodeErrors.length > 0) {
-        toast({
-          title: 'Batch Processed with Warnings',
-          description: 'There were some issues with barcode processing. Please continue to the next step.',
-          variant: 'default',
+        toast('Batch Processed with Warnings', {
+          description: 'There were some issues with barcode processing. Please continue to the next step.'
         });
       } else {
-        toast({
-          title: 'Batch Processed Successfully',
-          description: 'All batches have been processed and ready for barcode assignment.',
-          variant: 'default',
+        toast.success('Batch Processed Successfully', {
+          description: 'All batches have been processed and ready for barcode assignment.'
         });
       }
       
@@ -190,10 +186,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
 
     // Check if adding this batch would exceed the remaining boxes
     if (effectiveNewBoxes > remainingBoxes && editingIndex === null) {
-      toast({
-        title: 'Box count exceeds limit',
-        description: `You can only add ${remainingBoxes} more boxes. Please adjust the quantity.`,
-        variant: 'destructive'
+      toast.error('Box count exceeds limit', {
+        description: `You can only add ${remainingBoxes} more boxes. Please adjust the quantity.`
       });
       return;
     }

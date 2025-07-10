@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { StockInWithDetails } from './types';
 import { mapStockInWithDetails } from './utils';
 
@@ -58,10 +58,8 @@ export const useStockInData = (stockInId?: string, page: number = 1, pageSize: n
         return stockInWithDetails;
       } catch (error) {
         console.error('Failed to fetch stock-in data:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to fetch stock-in data.',
+        toast.error('Error', {
+          description: 'Failed to fetch stock-in data.'
         });
         throw error;
       }

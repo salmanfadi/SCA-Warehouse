@@ -4,7 +4,7 @@ import { BarcodeScanner } from '@/components/barcode/BarcodeScanner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Barcode, X } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface InventoryBarcodeScannerProps {
@@ -32,9 +32,8 @@ export const InventoryBarcodeScanner: React.FC<InventoryBarcodeScannerProps> = (
     setIsOpen(false);
     
     // Notify user about successful scan
-    toast({
-      title: 'Barcode Scanned',
-      description: `Searching inventory for barcode: ${barcode}`,
+    toast('Barcode Scanned', {
+      description: `Searching inventory for barcode: ${barcode}`
     });
     
     // Invalidate queries to ensure fresh data

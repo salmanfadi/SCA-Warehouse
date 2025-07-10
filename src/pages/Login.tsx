@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Warehouse, AlertCircle, Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -20,7 +20,6 @@ const Login: React.FC = () => {
   const { login, isAuthenticated, isLoading: authLoading, user, error: authError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
   const emailInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -51,11 +50,7 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (authError) {
-      toast({
-        title: "Authentication Error",
-        description: authError instanceof Error ? authError.message : String(authError),
-        variant: "destructive"
-      });
+      toast.error(authError instanceof Error ? authError.message : String(authError));
     }
   }, [authError, toast]);
 
@@ -70,11 +65,7 @@ const Login: React.FC = () => {
     e.preventDefault();
     
     if (!email || !password) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both email and password",
-        variant: "destructive"
-      });
+      toast.error("Please enter both email and password");
       return;
     }
     
@@ -86,11 +77,7 @@ const Login: React.FC = () => {
       localStorage.setItem('lastUsedEmail', email);
     } catch (error) {
       console.error("Login error:", error);
-      toast({
-        title: "Login Failed",
-        description: error instanceof Error ? error.message : "Invalid email or password",
-        variant: "destructive"
-      });
+      toast.error(error instanceof Error ? error.message : "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -98,12 +85,6 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 p-4 relative overflow-hidden">
-      <div className="mb-8 w-full max-w-md mx-auto">
-        <PageHeader
-          title="Staff Login"
-          description="Enter your credentials to access the system"
-        />
-      </div>
       {/* Animated background elements */}
       <motion.div 
         className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none z-0"
@@ -157,11 +138,10 @@ const Login: React.FC = () => {
                 <Warehouse className="h-12 w-12 text-primary" />
               </div>
             </motion.div>
-            <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center text-white">Staff Login</CardTitle>
+            <p className="text-center text-white">Enter your credentials to access the system</p>
           </CardHeader>
           <CardContent className="pt-6">
-            <h1 className="text-2xl font-bold text-center mb-1">Staff Login</h1>
-            <p className="text-center text-muted-foreground mb-4">Enter your credentials to access the system</p>
             <form onSubmit={handleSubmit} className="space-y-5">
               <motion.div 
                 className="space-y-2"

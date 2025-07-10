@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const Index = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -26,11 +26,7 @@ const Index = () => {
       
       if (!redirectTarget && !isLoading) {
         // Show timeout message to user
-        toast({
-          title: "Authentication Check Timeout",
-          description: "Taking longer than expected to verify your session. Redirecting to login...",
-          variant: "destructive",
-        });
+        toast.error("Taking longer than expected to verify your session. Redirecting to login...");
         
         setHasTimedOut(true);
         setRedirectTarget('/login');
@@ -103,11 +99,7 @@ const Index = () => {
     // Prevent infinite redirect loops
     if (redirectAttempts.current >= 3) {
       console.error('Index: Too many redirect attempts');
-      toast({
-        title: "Navigation Error",
-        description: "Unable to redirect to the correct page. Please try refreshing the page.",
-        variant: "destructive",
-      });
+      toast.error("Unable to redirect to the correct page. Please try refreshing the page.");
       return;
     }
     

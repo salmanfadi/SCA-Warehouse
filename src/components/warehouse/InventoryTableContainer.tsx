@@ -6,7 +6,7 @@ import { Download, RefreshCw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useSimpleInventory } from '@/hooks/useSimpleInventory';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface InventoryTableContainerProps {
   warehouseFilter?: string;
@@ -79,10 +79,8 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
 
   const handleExport = async () => {
     if (!filteredItems || filteredItems.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'No Data',
-        description: 'No inventory data to export',
+      toast.error('No Data', {
+        description: 'No inventory data to export'
       });
       return;
     }
@@ -117,16 +115,13 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
       link.click();
       document.body.removeChild(link);
 
-      toast({
-        title: 'Export Successful',
-        description: 'Inventory data has been exported to CSV',
+      toast.success('Export Successful', {
+        description: 'Inventory data has been exported to CSV'
       });
     } catch (error) {
       console.error('Export error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Export Failed',
-        description: 'Failed to export inventory data',
+      toast.error('Export Failed', {
+        description: 'Failed to export inventory data'
       });
     } finally {
       setIsExporting(false);

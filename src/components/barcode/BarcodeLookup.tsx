@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, X, QrCode } from 'lucide-react';
 import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { executeQuery, supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,6 @@ interface BarcodeLookupProps {
 const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ 
   title = "Barcode Lookup"
 }) => {
-  const { toast } = useToast();
   const [barcode, setBarcode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [batchItem, setBatchItem] = useState<BatchItem | null>(null);
@@ -59,11 +58,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
 
   const handleBarcodeSubmit = async (barcodeValue: string) => {
     if (!barcodeValue) {
-      toast({
-        variant: 'destructive',
-        title: 'Empty Barcode',
-        description: 'Please enter a valid barcode',
-      });
+      toast.error('Please enter a valid barcode');
       return;
     }
 
@@ -156,11 +151,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
         console.log('No barcode match found in any table');
         
         // Show a more user-friendly error message
-        toast({
-          variant: 'destructive',
-          title: 'Barcode Not Found',
-          description: 'The scanned barcode was not found in the system. Please check the barcode and try again.',
-        });
+        toast.error('No batch item found for this barcode');
         
         // Don't throw an error, just return early
         setIsLoading(false);
@@ -315,11 +306,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
         errorMessage = error.message || errorMessage;
       }
       
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: errorMessage,
-      });
+      toast.error('Failed to fetch batch item details');
       
       setBatchItem(null);
     } finally {

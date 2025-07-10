@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import StockOutForm from '@/components/warehouse/stockout/StockOutForm';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { StockOutRequest } from '@/services/stockout/types';
 
@@ -28,7 +28,6 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
   const location = useLocation();
   const { stockOutId } = useParams<{ stockOutId?: string }>();
   const { user } = useAuth();
-  const { toast } = useToast();
   const [isProcessComplete, setIsProcessComplete] = useState(false);
   const [initialBarcode, setInitialBarcode] = useState<string | undefined>(undefined);
   
@@ -162,10 +161,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
 
   const handleComplete = () => {
     setIsProcessComplete(true);
-    toast({
-      title: 'Success',
-      description: 'Stock out processed successfully',
-    });
+    toast.success('Stock out processed successfully');
     
     // Navigate back to stock out page after a delay
     setTimeout(() => {

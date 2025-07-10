@@ -26,7 +26,7 @@ export interface ProcessedBatchesTableProps {
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
-  highlightBatchId?: string | null;
+  highlightBatchIds?: string[];
   searchTerm?: string;
   onSearchChange?: (value: string) => void;
   statusFilter?: string;
@@ -47,7 +47,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
   page = 1,
   pageSize = 10,
   onPageChange,
-  highlightBatchId = null,
+  highlightBatchIds = [],
   currentPage = 1,
   totalPages = 1
 }) => {
@@ -189,7 +189,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
               {batches.map((batch) => (
                 <TableRow 
                   key={batch.id} 
-                  className={batch.id === highlightBatchId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+                  className={highlightBatchIds.includes(batch.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
                 >
                   <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
                   <TableCell>
@@ -229,7 +229,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
         {batches.map((batch) => (
           <div
             key={batch.id}
-            className={`rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900 ${batch.id === highlightBatchId ? 'ring-2 ring-blue-400' : ''}`}
+            className={`rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900 ${highlightBatchIds.includes(batch.id) ? 'ring-2 ring-blue-400' : ''}`}
           >
             <div className="flex items-center justify-between mb-2">
               <div className="font-bold text-lg">Batch #{batch.id.slice(0, 8)}</div>

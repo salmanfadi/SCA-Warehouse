@@ -26,6 +26,7 @@ import { jsPDF } from 'jspdf';
 import Barcode from 'react-barcode';
 import { formatBarcode } from '@/utils/barcodeService';
 import BarcodeDisplay from '@/components/barcode/BarcodeDisplay';
+import { LoadingState } from './LoadingState';
 
 // Define the types for batch items
 interface BatchItem {
@@ -67,6 +68,7 @@ interface EnhancedBatchDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   batchId: string | null;
   selectedBatch: Batch | null;
+  isLoading?: boolean;
 }
 
 const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
@@ -74,6 +76,7 @@ const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
   onOpenChange,
   batchId,
   selectedBatch,
+  isLoading = false,
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const barcodesContainerRef = useRef<HTMLDivElement>(null);
@@ -224,7 +227,13 @@ const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
     }
   };
 
+  if (isLoading) {
+    return <LoadingState message="Loading batch details..." />;
+  }
   if (!selectedBatch) {
+    if (batchId) {
+      return <LoadingState message="Loading batch details..." />;
+    }
     return null;
   }
 

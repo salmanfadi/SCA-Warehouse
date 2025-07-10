@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import EnhancedBatchDetailsDialog from '@/components/warehouse/EnhancedBatchDetailsDialog';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 // Define types for Supabase responses
 interface BarcodeData {
@@ -124,12 +124,10 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [recentlyAddedBatchId, setRecentlyAddedBatchId] = useState<string | null>(null);
+  const [recentlyAddedBatchIds, setRecentlyAddedBatchIds] = useState<string[]>([]);
   const [highlightedItems, setHighlightedItems] = useState<string[]>([]);
   const barcodeContainerRef = useRef<HTMLDivElement>(null);
   
-  const { toast } = useToast();
-
   const navigate = useNavigate();
 
   const location = useLocation();
@@ -146,27 +144,31 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
       setActiveTab(tabParam);
     }
     
-    // If highlight parameter exists, set it as the recently added batch ID
+    // If highlight parameter exists, parse as comma-separated list
     if (highlightParam) {
-      setRecentlyAddedBatchId(highlightParam);
+      const ids = highlightParam.split(',').filter(Boolean);
+      setRecentlyAddedBatchIds(ids);
       return; // Skip checking localStorage if URL param exists
     }
     
     // Fall back to localStorage if no URL parameters
-    const storedBatchId = localStorage.getItem('recentlyAddedBatchId');
+    const storedBatchIds = localStorage.getItem('recentlyAddedBatchIds');
     const timestamp = localStorage.getItem('recentlyAddedTimestamp');
     
-    // Only highlight if the batch was added within the last 10 minutes
-    if (storedBatchId && timestamp) {
+    if (storedBatchIds && timestamp) {
       const addedTime = parseInt(timestamp, 10);
       const currentTime = Date.now();
       const timeDiff = currentTime - addedTime;
-      
-      // If less than 10 minutes old, highlight it
       if (timeDiff < 10 * 60 * 1000) {
-        setRecentlyAddedBatchId(storedBatchId);
-        
-        // Automatically switch to batches tab when coming from stock-in
+        try {
+          const ids = JSON.parse(storedBatchIds);
+          if (Array.isArray(ids)) {
+            setRecentlyAddedBatchIds(ids);
+          }
+        } catch {
+          // fallback: clear if parse fails
+          setRecentlyAddedBatchIds([]);
+        }
         setActiveTab('batches');
       }
     }
@@ -196,7 +198,9 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
     page: currentPage,
     searchTerm: searchTerm || undefined,
     status: statusFilter || undefined,
-    warehouseId: warehouseFilter || undefined
+    warehouseId: warehouseFilter || undefined,
+    sortBy: 'processed_at',
+    sortOrder: 'desc',
   });
 
   const batches = processedBatchesQuery.data?.batches || [];
@@ -218,14 +222,11 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
 
   // Function to download all barcodes from a batch
   const handleDownloadAllBarcodes = async () => {
-    if (!recentlyAddedBatchId) return;
+    if (!recentlyAddedBatchIds.length) return;
     
     try {
       // Show loading toast
-      toast({
-        title: "Preparing Barcodes",
-        description: "Generating barcode images for download...",
-      });
+      toast('Generating barcode images for download...');
       
       // Fetch batch items with their barcodes
       const { data: batchItems, error } = await supabase
@@ -235,38 +236,26 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
           barcode,
           products(name)
         `)
-        .eq('batch_id', recentlyAddedBatchId);
+        .in('batch_id', recentlyAddedBatchIds);
       
       if (error) throw error;
       
       if (!batchItems || batchItems.length === 0) {
-        toast({
-          title: "No Barcodes Found",
-          description: "No barcodes available for download.",
-          variant: "destructive"
-        });
+        toast('No barcodes available for download.');
         return;
       }
       
       // Create a zip file with JSZip (would need to be imported)
       // For now, just show success message
-      toast({
-        title: "Barcodes Ready",
-        description: `${batchItems.length} barcodes prepared for download.`,
-        variant: "default"
-      });
+      toast.success(`${batchItems.length} barcodes prepared for download.`);
       
       // Clear the recently added batch ID after download
-      localStorage.removeItem('recentlyAddedBatchId');
+      localStorage.removeItem('recentlyAddedBatchIds');
       localStorage.removeItem('recentlyAddedTimestamp');
-      setRecentlyAddedBatchId(null);
+      setRecentlyAddedBatchIds([]);
     } catch (error) {
       console.error('Error downloading barcodes:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download barcodes. Please try again.",
-        variant: "destructive"
-      });
+      toast.error('Failed to download barcodes. Please try again.');
     }
   };
   
@@ -618,23 +607,30 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ProcessedBatchesTable
-                filters={{
-                  searchTerm,
-                  status: statusFilter,
-                  warehouseId: warehouseFilter
-                }}
-                page={currentPage}
-                pageSize={10}
-                onPageChange={setCurrentPage}
-                onViewDetails={handleViewDetails}
-                highlightBatchId={recentlyAddedBatchId}
-              />
+              {processedBatchesQuery.isLoading ? (
+                <LoadingState message="Loading processed batches..." />
+              ) : (
+                <ProcessedBatchesTable
+                  filters={{
+                    searchTerm,
+                    status: statusFilter,
+                    warehouseId: warehouseFilter
+                  }}
+                  page={currentPage}
+                  pageSize={10}
+                  onPageChange={setCurrentPage}
+                  onViewDetails={handleViewDetails}
+                  highlightBatchIds={recentlyAddedBatchIds}
+                  batches={processedBatchesQuery.data?.batches}
+                  isLoading={processedBatchesQuery.isLoading}
+                />
+              )}
               <EnhancedBatchDetailsDialog 
                 open={showDetails} 
                 onOpenChange={setShowDetails} 
                 batchId={selectedBatch?.id || null}
                 selectedBatch={selectedBatch}
+                isLoading={showDetails && !selectedBatch}
               />
             </CardContent>
           </Card>

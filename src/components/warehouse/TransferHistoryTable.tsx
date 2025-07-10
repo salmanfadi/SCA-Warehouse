@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface Transfer {
   id: string;
@@ -35,10 +35,8 @@ export const TransferHistoryTable: React.FC = () => {
 
       if (error) {
         console.error('Error fetching transfer history:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to fetch transfer history',
+        toast.error('Error', {
+          description: 'Failed to fetch transfer history'
         });
         return;
       }
@@ -46,10 +44,8 @@ export const TransferHistoryTable: React.FC = () => {
       setTransfers(data || []);
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch transfer history',
+      toast.error('Error', {
+        description: 'Failed to fetch transfer history'
       });
     } finally {
       setIsLoading(false);

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, X, ScanLine, RefreshCcw, FlipHorizontal } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import Quagga from 'quagga'; // Import QuaggaJS for barcode scanning
 
 interface MobileBarcodeScannerProps {
@@ -133,12 +133,10 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
           setCameraError(err.message || 'Failed to initialize camera');
           setIsScanning(false);
           
-          toast({
-            variant: 'destructive',
-            title: 'Camera Error',
+          toast.error('Camera Error', {
             description: err.name === 'NotAllowedError' 
               ? 'Camera permission denied. Please allow camera access.'
-              : 'Failed to initialize camera. Please try again.',
+              : 'Failed to initialize camera. Please try again.'
           });
           
           return;
@@ -154,9 +152,8 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
         Quagga.onDetected(handleBarcodeDetected);
         
         // Show success toast
-        toast({
-          title: "Camera Active",
-          description: "Scanning for barcodes...",
+        toast('Camera Active', {
+          description: 'Scanning for barcodes...'
         });
       });
     } catch (error: any) {
@@ -164,10 +161,8 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
       setCameraError(error.message || 'Failed to initialize scanner');
       setIsScanning(false);
       
-      toast({
-        variant: 'destructive',
-        title: 'Scanner Error',
-        description: error.message || 'Failed to initialize barcode scanner',
+      toast.error('Scanner Error', {
+        description: error.message || 'Failed to initialize barcode scanner'
       });
     }
   }, [currentCamera]);
@@ -219,16 +214,13 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
       onBarcodeScanned(code);
       
       // Show success toast
-      toast({
-        title: "Barcode Scanned",
-        description: `${code}`,
+      toast('Barcode Scanned', {
+        description: `${code}`
       });
     } else {
       console.error('onBarcodeScanned is not a function', onBarcodeScanned);
-      toast({
-        title: "Error",
-        description: "Could not process barcode. Please try again.",
-        variant: "destructive"
+      toast.error('Error', {
+        description: 'Could not process barcode. Please try again.'
       });
     }
   }, [onBarcodeScanned]);
@@ -267,9 +259,8 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
       setIsScanning(true);
     }, 300);
     
-    toast({
-      title: `Switching Camera`,
-      description: `Using ${currentCamera === 'environment' ? 'front' : 'rear'} camera`,
+    toast('Switching Camera', {
+      description: `Using ${currentCamera === 'environment' ? 'front' : 'rear'} camera`
     });
   }, [currentCamera, stopScanning]);
   
@@ -289,10 +280,8 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
   // Handle manual barcode submission
   const handleManualSubmit = () => {
     if (!manualInput.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Empty Barcode',
-        description: 'Please enter a barcode value',
+      toast.error('Empty Barcode', {
+        description: 'Please enter a barcode value'
       });
       return;
     }
