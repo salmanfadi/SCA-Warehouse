@@ -1,0 +1,175 @@
+import React, { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Mail } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
+interface ResendConfirmationEmailProps {
+  userId: string;
+  userEmail: string | null;
+  userName: string;
+}
+
+/**
+ * Component for resending confirmation email to a user
+ */
+export const ResendConfirmationEmail: React.FC<ResendConfirmationEmailProps> = ({
+  userId,
+  userEmail,
+  userName,
+}) => {
+  const [open, setOpen] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [email, setEmail] = useState<string>(userEmail || '');
+  const [emailChanged, setEmailChanged] = useState<boolean>(false);
+  const queryClient = useQueryClient();
+
+  // Reset email state when the dialog opens/closes or props change
+  React.useEffect(() => {
+    if (open) {
+      setEmail(userEmail || '');
+      setEmailChanged(false);
+    }
+  }, [open, userEmail]);
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    setEmailChanged(e.target.value !== userEmail);
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email.trim()) {
+      toast.error('Email is required', {
+        description: 'Please enter a valid email address',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      // If email has changed, update it in the profiles table
+      if (emailChanged) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ email })
+          .eq('id', userId);
+
+        if (updateError) {
+          throw new Error(`Failed to update email: ${updateError.message}`);
+        }
+
+        // Invalidate users query to refresh the list
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      }
+
+      // Send confirmation email
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('Confirmation email sent', {
+        description: `A new confirmation email has been sent to ${email}${emailChanged ? ' (email updated)' : ''}`,
+      });
+      
+      setOpen(false);
+    } catch (error) {
+      console.error('Error resending confirmation email:', error);
+      toast.error('Failed to resend confirmation email', {
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="h-8 w-8 p-0 ml-2"
+        title="Resend confirmation email"
+      >
+        <span className="sr-only">Resend confirmation email</span>
+        <Mail className="h-4 w-4" />
+      </Button>
+      
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Resend Confirmation Email</DialogTitle>
+            <DialogDescription>
+              Send a new confirmation email to {userName} ({userEmail})
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email-address">Email address</Label>
+              <Input 
+                id="email-address" 
+                type="email" 
+                value={email} 
+                onChange={handleEmailChange} 
+                placeholder="user@example.com"
+                className={emailChanged ? "border-amber-500" : ""}
+              />
+              {emailChanged && (
+                <p className="text-xs text-amber-600">
+                  The email address has been changed. This will update the user's email in the database.
+                </p>
+              )}
+            </div>
+            
+            <p className="text-sm text-gray-500">
+              This will send a confirmation email to the address above. 
+              The user will need to click the link in the email to confirm their account.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleResendConfirmation} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <span className="flex items-center">
+                  <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-transparent"></span>
+                  Sending...
+                </span>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Send Confirmation Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+export default ResendConfirmationEmail;

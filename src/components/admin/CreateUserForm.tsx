@@ -43,10 +43,53 @@ interface CreateUserFormProps {
   onSuccess?: () => void;
 }
 
+interface ResendConfirmationProps {
+  email: string;
+  onResendSuccess?: () => void;
+  onResendError?: (error: Error) => void;
+}
+
+/**
+ * Function to resend confirmation email to a user
+ */
+export const resendConfirmationEmail = async ({ email, onResendSuccess, onResendError }: ResendConfirmationProps): Promise<void> => {
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    toast.success('Confirmation email sent', {
+      description: `A new confirmation email has been sent to ${email}`,
+    });
+
+    if (onResendSuccess) {
+      onResendSuccess();
+    }
+  } catch (error) {
+    console.error('Error resending confirmation email:', error);
+    toast.error('Failed to resend confirmation email', {
+      description: error instanceof Error ? error.message : 'An unknown error occurred',
+    });
+
+    if (onResendError && error instanceof Error) {
+      onResendError(error);
+    }
+  }
+};
+
 export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formStatus, setFormStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [lastCreatedEmail, setLastCreatedEmail] = useState<string>('');
 
   const form = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
@@ -89,6 +132,9 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
       // For now, we'll rely on the auth hooks or triggers in Supabase to create the profile
       // In a production app, you would use a secure server endpoint with admin privileges
 
+      // Store the email for potential resending
+      setLastCreatedEmail(values.email);
+
       setFormStatus('success');
       toast.success('User created successfully', {
         description: 'A confirmation email has been sent to the user.',
@@ -122,17 +168,49 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
         </p>
       </div>
 
-      {formStatus === 'success' && (
-        <div className="bg-green-50 p-4 rounded-md flex items-start gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-green-800">User created successfully</h4>
-            <p className="text-sm text-green-700">
-              A confirmation email has been sent to the user's email address.
-            </p>
+      {/* Function to handle resending confirmation email */}
+      {(() => {
+        const handleResendConfirmation = async () => {
+          if (!lastCreatedEmail) return;
+          
+          await resendConfirmationEmail({ 
+            email: lastCreatedEmail,
+            onResendSuccess: () => {
+              // Success is handled by the toast in the resendConfirmationEmail function
+            },
+            onResendError: (error) => {
+              setErrorMessage(error.message);
+            }
+          });
+        };
+        
+        return formStatus === 'success' && (
+          <div className="bg-green-50 p-4 rounded-md flex flex-col">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-green-800">User created successfully</h4>
+                <p className="text-sm text-green-700">
+                  A confirmation email has been sent to the user's email address.
+                </p>
+              </div>
+            </div>
+            {lastCreatedEmail && (
+              <div className="mt-3 pt-3 border-t border-green-100">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-green-700 border-green-300 hover:bg-green-50"
+                  onClick={handleResendConfirmation}
+                >
+                  Resend Confirmation Email
+                </Button>
+                <p className="text-xs text-green-600 mt-1">If the user didn't receive the email, you can resend it.</p>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {formStatus === 'error' && (
         <div className="bg-red-50 p-4 rounded-md flex items-start gap-3">

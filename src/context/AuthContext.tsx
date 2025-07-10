@@ -219,11 +219,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             } else {
               const userWithProfile = await getUserProfile(data.session.user);
               if (userWithProfile) {
-                // Cache the profile
-                userProfileCache.set(data.session.user.id, userWithProfile);
-                setUser(userWithProfile);
-                setIsAuthenticated(true);
-                console.log('User authenticated:', userWithProfile);
+                // Check if the user is active
+                if (userWithProfile.active === false) {
+                  console.error('User account is inactive during initial session load');
+                  // Sign out the user immediately
+                  await supabase.auth.signOut();
+                  // Clean up auth state
+                  cleanupAuthState();
+                  // Set error for UI feedback
+                  setError(new Error('Your account has been deactivated by an administrator.'));
+                  setUser(null);
+                  setIsAuthenticated(false);
+                } else {
+                  // Cache the profile
+                  userProfileCache.set(data.session.user.id, userWithProfile);
+                  setUser(userWithProfile);
+                  setIsAuthenticated(true);
+                  console.log('User authenticated:', userWithProfile);
+                }
               } else {
                 console.log('No user profile found');
                 setUser(null);
@@ -278,11 +291,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             } else {
               const userWithProfile = await getUserProfile(session.user);
               if (userWithProfile) {
-                // Cache the profile
-                userProfileCache.set(session.user.id, userWithProfile);
-                setUser(userWithProfile);
-                setIsAuthenticated(true);
-                console.log('User profile updated and authenticated:', userWithProfile);
+                // Check if the user is active
+                if (userWithProfile.active === false) {
+                  console.error('User account is inactive during session restoration');
+                  // Sign out the user immediately
+                  await supabase.auth.signOut();
+                  // Clean up auth state
+                  cleanupAuthState();
+                  // Set error for UI feedback
+                  setError(new Error('Your account has been deactivated by an administrator.'));
+                  setUser(null);
+                  setIsAuthenticated(false);
+                } else {
+                  // Cache the profile
+                  userProfileCache.set(session.user.id, userWithProfile);
+                  setUser(userWithProfile);
+                  setIsAuthenticated(true);
+                  console.log('User profile updated and authenticated:', userWithProfile);
+                }
               } else {
                 setUser(null);
                 setIsAuthenticated(false);
@@ -341,6 +367,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         console.error('Login error:', error);
         setError(error);
         throw error;
+      }
+      
+      // Check if the user is active in the profiles table
+      if (data.user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('active')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (!profileError && profileData && profileData.active === false) {
+          console.error('User account is inactive');
+          // Sign out the user immediately
+          await supabase.auth.signOut();
+          // Clean up auth state
+          cleanupAuthState();
+          // Set error for UI feedback
+          const inactiveError = new Error('Your account has been deactivated by an administrator.');
+          setError(inactiveError);
+          throw inactiveError;
+        }
       }
       
       console.log('Login successful:', data);

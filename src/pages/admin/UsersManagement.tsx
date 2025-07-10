@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserPlus } from 'lucide-react';
 import { CreateUserForm } from '@/components/admin/CreateUserForm';
+import { EditUserStatus } from '@/components/admin/EditUserStatus';
+import { ResendConfirmationEmail } from '@/components/admin/ResendConfirmationEmail';
 
 interface UserProfile {
   id: string;
@@ -107,6 +109,7 @@ const UsersManagement: React.FC = () => {
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -114,7 +117,7 @@ const UsersManagement: React.FC = () => {
                     users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.full_name || '-'}</TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
+                        <TableCell>{user.email || <span className="text-gray-400 italic">No email</span>}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
                             {user.role?.replace('_', ' ') || '-'}
@@ -128,11 +131,26 @@ const UsersManagement: React.FC = () => {
                         <TableCell>
                           {new Date(user.created_at).toLocaleDateString()}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end">
+                            <EditUserStatus 
+                              userId={user.id}
+                              userEmail={user.email}
+                              userName={user.full_name}
+                              isActive={user.active}
+                            />
+                            <ResendConfirmationEmail
+                              userId={user.id}
+                              userEmail={user.email}
+                              userName={user.full_name}
+                            />
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                         No users found
                       </TableCell>
                     </TableRow>
