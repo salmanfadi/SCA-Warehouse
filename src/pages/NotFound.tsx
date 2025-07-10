@@ -81,8 +81,7 @@ const NotFound = () => {
         <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
         <h1 className="text-5xl font-bold mb-6 text-red-500">404</h1>
         <PageHeader 
-          title="Page not found" 
-          description={`The page "${location.pathname}" doesn't exist or has been moved`} 
+          description="The page you are looking for does not exist."
         />
         
         <div className="text-sm text-gray-500 dark:text-gray-400 mt-4 mb-6">

@@ -47,9 +47,8 @@ const ReserveStock: React.FC = () => {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <PageHeader
-            title="Reserve Stock Management"
-            description="Create and manage stock reservations"
+          <PageHeader 
+            description="Reserve stock for future use."
           />
         </div>
         <Button onClick={() => setIsCreateFormOpen(true)}>

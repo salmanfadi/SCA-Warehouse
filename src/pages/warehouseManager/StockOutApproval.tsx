@@ -170,8 +170,7 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <PageHeader 
-          title="Stock Out Approval" 
-          description="Review and approve stock out requests"
+          description="Approve or reject stock out requests."
         />
       </div>
       <Card>

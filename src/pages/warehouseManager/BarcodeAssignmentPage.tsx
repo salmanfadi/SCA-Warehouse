@@ -254,8 +254,7 @@ const BarcodeAssignmentPage: React.FC = () => {
       </div>
       
       <PageHeader 
-        title="Assign Barcodes to Boxes" 
-        description="Generate final barcodes and add box details for inventory" 
+        description="Assign barcodes to batches."
       />
 
       {/* Error message when barcode processing had issues */}

@@ -99,8 +99,7 @@ const BatchOverviewPage: React.FC = () => {
       </div>
       
       <PageHeader 
-        title="Batch Overview" 
-        description={stockInData ? `Processed batches for ${stockInData.product?.name}` : 'Loading...'} 
+        description="Batch overview and details."
       />
       
       {isLoadingStockIn || isLoading ? (

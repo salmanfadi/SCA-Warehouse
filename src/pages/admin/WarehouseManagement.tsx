@@ -281,7 +281,6 @@ const WarehouseManagement: React.FC = () => {
     return (
       <div className="space-y-6">
         <PageHeader 
-          title="Warehouse Management" 
           description="Manage warehouse locations and settings"
         />
         <div className="grid gap-4">
@@ -296,7 +295,6 @@ const WarehouseManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Warehouse Management" 
         description="Manage warehouse locations and settings"
       />
       

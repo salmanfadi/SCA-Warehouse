@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface PageHeaderProps {
-  title: string;
+  title?: string;
   description?: string;
   children?: React.ReactNode;
 }
@@ -11,7 +11,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, chil
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        {title && (
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        )}
         {description && (
           <p className="text-sm text-muted-foreground mt-1">
             {description}

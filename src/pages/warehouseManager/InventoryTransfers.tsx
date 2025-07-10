@@ -14,8 +14,7 @@ const InventoryTransfers: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Inventory Transfers" 
-        description="Manage transfers between warehouses and locations"
+        description="Manage inventory transfers."
       />
       
       <Button

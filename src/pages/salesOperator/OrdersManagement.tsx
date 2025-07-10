@@ -97,8 +97,7 @@ const OrdersManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Sales Orders Management" 
-        description="View and manage sales orders, push them to stock-out processing"
+        description="Manage and track sales orders."
       />
       
       <Card>

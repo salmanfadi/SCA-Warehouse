@@ -58,8 +58,7 @@ const CustomersPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Customers" 
-        description="View and manage customer accounts"
+        description="Manage customers for sales operations."
       />
       
       <Card>

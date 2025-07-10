@@ -40,8 +40,7 @@ const InventoryView: React.FC = () => {
         </Button>
       </div>
       <PageHeader 
-        title="Search Inventory" 
-        description="Search and filter inventory by size, quantity per box, color, and more."
+        description="View and manage inventory."
       />
       <Card>
         <CardHeader>
