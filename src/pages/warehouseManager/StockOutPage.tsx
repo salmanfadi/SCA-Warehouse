@@ -43,6 +43,23 @@ interface StockOutPageProps {
   overrideBackNavigation?: () => boolean;
 }
 
+// Helper function to format the reason field
+const formatReason = (notes: string | null): string => {
+  if (!notes) return 'N/A';
+
+  // Extract order reference from notes
+  const orderMatch = notes.match(/Order: (SO-[a-zA-Z0-9]+)/);
+  const inquiryMatch = notes.match(/\(ID: ([a-zA-Z0-9-]+)\)/);
+
+  if (orderMatch) {
+    return `Stock-out for Order ${orderMatch[1]}`;
+  } else if (inquiryMatch) {
+    return `Stock-out for Inquiry ${inquiryMatch[1].slice(0, 8)}`;
+  }
+
+  return notes;
+};
+
 const StockOutPage: React.FC<StockOutPageProps> = ({
   isAdminView = false,
   overrideBackNavigation
@@ -191,38 +208,13 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
           </Select>
         </div>
       </div>
-      
+
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Stock Out Requests</CardTitle>
-              <CardDescription>
-                {isAdminView 
-                  ? "Monitor and manage outgoing stock requests across warehouses" 
-                  : "Process outgoing stock requests"}
-              </CardDescription>
-            </div>
-            {!isAdminView && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsScannerOpen(true)}
-                >
-                  <ScanLine className="mr-2 h-4 w-4" />
-                  Scan Barcode
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setIsCreateDialogOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Stock Out
-                </Button>
-              </div>
-            )}
-          </div>
+          <CardTitle>Stock Out Requests</CardTitle>
+          <CardDescription>
+            Manage and process stock out requests
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -237,7 +229,7 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
                     <TableHead>Requested By</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Destination</TableHead>
-                    <TableHead>Reason</TableHead>
+                    <TableHead>Reference</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -259,7 +251,7 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
                       <TableCell>{stockOut.requester_name || stockOut.requested_by || 'Unknown'}</TableCell>
                       <TableCell>{stockOut.total_quantity}</TableCell>
                       <TableCell>{stockOut.destination || 'N/A'}</TableCell>
-                      <TableCell>{stockOut.notes || 'N/A'}</TableCell>
+                      <TableCell>{formatReason(stockOut.notes)}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(stockOut.status)}>
                           {formatStatus(stockOut.status)}
@@ -355,56 +347,49 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
       </Card>
 
       {/* Processing Dialog */}
-      <Dialog open={isProcessingDialogOpen} onOpenChange={setIsProcessingDialogOpen}>
-        <DialogContent className="max-w-4xl">
+      {selectedStockOut && (
+        <ProcessStockOutForm
+          open={isProcessingDialogOpen}
+          onOpenChange={setIsProcessingDialogOpen}
+          stockOut={selectedStockOut}
+          userId={user?.id}
+        />
+      )}
+
+      {/* Create Stock Out Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Process Stock Out Request</DialogTitle>
+            <DialogTitle>Create Stock Out Request</DialogTitle>
           </DialogHeader>
-          <ProcessStockOutForm
-            open={isProcessingDialogOpen}
-            onOpenChange={setIsProcessingDialogOpen}
-            stockOut={selectedStockOut}
+          <CreateStockOutForm
             userId={user?.id}
+            initialBarcode={scannedBarcode}
+            onCreate={(data) => {
+              setIsCreateDialogOpen(false);
+              toast.success('Stock out request created successfully');
+              queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
+            }}
+            onCancel={() => setIsCreateDialogOpen(false)}
           />
         </DialogContent>
       </Dialog>
 
-      {/* Only render these dialogs if not in admin view */}
-      {!isAdminView && (
-        <>
-          {/* Create Dialog */}
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Create Stock Out Request</DialogTitle>
-              </DialogHeader>
-              <CreateStockOutForm
-                open={isCreateDialogOpen}
-                onOpenChange={setIsCreateDialogOpen}
-                initialBarcode={scannedBarcode}
-                userId={user?.id}
-                onCreate={() => {
-                  setIsCreateDialogOpen(false);
-                  setScannedBarcode('');
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-
-          {/* Barcode Scanner Dialog */}
-          <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Scan Barcode</DialogTitle>
-              </DialogHeader>
-              <MobileBarcodeScanner
-                onBarcodeScanned={handleBarcodeScanned}
-                onClose={() => setIsScannerOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
+      {/* Barcode Scanner Dialog */}
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Scan Barcode</DialogTitle>
+          </DialogHeader>
+          <MobileBarcodeScanner
+            onBarcodeScanned={handleBarcodeScanned}
+            onError={(error) => {
+              console.error('Barcode scanning error:', error);
+              toast.error('Failed to scan barcode');
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
