@@ -963,38 +963,6 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['customers']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['customers']['Row']>;
       }
-      reserve_stock: {
-        Row: {
-          id: string;
-          product_id: string;
-          warehouse_id: string;
-          customer_id: string | null;
-          customer_name: string;
-          quantity: number;
-          start_date: string;
-          end_date: string;
-          status: 'pending' | 'active' | 'completed' | 'cancelled' | 'converted_to_stockout';
-          created_by: string;
-          created_at: string;
-          updated_at: string;
-          notes: string | null;
-          stock_out_id: string | null;
-        };
-        Insert: Omit<Database['public']['Tables']['reserve_stock']['Row'], 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Database['public']['Tables']['reserve_stock']['Row']>;
-      };
-      reserved_inventory: {
-        Row: {
-          id: string;
-          reserve_stock_id: string;
-          product_id: string;
-          warehouse_id: string;
-          quantity: number;
-          created_at: string;
-        };
-        Insert: Omit<Database['public']['Tables']['reserved_inventory']['Row'], 'id' | 'created_at'>;
-        Update: Partial<Database['public']['Tables']['reserved_inventory']['Row']>;
-      };
     }
     Views: {
       [_ in never]: never

@@ -1,7 +1,7 @@
 
 import type { Product } from './products';
 
-export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
+export type MovementType = 'in' | 'out' | 'adjustment' | 'transfer';
 export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
 
 export interface Inventory {

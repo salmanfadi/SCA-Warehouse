@@ -154,6 +154,19 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
     );
   }
 
+  function getStatusColor(status: string) {
+    switch (status?.toLowerCase()) {
+      case 'available':
+        return 'bg-green-500';
+      case 'sold':
+        return 'bg-red-500';
+      case 'damaged':
+        return 'bg-yellow-500';
+      default:
+        return 'bg-gray-500';
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -219,9 +232,8 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
                         <TableCell>
                           <Badge className={
                             item.status === 'available' ? 'bg-green-500' :
-                            item.status === 'reserved' ? 'bg-blue-500' :
-                            item.status === 'sold' ? 'bg-purple-500' :
-                            item.status === 'damaged' ? 'bg-red-500' : ''
+                            item.status === 'sold' ? 'bg-red-500' :
+                            item.status === 'damaged' ? 'bg-yellow-500' : ''
                           }>
                             {item.status}
                           </Badge>

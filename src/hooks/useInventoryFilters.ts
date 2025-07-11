@@ -88,10 +88,8 @@ export const useInventoryFilters = () => {
   });
 
   // Available status options
-  const availableStatuses = [
-    { value: '', label: 'All Statuses' },
+  const statusOptions = [
     { value: 'available', label: 'Available' },
-    { value: 'reserved', label: 'Reserved' },
     { value: 'sold', label: 'Sold' },
     { value: 'damaged', label: 'Damaged' },
   ];
@@ -105,7 +103,7 @@ export const useInventoryFilters = () => {
     resetFilters,
     warehouses: warehousesQuery.data,
     batchIds: batchesQuery.data,
-    availableStatuses,
+    availableStatuses: statusOptions,
     isLoadingWarehouses: warehousesQuery.isLoading,
     isLoadingBatches: batchesQuery.isLoading,
   };
