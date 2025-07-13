@@ -207,8 +207,6 @@ CREATE TABLE IF NOT EXISTS public.inventory (
     warehouse_id uuid NOT NULL,
     location_id uuid,
     quantity integer NOT NULL,
-    reserved_quantity integer DEFAULT 0,
-    available_quantity integer GENERATED ALWAYS AS ((quantity - reserved_quantity)) STORED,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT inventory_pkey PRIMARY KEY (id),

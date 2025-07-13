@@ -13,6 +13,13 @@ import { StockOutRequest } from '@/services/stockout/types';
 
 interface LocationState {
   barcode?: string;
+  reservationDetails?: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    customerName: string;
+    reservationId: string;
+  };
 }
 
 interface BarcodeStockOutPageProps {
@@ -30,6 +37,26 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
   const { user } = useAuth();
   const [isProcessComplete, setIsProcessComplete] = useState(false);
   const [initialBarcode, setInitialBarcode] = useState<string | undefined>(undefined);
+  
+  // Extract reservation details from location state
+  const state = location.state as LocationState;
+  const reservationDetails = state?.reservationDetails;
+
+  // Create a stock out request from reservation details if available
+  const reservationStockOutRequest = React.useMemo<StockOutRequest | null>(() => {
+    if (!reservationDetails) return null;
+
+    return {
+      id: reservationDetails.reservationId,
+      status: 'pending',
+      requested_by: reservationDetails.customerName,
+      requested_at: new Date().toISOString(),
+      quantity: reservationDetails.quantity,
+      remaining_quantity: reservationDetails.quantity,
+      product_id: reservationDetails.productId,
+      product_name: reservationDetails.productName
+    };
+  }, [reservationDetails]);
   
   // Fetch stock out request details if ID is provided
   const { data: stockOutRequestRaw, isLoading: isLoadingRequest, error: requestError } = useQuery({
@@ -84,11 +111,16 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
 
       return stockOutData;
     },
-    enabled: !!stockOutId,
+    enabled: !!stockOutId && !reservationDetails, // Only fetch if stockOutId exists and no reservation details
   });
   
   // Process the stock out request to ensure remaining_quantity is properly initialized
   const stockOutRequest = React.useMemo<StockOutRequest | null>(() => {
+    // If we have reservation details, use those instead
+    if (reservationStockOutRequest) {
+      return reservationStockOutRequest;
+    }
+
     if (!stockOutRequestRaw) return null;
     
     // Get the details from the first stock out detail
@@ -129,7 +161,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
       product_id: productId,
       product_name: productName
     };
-  }, [stockOutRequestRaw]);
+  }, [stockOutRequestRaw, reservationStockOutRequest]);
   
   // Log the processed stock out request for debugging
   React.useEffect(() => {
@@ -148,7 +180,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
       setInitialBarcode(state.barcode);
       
       // Clear the location state to prevent reprocessing on refresh
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(location.pathname, { replace: true, state: { reservationDetails: state.reservationDetails } });
     }
   }, [location, navigate]);
 
@@ -183,7 +215,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Process Stock Out</h1>
           <p className="text-muted-foreground">
-            Scan barcodes to process stock out request
+            {reservationDetails ? 'Process stock out from reservation' : 'Scan barcodes to process stock out request'}
           </p>
         </div>
         <Button variant="outline" onClick={handleBackClick}>
@@ -192,7 +224,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
         </Button>
       </div>
       
-      {isLoadingRequest && (
+      {isLoadingRequest && !reservationDetails && (
         <Card>
           <CardContent className="flex items-center justify-center py-6">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -200,44 +232,22 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
           </CardContent>
         </Card>
       )}
-      
-      {requestError && (
+
+      {requestError && !reservationDetails && (
         <Alert variant="destructive">
           <AlertDescription>
-            Failed to load stock out request. Please try again later.
+            Error loading stock out request: {requestError instanceof Error ? requestError.message : 'Unknown error'}
           </AlertDescription>
         </Alert>
       )}
-      
-      {!isLoadingRequest && !requestError && !stockOutRequest && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            Stock out request not found. Please check the URL and try again.
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {isProcessComplete ? (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <h3 className="text-xl font-medium text-center">Stock Out Completed Successfully</h3>
-              <p className="text-center text-muted-foreground">
-                All items have been processed and the stock out has been completed.
-              </p>
-              <Button onClick={handleBackClick}>Return to Stock Out List</Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        stockOutRequest && user && (
-          <StockOutForm
-            stockOutRequest={stockOutRequest}
-            userId={user.id}
-            initialBarcode={initialBarcode}
-            onComplete={handleComplete}
-          />
-        )
+
+      {!isLoadingRequest && !requestError && (
+        <StockOutForm
+          userId={user.id}
+          stockOutRequest={stockOutRequest}
+          initialBarcode={initialBarcode}
+          onComplete={handleComplete}
+        />
       )}
     </div>
   );

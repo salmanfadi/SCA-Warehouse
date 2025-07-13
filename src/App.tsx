@@ -34,7 +34,6 @@ import BatchStockInPage from './pages/admin/BatchStockInPage';
 import AdminEnhancedInventoryView from './pages/admin/EnhancedInventoryView';
 import ProductInventoryView from './pages/admin/ProductInventoryView';
 import BatchDetailsPage from './pages/admin/BatchDetailsPage';
-import ReserveStock from './pages/admin/ReserveStock';
 
 // Manager pages
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
@@ -49,7 +48,6 @@ import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehou
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
 import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 import BarcodeAssignmentPage from './pages/warehouseManager/BarcodeAssignmentPage';
-import { default as ManagerReserveStock } from './pages/warehouseManager/ReserveStock';
 import EnhancedInventoryView from './pages/warehouseManager/EnhancedInventoryView';
 import ManagerInventoryView from './pages/warehouseManager/InventoryView';
 
@@ -60,7 +58,6 @@ import Submissions from './pages/fieldOperator/Submissions';
 import FieldOperatorBarcodeLookup from './pages/fieldOperator/BarcodeLookup';
 import Transfers from './pages/fieldOperator/Transfers';
 import Settings from './pages/fieldOperator/Settings';
-import { default as OperatorReserveStock } from './pages/fieldOperator/ReserveStock';
 
 // Sales operator pages
 import SalesOperatorDashboard from './pages/salesOperator/SalesOperatorDashboard';
@@ -136,20 +133,18 @@ function App() {
                 <Route path="/admin/barcodes" element={<BarcodeManagement />} />
                 <Route path="/admin/barcode" element={<AdminBarcodeLookup />} />
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
-                <Route path="/admin/stock-out" element={<StockOutApproval isAdminView={true} />} />
+                <Route path="/admin/stock-out" element={<StockOutManagement />} />
                 <Route path="/admin/stock-out/barcode-scanner" element={<BarcodeScannerPage isAdminView={true} />} />
                 <Route path="/admin/stock-out/barcode-scanner/:stockOutId" element={<BarcodeScannerPage isAdminView={true} />} />
                 <Route path="/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
                 <Route path="/admin/stock-out/barcode-stock-out" element={<BarcodeStockOutPage isAdminView={true} />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
-                <Route path="/admin/reserve-stock" element={<ReserveStock />} />
                 
                 {/* Admin Batch Stock In Routes */}
                 <Route path="/admin/stock-in/batch/:stockInId" element={<BatchStockInPage />} />
                 <Route path="/admin/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/admin/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
                 <Route path="/admin/stock-in/:stockInId/unified" element={<AdminUnifiedBatchProcessingPage />} />
-                <Route path="/admin/stock-out" element={<StockOutApproval isAdminView={true} />} />
               </Route>
               
               {/* Warehouse Manager Routes */}
@@ -175,7 +170,6 @@ function App() {
                 <Route path="/manager/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/manager/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
                 <Route path="/manager/stock-in/:stockInId/unified" element={<UnifiedBatchProcessingPage />} />
-                <Route path="/manager/reserve-stock" element={<ManagerReserveStock />} />
               </Route>
               
               {/* Shared Protected Routes */}
@@ -202,7 +196,6 @@ function App() {
                 <Route path="/operator/barcode" element={<FieldOperatorBarcodeLookup />} />
                 <Route path="/operator/transfers" element={<Transfers />} />
                 <Route path="/operator/settings" element={<Settings />} />
-                <Route path="/operator/reserve-stock" element={<OperatorReserveStock />} />
               </Route>
               
               {/* Protected Sales Operator Routes */}

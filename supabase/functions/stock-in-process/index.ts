@@ -342,10 +342,6 @@ serve(async (req) => {
             batch_id: batchId,
             quantity: quantityPerBox,
             total_quantity: quantityPerBox,
-            reserved_quantity: 0,
-            warehouse_id: batch.warehouse_id,
-            location_id: batch.location_id,
-            barcode, // Use barcode string directly
             status: 'in_stock',
             color: batch.color,
             size: batch.size,

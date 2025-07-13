@@ -15,6 +15,17 @@ BEGIN
     END IF;
 END $$;
 
+-- Create ENUM types
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'stock_status') THEN
+    CREATE TYPE stock_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'stock_out_status') THEN
+    CREATE TYPE stock_out_status AS ENUM ('pending', 'approved', 'completed', 'rejected');
+  END IF;
+END $$;
+
 -- Create tables
 CREATE TABLE IF NOT EXISTS public.profiles (
     id uuid NOT NULL PRIMARY KEY,
