@@ -36,10 +36,53 @@ interface CreateUserFormProps {
   onSuccess?: () => void;
 }
 
+interface ResendConfirmationProps {
+  email: string;
+  onResendSuccess?: () => void;
+  onResendError?: (error: Error) => void;
+}
+
+/**
+ * Function to resend confirmation email to a user
+ */
+export const resendConfirmationEmail = async ({ email, onResendSuccess, onResendError }: ResendConfirmationProps): Promise<void> => {
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    toast.success('Confirmation email sent', {
+      description: `A new confirmation email has been sent to ${email}`,
+    });
+
+    if (onResendSuccess) {
+      onResendSuccess();
+    }
+  } catch (error) {
+    console.error('Error resending confirmation email:', error);
+    toast.error('Failed to resend confirmation email', {
+      description: error instanceof Error ? error.message : 'An unknown error occurred',
+    });
+
+    if (onResendError && error instanceof Error) {
+      onResendError(error);
+    }
+  }
+};
+
 export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formStatus, setFormStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [lastCreatedEmail, setLastCreatedEmail] = useState<string>('');
 
   const form = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
@@ -93,6 +136,9 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
         // Don't throw error here, user is still created
       }
 
+      // Store the email for potential resending
+      setLastCreatedEmail(values.email);
+
       setFormStatus('success');
       toast.success('User created successfully', {
         description: 'A password reset email has been sent to the user.',
@@ -126,6 +172,7 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
         </p>
       </div>
 
+
       {formStatus === 'success' && (
         <div className="bg-green-50 p-4 rounded-md flex items-start gap-3">
           <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
@@ -134,9 +181,10 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
             <p className="text-sm text-green-700">
               A password reset email has been sent to the user's email address.
             </p>
+
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {formStatus === 'error' && (
         <div className="bg-red-50 p-4 rounded-md flex items-start gap-3">

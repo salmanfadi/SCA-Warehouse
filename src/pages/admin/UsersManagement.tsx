@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserPlus, Pencil, Trash2, MoreVertical } from 'lucide-react';
 import { CreateUserForm } from '@/components/admin/CreateUserForm';
+
 import { EditUserForm } from '@/components/admin/EditUserForm';
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+
 
 interface UserProfile {
   id: string;
@@ -147,7 +149,9 @@ const UsersManagement: React.FC = () => {
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
+
                     <TableHead className="w-[50px]">Actions</TableHead>
+
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -155,7 +159,7 @@ const UsersManagement: React.FC = () => {
                     users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.full_name || '-'}</TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
+                        <TableCell>{user.email || <span className="text-gray-400 italic">No email</span>}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
                             {user.role?.replace('_', ' ') || '-'}
@@ -169,6 +173,7 @@ const UsersManagement: React.FC = () => {
                         <TableCell>
                           {new Date(user.created_at).toLocaleDateString()}
                         </TableCell>
+
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -195,6 +200,7 @@ const UsersManagement: React.FC = () => {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+
                         </TableCell>
                       </TableRow>
                     ))

@@ -13,6 +13,8 @@ import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import Index from './pages/Index';
 import Unauthorized from './pages/Unauthorized';
+import AuthCallback from './pages/auth/callback';
+import ResetPassword from './pages/auth/reset-password';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -104,6 +106,8 @@ function App() {
               <Route element={<PublicLayout />}>
                 <Route path="/login" element={<Login />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
                 
                 {/* Product Catalog */}
                 <Route path="/products" element={<ProductCatalogue />} />

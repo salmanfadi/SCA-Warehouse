@@ -50,9 +50,21 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (authError) {
-      toast.error(authError instanceof Error ? authError.message : String(authError));
+      const errorMessage = authError instanceof Error ? authError.message : String(authError);
+      
+      // Special handling for inactive user accounts
+      if (errorMessage.includes('deactivated by an administrator')) {
+        toast.error('Account Inactive', {
+          description: 'Your account has been deactivated by an administrator. Please contact support for assistance.',
+          duration: 6000
+        });
+      } else {
+        toast.error('Login Failed', {
+          description: errorMessage
+        });
+      }
     }
-  }, [authError, toast]);
+  }, [authError]);
 
   useEffect(() => {
     const lastEmail = localStorage.getItem('lastUsedEmail');
@@ -65,7 +77,9 @@ const Login: React.FC = () => {
     e.preventDefault();
     
     if (!email || !password) {
-      toast.error("Please enter both email and password");
+      toast.error("Login Failed", {
+        description: "Please enter both email and password"
+      });
       return;
     }
     
@@ -77,7 +91,9 @@ const Login: React.FC = () => {
       localStorage.setItem('lastUsedEmail', email);
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error instanceof Error ? error.message : "Invalid email or password");
+      
+      // Error handling is now done in the useEffect that watches authError
+      // This prevents duplicate toast notifications
     } finally {
       setIsLoading(false);
     }
