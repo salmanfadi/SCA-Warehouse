@@ -579,22 +579,7 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common warehouse operations</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button className="w-full justify-start">
-                  <Package className="w-4 h-4 mr-2" />
-                  Process New Stock In
-                </Button>
-                <Button className="w-full justify-start" onClick={() => navigate('/manager/inventory/search')}>
-                  <Search className="w-4 h-4 mr-2" />
-                  Search Inventory
-                </Button>
-              </CardContent>
-            </Card>
+            
           </div>
         </TabsContent>
 
