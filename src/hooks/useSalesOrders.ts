@@ -17,6 +17,7 @@ export interface SalesOrderItem {
     hsn_code?: string;
     gst_rate?: number;
   };
+  reserved?: boolean; // Indicates if the item is reserved stock
 }
 
 export interface SalesOrder {

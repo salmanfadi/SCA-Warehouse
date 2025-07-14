@@ -5,10 +5,8 @@ import {
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, Warehouse, PanelLeft,
   MessageSquare, Users2, Store, Clock,
-
   BarChart3, BarChart, ChartBar, AlertTriangle,
-  History
-
+  History, Home, Database, Barcode, Search, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

@@ -2,7 +2,7 @@ import React, { useState, ReactNode, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { useMobileDetector } from '@/hooks/use-mobile.tsx';
+import { useMobileDetector } from '@/hooks/use-mobile'; // Remove .tsx extension
 import { OfflineDetector } from '@/components/pwa/OfflineDetector';
 import { EnhancedInstallPrompt } from '@/components/pwa/EnhancedInstallPrompt';
 import { StandaloneDetector } from '@/components/pwa/StandaloneDetector';

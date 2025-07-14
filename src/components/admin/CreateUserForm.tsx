@@ -160,7 +160,6 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
         </p>
       </div>
 
-
       {formStatus === 'success' && (
         <div className="bg-green-50 p-4 rounded-md flex items-start gap-3">
           <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
@@ -169,10 +168,9 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
             <p className="text-sm text-green-700">
               A password reset email has been sent to the user's email address.
             </p>
-
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {formStatus === 'error' && (
         <div className="bg-red-50 p-4 rounded-md flex items-start gap-3">

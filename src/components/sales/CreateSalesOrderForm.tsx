@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2 } from 'lucide-react';
 import { SalesOrderItem } from '@/hooks/useSalesOrders';
+import { useAuth } from '@/context/AuthContext';
 
 interface CreateSalesOrderFormProps {
   onSubmit: (orderData: any) => void;
@@ -34,13 +35,15 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
   const [customerEmail, setCustomerEmail] = useState(initialInquiry?.customer_email || '');
   const [customerCompany, setCustomerCompany] = useState(initialInquiry?.customer_company || '');
   const [customerPhone, setCustomerPhone] = useState(initialInquiry?.customer_phone || '');
+  const { user } = useAuth();
   const [items, setItems] = useState<SalesOrderItem[]>(
     initialInquiry?.items?.map((item: any) => ({
       product_id: item.product_id,
       quantity: item.quantity,
       requirements: item.specific_requirements || '',
       product: item.product,
-    })) || [{ product_id: '', quantity: 1, requirements: '' }]
+      reserved: item.reserved || false,
+    })) || [{ product_id: '', quantity: 1, requirements: '', reserved: false }]
   );
 
   const { data: products = [] } = useQuery({
@@ -61,14 +64,14 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
   });
 
   const addItem = () => {
-    setItems([...items, { product_id: '', quantity: 1, specific_requirements: '' }]);
+    setItems([...items, { product_id: '', quantity: 1, specific_requirements: '', reserved: false }]);
   };
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: keyof SalesOrderItem, value: any) => {
+  const updateItem = (index: number, field: keyof SalesOrderItem | 'reserved', value: any) => {
     const updatedItems = [...items];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
@@ -205,7 +208,20 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
                   rows={2}
                 />
               </div>
-              <div className="flex items-end">
+              <div className="flex flex-col items-end gap-2">
+                {/* Reserve Stock Checkbox for Sales Operator */}
+                {user?.role === 'sales_operator' && (
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="checkbox"
+                      id={`reserve-${index}`}
+                      checked={item.reserved || false}
+                      onChange={e => updateItem(index, 'reserved', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <Label htmlFor={`reserve-${index}`}>Reserve Stock</Label>
+                  </div>
+                )}
                 <Button
                   type="button"
                   variant="destructive"

@@ -22,3 +22,6 @@ export const useIsMobile = (breakpoint: number = 768): boolean => {
 
   return isMobile;
 };
+
+// Export the alias for backward compatibility
+export const useMobileDetector = useIsMobile;

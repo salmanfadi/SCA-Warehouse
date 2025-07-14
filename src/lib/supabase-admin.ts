@@ -1,25 +1,68 @@
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
 
 // Create a Supabase client with the service role key for admin operations
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
+// Check if environment variables are missing
+let supabaseAdmin: any;
+
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase URL or service role key in environment variables');
+  console.warn('⚠️ Missing Supabase URL or service role key in environment variables');
+  
+  // Create a mock admin client
+  supabaseAdmin = {
+    auth: {
+      admin: {
+        createUser: async () => ({ 
+          data: { user: null }, 
+          error: { message: 'Mock: No admin credentials configured' } 
+        }),
+        updateUserById: async () => ({ 
+          data: { user: null }, 
+          error: { message: 'Mock: No admin credentials configured' } 
+        })
+      }
+    },
+    from: () => ({
+      select: () => ({ 
+        eq: () => ({ 
+          single: async () => ({ 
+            data: null, 
+            error: { message: 'Mock: No database connection' } 
+          }) 
+        }) 
+      }),
+      insert: () => ({ 
+        select: () => ({ 
+          single: async () => ({ 
+            data: null, 
+            error: { message: 'Mock: No database connection' } 
+          }) 
+        }) 
+      }),
+      update: () => ({ 
+        eq: () => ({ 
+          select: async () => ({ 
+            data: null, 
+            error: { message: 'Mock: No database connection' } 
+          }) 
+        }) 
+      }),
+    }),
+  } as any;
+} else {
+  supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
 }
 
-// Log the environment variables (without revealing the full key)
-console.log('Supabase URL:', supabaseUrl);
-console.log('Service key available:', !!supabaseServiceKey);
-
-/**
- * Supabase client with admin privileges using service role key
- */
-export const supabaseAdmin = createClient(
-  supabaseUrl || '',
-  supabaseServiceKey || ''
-);
+export { supabaseAdmin };
 
 /**
  * Get the current auth settings
