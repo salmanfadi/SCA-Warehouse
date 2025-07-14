@@ -185,6 +185,7 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
+
               </div>
               <div>
                 <Label>Quantity *</Label>

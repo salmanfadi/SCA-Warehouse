@@ -28,10 +28,16 @@ const InventoryTransfers: React.FC = () => {
       </Button>
       
       <Tabs defaultValue="new" className="w-full">
-        <TabsList>
-          <TabsTrigger value="new">New Transfer</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
-          <TabsTrigger value="history">Transfer History</TabsTrigger>
+        <TabsList className="w-full">
+          <TabsTrigger value="new" className="flex items-center justify-center">
+            <span className="truncate">New Transfer</span>
+          </TabsTrigger>
+          <TabsTrigger value="pending" className="flex items-center justify-center">
+            <span className="truncate">Pending Approval</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center justify-center">
+            <span className="truncate">Transfer History</span>
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="new" className="mt-6">
           <TransferForm />

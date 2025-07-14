@@ -10,6 +10,7 @@ export interface BatchItem {
   product_name: string;
   barcode: string;
   quantity: number;
+  reserved_quantity?: number;
   batch_number: string;
   location_id?: string;
   location_name?: string;

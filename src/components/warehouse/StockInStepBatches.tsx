@@ -175,7 +175,7 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
     }
     
     // Add new batch with generated ID
-    const newBatchWithId: BatchData = {
+    const newBatchWithId: BatchFormData = {
       ...newBatch,
       id: uuidv4(),
       created_at: new Date().toISOString(),
@@ -216,8 +216,8 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
             Group boxes into batches by warehouse, location and properties. Total boxes: {stockIn?.boxes || 0}, Remaining: {remainingBoxes}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="space-y-4 px-2 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {/* Warehouse Selection */}
             <div className="space-y-2">
               <Label htmlFor="warehouse">Warehouse <span className="text-destructive">*</span></Label>
@@ -333,22 +333,22 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
             <CardTitle>Batches ({batches.length})</CardTitle>
             <CardDescription>Review your created batches before proceeding</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-2 sm:px-6">
             {batches.map((batch, index) => (
-              <div key={batch.id} className="border rounded-lg p-4 space-y-2">
+              <div key={batch.id} className="border rounded-lg p-3 sm:p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="font-medium">Batch {index + 1}</div>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveBatch(batch.id)}
-                    className="text-destructive"
+                    className="text-destructive h-8 w-8"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">Warehouse:</span> {batch.warehouse_name}
                   </div>

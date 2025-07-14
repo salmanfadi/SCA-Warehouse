@@ -9,6 +9,100 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      custom_reservations: {
+        Row: {
+          id: string
+          product_id: string
+          order_id: string | null
+          total_quantity: number
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          order_id?: string | null
+          total_quantity: number
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          status?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          order_id?: string | null
+          total_quantity?: number
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_reservations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_reservations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_reservations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      custom_reservation_boxes: {
+        Row: {
+          id: string
+          reservation_id: string
+          batch_item_id: string
+          quantity: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          reservation_id: string
+          batch_item_id: string
+          quantity: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          reservation_id?: string
+          batch_item_id?: string
+          quantity?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_reservation_boxes_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "custom_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_reservation_boxes_batch_item_id_fkey"
+            columns: ["batch_item_id"]
+            isOneToOne: false
+            referencedRelation: "batch_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       barcodes: {
         Row: {
           barcode: string

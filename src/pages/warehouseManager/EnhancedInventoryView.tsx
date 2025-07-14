@@ -537,18 +537,18 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Overview
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-2">
+          <TabsTrigger value="overview" className="flex items-center justify-center">
+            <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="truncate">Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="batches">
-            <Package className="w-4 h-4 mr-2" />
-            Batch View
+          <TabsTrigger value="batches" className="flex items-center justify-center">
+            <Package className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="truncate">Batch View</span>
           </TabsTrigger>
-          <TabsTrigger value="products">
-            <Boxes className="w-4 h-4 mr-2" />
-            Products
+          <TabsTrigger value="products" className="flex items-center justify-center">
+            <Boxes className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="truncate">Products</span>
           </TabsTrigger>
         </TabsList>
 

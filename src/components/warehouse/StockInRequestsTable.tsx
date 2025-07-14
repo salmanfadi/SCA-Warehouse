@@ -144,91 +144,135 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   return (
     <>
       {/* Table for desktop/tablet */}
-      <div className="hidden sm:block relative overflow-x-auto">
-        <div className="absolute top-0 right-0 h-full w-8 pointer-events-none bg-gradient-to-l from-white/90 to-transparent z-10" />
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>Boxes</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Submitted By</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Notes</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {stockInRequests.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.product?.name}</TableCell>
-                <TableCell>{item.boxes}</TableCell>
-                <TableCell><StatusBadge status={item.status} /></TableCell>
-                <TableCell>{item.source}</TableCell>
-                <TableCell>{item.submitter?.name || 'Unknown'}</TableCell>
-                <TableCell>{format(new Date(item.created_at), 'MMM d, yyyy')}</TableCell>
-                <TableCell>{item.notes || '-'}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    {item.status === 'pending' && (
-                      <Button 
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleProcess(item)}
-                      >
-                        <Box className="mr-1 h-4 w-4" />
-                        Process
-                      </Button>
-                    )}
-                    
-                    {item.status === 'processing' && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleContinueProcessing(item)}
-                      >
-                        Continue Processing
-                      </Button>
-                    )}
-                    
-                    {item.status === 'pending' && onReject && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleReject(item)}
-                      >
-                        Reject
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="hidden sm:block relative">
+        <div className="overflow-x-auto -mx-4 sm:mx-0 p-4 sm:p-0">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden rounded-md border">
+              <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">Product</TableHead>
+                    <TableHead className="whitespace-nowrap text-center">Boxes</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="whitespace-nowrap hidden md:table-cell">Source</TableHead>
+                    <TableHead className="whitespace-nowrap hidden lg:table-cell">Submitted By</TableHead>
+                    <TableHead className="whitespace-nowrap hidden md:table-cell">Date</TableHead>
+                    <TableHead className="whitespace-nowrap hidden lg:table-cell">Notes</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stockInRequests.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="font-medium truncate max-w-[150px] lg:max-w-xs" title={item.product?.name}>
+                          {item.product?.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center font-semibold">{item.boxes}</TableCell>
+                      <TableCell><StatusBadge status={item.status} /></TableCell>
+                      <TableCell className="hidden md:table-cell">{item.source}</TableCell>
+                      <TableCell className="hidden lg:table-cell truncate max-w-[120px]" title={item.submitter?.name || 'Unknown'}>
+                        {item.submitter?.name || 'Unknown'}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {format(new Date(item.created_at), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell truncate max-w-[150px]" title={item.notes || '-'}>
+                        {item.notes || '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {item.status === 'pending' && (
+                            <Button 
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleProcess(item)}
+                              className="whitespace-nowrap"
+                            >
+                              <Box className="h-4 w-4 mr-1 sm:mr-0 md:mr-1" />
+                              <span className="hidden sm:inline-block md:hidden lg:inline-block">Process</span>
+                            </Button>
+                          )}
+                          
+                          {item.status === 'processing' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleContinueProcessing(item)}
+                              className="whitespace-nowrap"
+                            >
+                              <span className="hidden sm:inline-block md:hidden lg:inline-block">Continue </span>Processing
+                            </Button>
+                          )}
+                          
+                          {item.status === 'pending' && onReject && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleReject(item)}
+                              className="whitespace-nowrap"
+                            >
+                              Reject
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
+        {/* Scroll hints */}
+        <div className="pointer-events-none absolute top-0 right-0 bottom-0 h-full w-12 bg-gradient-to-l from-white dark:from-gray-900 to-transparent opacity-75" />
+        <div className="pointer-events-none absolute top-0 left-0 bottom-0 h-full w-12 bg-gradient-to-r from-white dark:from-gray-900 to-transparent opacity-75" />
       </div>
       {/* Stacked card view for mobile */}
-      <div className="sm:hidden flex flex-col gap-4 p-4">
+      <div className="sm:hidden space-y-4">
         {stockInRequests.map((item) => (
-          <div key={item.id} className="rounded-lg border p-4 shadow-sm bg-white">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy')}</span>
+          <div key={item.id} className="rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900">
+            <div className="flex justify-between items-center mb-3">
+              <div className="font-bold text-base line-clamp-1">{item.product?.name}</div>
               <StatusBadge status={item.status} />
             </div>
-            <div className="font-semibold text-base mb-1">{item.product?.name}</div>
-            <div className="text-sm text-gray-700 mb-1">Boxes: {item.boxes}</div>
-            <div className="text-xs text-gray-500 mb-1">Source: {item.source}</div>
-            <div className="text-xs text-gray-500 mb-1">Submitted By: {item.submitter?.name || 'Unknown'}</div>
-            <div className="text-xs text-gray-500 mb-1">Notes: {item.notes || '-'}</div>
-            <div className="flex flex-col gap-2 mt-2">
+            
+            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+              <div className="col-span-2 flex items-center justify-between border-b pb-2 mb-1">
+                <div className="flex gap-4">
+                  <span>Boxes: <span className="font-semibold">{item.boxes}</span></span>
+                  <span className="text-xs text-muted-foreground">{format(new Date(item.created_at), 'MMM d, yyyy')}</span>
+                </div>
+              </div>
+              
+              <div className="text-xs">
+                <span className="text-muted-foreground block">Source</span>
+                <span className="font-medium truncate block">{item.source}</span>
+              </div>
+              
+              <div className="text-xs">
+                <span className="text-muted-foreground block">Submitted By</span>
+                <span className="font-medium truncate block">{item.submitter?.name || 'Unknown'}</span>
+              </div>
+            </div>
+            
+            {item.notes && (
+              <div className="text-xs mb-3">
+                <span className="text-muted-foreground block">Notes</span>
+                <span className="font-medium line-clamp-2">{item.notes}</span>
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
               {item.status === 'pending' && (
                 <Button 
                   variant="default"
                   size="sm"
                   onClick={() => handleProcess(item)}
+                  className="w-full"
                 >
-                  <Box className="mr-1 h-4 w-4" />
+                  <Box className="mr-2 h-4 w-4" />
                   Process
                 </Button>
               )}
@@ -237,6 +281,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                   variant="default"
                   size="sm"
                   onClick={() => handleContinueProcessing(item)}
+                  className="w-full"
                 >
                   Continue Processing
                 </Button>
@@ -246,6 +291,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                   variant="secondary"
                   size="sm"
                   onClick={() => handleReject(item)}
+                  className="w-full"
                 >
                   Reject
                 </Button>
@@ -257,52 +303,54 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between py-4 gap-4">
+          <div className="hidden sm:flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               Showing page {page} of {totalPages} ({totalCount} requests)
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPage(1)}
-              disabled={page === 1}
-              className="h-8 w-8"
-            >
-              {'<<'}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1}
-              className="h-8 w-8"
-            >
-              {'<'}
-            </Button>
-            <span className="mx-2 text-sm font-medium">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPage(page + 1)}
-              disabled={page >= totalPages}
-              className="h-8 w-8"
-            >
-              {'>'}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPage(totalPages)}
-              disabled={page >= totalPages}
-              className="h-8 w-8"
-            >
-              {'>>'}
-            </Button>
+            <div className="flex items-center">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="h-8 w-8 hidden sm:flex"
+              >
+                {'<<'}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage(page - 1)}
+                disabled={page === 1}
+                className="h-8 w-8"
+              >
+                {'<'}
+              </Button>
+              <span className="mx-2 text-sm font-medium whitespace-nowrap">
+                <span className="sm:hidden">Page </span>{page}<span className="hidden sm:inline"> of {totalPages}</span><span className="inline sm:hidden">/{totalPages}</span>
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= totalPages}
+                className="h-8 w-8"
+              >
+                {'>'}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage(totalPages)}
+                disabled={page >= totalPages}
+                className="h-8 w-8 hidden sm:flex"
+              >
+                {'>>'}
+              </Button>
+            </div>
             <select
               className="ml-4 border rounded px-2 py-1 text-sm"
               value={pageSize}
