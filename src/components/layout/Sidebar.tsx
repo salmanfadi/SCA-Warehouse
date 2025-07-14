@@ -5,8 +5,10 @@ import {
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, Warehouse, PanelLeft,
   MessageSquare, Users2, Store, Clock,
+
   BarChart3, BarChart, ChartBar, AlertTriangle,
   History
+
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -81,18 +83,24 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
             {user?.role === 'admin' && (
               <nav className="px-2 space-y-1">
 
-                {renderNavItem("/admin", <LayoutGrid className="h-5 w-5" />, "Dashboard")}
-                {renderNavItem("/admin/inventory", <Boxes className="h-5 w-5" />, "Inventory")}
+                {renderNavItem("/admin", <Home className="h-5 w-5" />, "Dashboard")}
                 {renderNavItem("/admin/products", <Package className="h-5 w-5" />, "Products")}
+
                 {renderNavItem("/admin/warehouses", <Warehouse className="h-5 w-5" />, "Warehouses")}
                 {renderNavItem("/admin/stock-in", <PackageOpen className="h-5 w-5" />, "Stock In")}
                 {renderNavItem("/admin/stock-out", <Package className="h-5 w-5" />, "Stock Out")}
                 {renderNavItem("/admin/stock-out-history", <History className="h-5 w-5" />, "Stock-Out History")}
                 {renderNavItem("/admin/transfers", <Warehouse className="h-5 w-5" />, "Transfers")}
                 {renderNavItem("/admin/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
+
                 {renderNavItem("/admin/users", <Users className="h-5 w-5" />, "Users")}
-                {renderNavItem("/admin/sales-inquiries", <ShoppingBag className="h-5 w-5" />, "Sales Inquiries")}
-                {renderNavItem("/admin/test-navigation-error", <AlertTriangle className="h-5 w-5 text-red-500" />, "Test Navigation Error")}
+                {renderNavItem("/admin/sales-inquiries", <MessageSquare className="h-5 w-5" />, "Sales Inquiries")}
+                {renderNavItem("/admin/inventory", <Database className="h-5 w-5" />, "Inventory")}
+                {renderNavItem("/admin/barcodes", <Barcode className="h-5 w-5" />, "Barcodes")}
+                {renderNavItem("/admin/barcode", <Search className="h-5 w-5" />, "Barcode Lookup")}
+                {renderNavItem("/admin/stock-in", <ArrowDownCircle className="h-5 w-5" />, "Stock In")}
+                {renderNavItem("/admin/stock-out", <ArrowUpCircle className="h-5 w-5" />, "Stock Out")}
+                {renderNavItem("/admin/transfers", <ArrowLeftRight className="h-5 w-5" />, "Transfers")}
 
               </nav>
             )}
@@ -101,6 +109,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
             {user?.role === 'warehouse_manager' && (
               <nav className="px-2 space-y-1">
 
+
                 {renderNavItem("/manager", <LayoutGrid className="h-5 w-5" />, "Dashboard")}
                 {renderNavItem("/manager/inventory", <Boxes className="h-5 w-5" />, "Inventory")}
                 {renderNavItem("/manager/stock-in", <PackageOpen className="h-5 w-5" />, "Stock In")}
@@ -108,6 +117,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {renderNavItem("/manager/stock-out-history", <History className="h-5 w-5" />, "Stock-Out History")}
                 {renderNavItem("/manager/transfers", <Warehouse className="h-5 w-5" />, "Transfers")}
                 {renderNavItem("/manager/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
+
 
               </nav>
             )}

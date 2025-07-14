@@ -27,28 +27,30 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }, [location.pathname, isMobile]);
   
   // Map route patterns to titles
-  const routeTitleMap: { [key: string]: string } = {
-    '/admin': 'Admin Dashboard',
-    '/admin/products': 'Product Management',
-    '/admin/warehouses': 'Warehouse Management',
-    '/admin/users': 'User Management',
-    '/admin/sales-inquiries': 'Customer Inquiries',
+  const pathTitles: { [key: string]: string } = {
+    '/admin': 'Dashboard',
+    '/admin/products': 'Products',
+    '/admin/warehouses': 'Warehouses',
+    '/admin/users': 'Users',
+    '/admin/sales-inquiries': 'Sales Inquiries',
     '/admin/inventory': 'Inventory',
-    '/admin/barcodes': 'Barcode Management',
-    '/admin/stock-in': 'Stock In Management',
-    '/admin/stock-out': 'Stock Out Management',
-    '/admin/transfers': 'Inventory Transfers',
-    '/admin/reserve-stock': 'Reserve Stock',
-    '/manager': 'Manager Dashboard',
-    '/manager/stock-in': 'Stock In Processing',
-    '/manager/stock-out': 'Stock Out Approval',
+    '/admin/barcodes': 'Barcodes',
+    '/admin/barcode': 'Barcode Lookup',
+    '/admin/stock-in': 'Stock In',
+    '/admin/stock-out': 'Stock Out',
+    '/admin/transfers': 'Transfers',
+    '/manager': 'Dashboard',
+    '/manager/stock-in': 'Stock In',
+    '/manager/stock-out': 'Stock Out',
+    '/manager/barcode': 'Barcode Lookup',
     '/manager/inventory': 'Inventory',
-    '/manager/transfers': 'Inventory Transfers',
-    '/manager/reserve-stock': 'Reserve Stock',
-    '/operator': 'Field Operator Dashboard',
+    '/manager/transfers': 'Transfers',
+    '/operator': 'Dashboard',
     '/operator/stock-in': 'Stock In',
-    '/operator/stock-out': 'Stock Out',
+    '/operator/submissions': 'Submissions',
+    '/operator/barcode': 'Barcode Lookup',
     '/operator/transfers': 'Transfers',
+    '/operator/settings': 'Settings',
     '/sales': 'Sales Dashboard',
     '/sales/products': 'Products',
     '/sales/inventory': 'Inventory',
@@ -67,10 +69,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   // Find the best matching title for the current path
   function getPageTitle(pathname: string): string {
     // Try exact match first
-    if (routeTitleMap[pathname]) return routeTitleMap[pathname];
+    if (pathTitles[pathname]) return pathTitles[pathname];
     // Try prefix match for nested routes
-    const match = Object.keys(routeTitleMap).find((key) => pathname.startsWith(key));
-    return match ? routeTitleMap[match] : 'Warehouse Management';
+    const match = Object.keys(pathTitles).find((key) => pathname.startsWith(key));
+    return match ? pathTitles[match] : 'Warehouse Management';
   }
   const pageTitle = getPageTitle(location.pathname);
   

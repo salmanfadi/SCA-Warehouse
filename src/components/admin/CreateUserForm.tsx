@@ -29,13 +29,6 @@ const createUserSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator', 'customer']),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
 });
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
@@ -85,7 +78,6 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
       email: '',
       fullName: '',
       role: 'field_operator',
-      password: '',
     },
   });
 
@@ -95,16 +87,19 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
     setErrorMessage('');
 
     try {
-      // First, create the user with the standard auth API
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Generate a random temporary password
+      const tempPassword = Math.random().toString(36).slice(-10) + 
+                         Math.random().toString(36).toUpperCase().slice(-2) + 
+                         '@' + Math.floor(Math.random() * 100);
+
+      // Create the user with email confirmation disabled
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: values.email,
-        password: values.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            full_name: values.fullName,
-            role: values.role,
-          },
+        password: tempPassword,
+        email_confirm: false,
+        user_metadata: {
+          full_name: values.fullName,
+          role: values.role,
         },
       });
 
@@ -116,16 +111,25 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
         throw new Error('Failed to create user');
       }
 
-      // Create the profile directly with RLS bypassed using a service role or function
-      // For now, we'll rely on the auth hooks or triggers in Supabase to create the profile
-      // In a production app, you would use a secure server endpoint with admin privileges
+      // Send password reset email to let user set their own password
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        values.email,
+        {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        }
+      );
+
+      if (resetError) {
+        console.error('Error sending password reset email:', resetError);
+        // Don't throw error here, user is still created
+      }
 
       // Store the email for potential resending
       setLastCreatedEmail(values.email);
 
       setFormStatus('success');
       toast.success('User created successfully', {
-        description: 'A confirmation email has been sent to the user.',
+        description: 'A password reset email has been sent to the user.',
       });
 
       // Reset form
@@ -152,50 +156,20 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
       <div className="space-y-2">
         <h3 className="text-lg font-medium">Create New User</h3>
         <p className="text-sm text-gray-500">
-          Create a new user account. A confirmation email will be sent to the user.
+          Create a new user account. The user will receive an email to set their password.
         </p>
       </div>
 
-      {/* Function to handle resending confirmation email */}
-      {(() => {
-        const handleResendConfirmation = async () => {
-          if (!lastCreatedEmail) return;
-          
-          await resendConfirmationEmail({ 
-            email: lastCreatedEmail,
-            onResendSuccess: () => {
-              // Success is handled by the toast in the resendConfirmationEmail function
-            },
-            onResendError: (error) => {
-              setErrorMessage(error.message);
-            }
-          });
-        };
-        
-        return formStatus === 'success' && (
-          <div className="bg-green-50 p-4 rounded-md flex flex-col">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-green-800">User created successfully</h4>
-                <p className="text-sm text-green-700">
-                  A confirmation email has been sent to the user's email address.
-                </p>
-              </div>
-            </div>
-            {lastCreatedEmail && (
-              <div className="mt-3 pt-3 border-t border-green-100">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="text-green-700 border-green-300 hover:bg-green-50"
-                  onClick={handleResendConfirmation}
-                >
-                  Resend Confirmation Email
-                </Button>
-                <p className="text-xs text-green-600 mt-1">If the user didn't receive the email, you can resend it.</p>
-              </div>
-            )}
+
+      {formStatus === 'success' && (
+        <div className="bg-green-50 p-4 rounded-md flex items-start gap-3">
+          <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-green-800">User created successfully</h4>
+            <p className="text-sm text-green-700">
+              A password reset email has been sent to the user's email address.
+            </p>
+
           </div>
         );
       })()}
@@ -261,23 +235,6 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = ({ onSuccess }) => 
                   </SelectContent>
                 </Select>
                 <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Initial Password</FormLabel>
-                <FormControl>
-                  <Input type="password" {...field} />
-                </FormControl>
-                <FormMessage />
-                <p className="text-xs text-gray-500 mt-1">
-                  Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
-                </p>
               </FormItem>
             )}
           />

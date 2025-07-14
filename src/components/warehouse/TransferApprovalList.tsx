@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,186 +7,141 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CheckCircle, XCircle, Clock, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 interface Transfer {
   id: string;
-  source_warehouse_id: string;
-  destination_warehouse_id: string;
+  source_warehouse_name: string;
+  source_zone: string | null;
+  source_floor: string | null;
+  destination_warehouse_name: string;
+  destination_zone: string | null;
+  destination_floor: string | null;
   status: 'pending' | 'completed' | 'in_transit' | 'cancelled';
   created_at: string;
-  updated_at: string;
-  initiated_by: string;
 }
 
-interface TransferApprovalListProps {
-  onRefresh?: () => void;
-}
-
-export const TransferApprovalList: React.FC<TransferApprovalListProps> = ({ onRefresh }) => {
+export const TransferApprovalList: React.FC = () => {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [processingTransfers, setProcessingTransfers] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    fetchPendingTransfers();
-  }, []);
-
-  const fetchPendingTransfers = async () => {
+  const fetchTransfers = async () => {
     try {
-      setIsLoading(true);
-      
       const { data, error } = await supabase
         .from('inventory_transfers')
-        .select('*')
+        .select(`
+          id,
+          status,
+          created_at,
+          source_warehouse:warehouses!inventory_transfers_source_warehouse_id_fkey(
+            name,
+            source_location:warehouse_locations(
+              zone,
+              floor
+            )
+          ),
+          destination_warehouse:warehouses!inventory_transfers_destination_warehouse_id_fkey(
+            name,
+            destination_location:warehouse_locations(
+              zone,
+              floor
+            )
+          )
+        `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching transfers:', error);
-        toast.error('Error', {
-          description: 'Failed to fetch pending transfers'
-        });
-        return;
-      }
-
-      setTransfers(data || []);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error', {
-        description: 'Failed to fetch transfer data'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleApproval = async (transferId: string, action: 'approve' | 'reject') => {
-    setProcessingTransfers(prev => new Set(prev).add(transferId));
-    
-    try {
-      const newStatus = action === 'approve' ? 'in_transit' : 'cancelled';
-      
-      const { error } = await supabase
-        .from('inventory_transfers')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', transferId);
-
       if (error) throw error;
 
-      toast.success(`Transfer has been ${action === 'approve' ? 'approved and is now in transit' : 'rejected'}`);
-      toast.success(`Transfer ${action === 'approve' ? 'Approved' : 'Rejected'}`, {
-        description: `Transfer has been ${action === 'approve' ? 'approved and is now in transit' : 'rejected'}`
-      });
+      // Transform the data to match our interface
+      const transformedData = (data || []).map(transfer => ({
+        id: transfer.id,
+        source_warehouse_name: transfer.source_warehouse?.name || 'Unknown',
+        source_zone: transfer.source_warehouse?.source_location?.[0]?.zone || null,
+        source_floor: transfer.source_warehouse?.source_location?.[0]?.floor || null,
+        destination_warehouse_name: transfer.destination_warehouse?.name || 'Unknown',
+        destination_zone: transfer.destination_warehouse?.destination_location?.[0]?.zone || null,
+        destination_floor: transfer.destination_warehouse?.destination_location?.[0]?.floor || null,
+        status: transfer.status,
+        created_at: transfer.created_at
+      }));
 
-      // Refresh the list
-      await fetchPendingTransfers();
-      if (onRefresh) onRefresh();
+      setTransfers(transformedData);
     } catch (error) {
-      console.error(`Error ${action}ing transfer:`, error);
-      toast.error('Error', {
-        description: `Failed to ${action} transfer`
-      });
+      console.error('Error fetching transfers:', error);
+      toast.error('Failed to load transfers');
     } finally {
-      setProcessingTransfers(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(transferId);
-        return newSet;
-      });
+      setLoading(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </CardContent>
-      </Card>
-    );
-  }
+  useEffect(() => {
+    fetchTransfers();
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Pending</Badge>;
+      case 'completed':
+        return <Badge variant="outline" className="bg-green-50 text-green-700">Completed</Badge>;
+      case 'in_transit':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700">In Transit</Badge>;
+      case 'cancelled':
+        return <Badge variant="outline" className="bg-red-50 text-red-700">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          Pending Transfer Approvals
-        </CardTitle>
+        <CardTitle className="text-xl font-bold">Pending Transfers</CardTitle>
       </CardHeader>
       <CardContent>
-        {transfers.length === 0 ? (
-          <div className="text-center py-8">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No pending transfers requiring approval</p>
-          </div>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Transfer ID</TableHead>
-                  <TableHead>From Warehouse</TableHead>
-                  <TableHead>To Warehouse</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Requested</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transfers.map((transfer) => (
-                  <TableRow key={transfer.id}>
-                    <TableCell className="font-mono text-sm">
-                      {transfer.id.substring(0, 8)}...
-                    </TableCell>
-                    <TableCell>
-                      {transfer.source_warehouse_id}
-                    </TableCell>
-                    <TableCell>
-                      {transfer.destination_warehouse_id}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {transfer.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <p>{new Date(transfer.created_at).toLocaleDateString()}</p>
-                        <p className="text-muted-foreground">by {transfer.initiated_by}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproval(transfer.id, 'approve')}
-                          disabled={processingTransfers.has(transfer.id)}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleApproval(transfer.id, 'reject')}
-                          disabled={processingTransfers.has(transfer.id)}
-                          className="border-red-200 text-red-600 hover:bg-red-50"
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Reference</TableHead>
+              <TableHead>
+                <div>From</div>
+                <div className="text-xs font-normal text-muted-foreground">Zone / Floor</div>
+              </TableHead>
+              <TableHead>
+                <div>To</div>
+                <div className="text-xs font-normal text-muted-foreground">Zone / Floor</div>
+              </TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transfers.map((transfer) => (
+              <TableRow key={transfer.id}>
+                <TableCell>TR-{transfer.id.slice(0, 8)}</TableCell>
+                <TableCell>
+                  <div>{transfer.source_warehouse_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {transfer.source_zone && transfer.source_floor 
+                      ? `${transfer.source_zone} / ${transfer.source_floor}`
+                      : '—'}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>{transfer.destination_warehouse_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {transfer.destination_zone && transfer.destination_floor 
+                      ? `${transfer.destination_zone} / ${transfer.destination_floor}`
+                      : '—'}
+                  </div>
+                </TableCell>
+                <TableCell>{getStatusBadge(transfer.status)}</TableCell>
+                <TableCell>{format(new Date(transfer.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );

@@ -20,6 +20,7 @@ interface LocationState {
   processedQuantity?: number;
   productName?: string;
   stockOutId?: string;
+
 }
 
 interface BarcodeStockOutPageProps {
@@ -38,6 +39,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
   const [isProcessComplete, setIsProcessComplete] = useState(false);
   const [initialBarcode, setInitialBarcode] = useState<string | undefined>(undefined);
   
+
   // Get stockOutId from URL params or location state
   const [effectiveStockOutId, setEffectiveStockOutId] = useState<string | undefined>(stockOutId);
   
@@ -200,11 +202,14 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
         throw error;
       }
     },
+
     enabled: !!effectiveStockOutId || !!stockOutFromLocationState,
+
   });
   
   // Transform the raw stock out request into a format suitable for the StockOutForm
   const stockOutRequest = React.useMemo<StockOutRequest | null>(() => {
+
     // First priority: Use location state directly if available
     const state = location.state as LocationState;
     if (state?.productId && state?.detailId) {
@@ -224,6 +229,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
         requested_at: new Date().toISOString() // Required by StockOutRequest type
       };
     }
+
     
     // Second priority: Use stockOutRequestRaw if available
     if (!stockOutRequestRaw) {
@@ -296,7 +302,9 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
       console.error('Error transforming stock out request:', error);
       return null;
     }
+
   }, [stockOutRequestRaw, location.state]);
+
   
   // Log the processed stock out request for debugging
   React.useEffect(() => {
@@ -315,7 +323,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
       setInitialBarcode(state.barcode);
       
       // Clear the location state to prevent reprocessing on refresh
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(location.pathname, { replace: true, state: { reservationDetails: state.reservationDetails } });
     }
   }, [location, navigate]);
 
@@ -398,7 +406,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Process Stock Out</h1>
           <p className="text-muted-foreground">
-            Scan barcodes to process stock out request
+            {reservationDetails ? 'Process stock out from reservation' : 'Scan barcodes to process stock out request'}
           </p>
         </div>
         <Button variant="outline" onClick={handleBackClick}>
@@ -407,7 +415,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
         </Button>
       </div>
       
-      {isLoadingRequest && (
+      {isLoadingRequest && !reservationDetails && (
         <Card>
           <CardContent className="flex items-center justify-center py-6">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -415,22 +423,15 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
           </CardContent>
         </Card>
       )}
-      
-      {requestError && (
+
+      {requestError && !reservationDetails && (
         <Alert variant="destructive">
           <AlertDescription>
-            Failed to load stock out request. Please try again later.
+            Error loading stock out request: {requestError instanceof Error ? requestError.message : 'Unknown error'}
           </AlertDescription>
         </Alert>
       )}
-      
-      {!isLoadingRequest && !requestError && !stockOutRequest && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            Stock out request not found. Please check the URL and try again.
-          </AlertDescription>
-        </Alert>
-      )}
+
       
       {isProcessComplete ? (
         <Card>
@@ -454,6 +455,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
             skipStockOutCompletion={true} // Skip completing the stock out in this component
           />
         )
+
       )}
     </div>
   );

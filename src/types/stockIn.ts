@@ -3,7 +3,7 @@ import { Product, Profile } from './database';
 
 export type StockInStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'approved' | 'rejected';
 export type StockInDetailStatus = 'pending' | 'processing' | 'completed' | 'failed';
-export type InventoryStatus = 'available' | 'reserved' | 'sold' | 'damaged';
+export type InventoryStatus = 'available' | 'sold' | 'damaged';
 
 export interface StockInDetail {
   id: string;

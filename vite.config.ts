@@ -5,6 +5,10 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    host: true, // Listen on all network interfaces
+    port: 5174, // Use the port that was available
+  },
   plugins: [
     react(),
     // Added vite-plugin-pwa for PWA support. This enables offline capability, service worker, and manifest integration.

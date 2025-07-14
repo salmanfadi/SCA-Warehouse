@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
+export type MovementType = 'in' | 'out' | 'adjustment' | 'transfer';
 export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
 
 export interface SimpleInventoryMovement {

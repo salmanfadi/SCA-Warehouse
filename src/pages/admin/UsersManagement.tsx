@@ -15,10 +15,29 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, MoreVertical } from 'lucide-react';
 import { CreateUserForm } from '@/components/admin/CreateUserForm';
-import { EditUserStatus } from '@/components/admin/EditUserStatus';
-import { ResendConfirmationEmail } from '@/components/admin/ResendConfirmationEmail';
+
+import { EditUserForm } from '@/components/admin/EditUserForm';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+
 
 interface UserProfile {
   id: string;
@@ -32,6 +51,8 @@ interface UserProfile {
 
 const UsersManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('users-list');
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch users from profiles table using available columns
@@ -51,10 +72,36 @@ const UsersManagement: React.FC = () => {
   });
 
   const handleUserCreated = () => {
-    // Invalidate and refetch users query to show the newly created user
     queryClient.invalidateQueries({ queryKey: ['users'] });
-    // Switch back to users list tab
     setActiveTab('users-list');
+  };
+
+  const handleEditUser = (user: UserProfile) => {
+    setSelectedUser(user);
+    setActiveTab('edit-user');
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ active: false })
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('User deactivated successfully');
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error deactivating user:', error);
+      toast.error('Failed to deactivate user', {
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+    }
   };
 
   if (isLoading) {
@@ -85,17 +132,10 @@ const UsersManagement: React.FC = () => {
           <TabsList>
             <TabsTrigger value="users-list">Users List</TabsTrigger>
             <TabsTrigger value="create-user">Create User</TabsTrigger>
+            {selectedUser && (
+              <TabsTrigger value="edit-user">Edit User</TabsTrigger>
+            )}
           </TabsList>
-          
-          {activeTab === 'users-list' && (
-            <Button 
-              onClick={() => setActiveTab('create-user')}
-              size="sm"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add New User
-            </Button>
-          )}
         </div>
         
         <TabsContent value="users-list">
@@ -109,7 +149,9 @@ const UsersManagement: React.FC = () => {
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+
+                    <TableHead className="w-[50px]">Actions</TableHead>
+
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -131,20 +173,34 @@ const UsersManagement: React.FC = () => {
                         <TableCell>
                           {new Date(user.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end">
-                            <EditUserStatus 
-                              userId={user.id}
-                              userEmail={user.email}
-                              userName={user.full_name}
-                              isActive={user.active}
-                            />
-                            <ResendConfirmationEmail
-                              userId={user.id}
-                              userEmail={user.email}
-                              userName={user.full_name}
-                            />
-                          </div>
+
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleEditUser(user)}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
                         </TableCell>
                       </TableRow>
                     ))
@@ -171,7 +227,52 @@ const UsersManagement: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="edit-user">
+          {selectedUser && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Edit User</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EditUserForm 
+                  user={selectedUser}
+                  onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['users'] });
+                    setActiveTab('users-list');
+                    setSelectedUser(null);
+                  }}
+                  onCancel={() => {
+                    setActiveTab('users-list');
+                    setSelectedUser(null);
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate the user account. The user will no longer be able to access the system.
+              This action can be reversed by editing the user and setting them as active again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Deactivate User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

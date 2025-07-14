@@ -12,18 +12,18 @@ interface ScanDataDisplayProps {
 const ScanDataDisplay: React.FC<ScanDataDisplayProps> = ({ scanData }) => {
   if (!scanData) return null;
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
+  function getStatusBadgeColor(status: string) {
+    switch (status.toLowerCase()) {
       case 'available':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'reserved':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'in-transit':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'sold':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'damaged':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
-  };
+  }
 
   // Type-safe access to product properties
   const product = scanData.product as any;
@@ -38,7 +38,7 @@ const ScanDataDisplay: React.FC<ScanDataDisplayProps> = ({ scanData }) => {
           <div>Scan Result</div>
           <Badge 
             variant="outline" 
-            className={`${getStatusColor(scanData.status)} font-normal`}
+            className={`${getStatusBadgeColor(scanData.status)} font-normal`}
           >
             {scanData.status || 'Unknown Status'}
           </Badge>
