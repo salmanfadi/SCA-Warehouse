@@ -48,18 +48,29 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
   return (
     <>
       {/* Mobile Overlay - Moved to top level and increased z-index */}
+      {/* Overlay for mobile */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-[45] lg:hidden"
+          aria-label="Sidebar overlay"
+          tabIndex={0}
+          role="button"
           onClick={() => setIsOpen(false)}
+          onKeyDown={e => { if (e.key === 'Escape') setIsOpen(false); }}
         />
       )}
-      
-      <div className={cn(
-
-        "fixed inset-y-0 left-0 z-[50] transform transition-all duration-300 ease-in-out bg-slate-50 dark:bg-slate-900 border-r shadow-sm",
-        isOpen ? "w-64" : "w-16"
-      )}>
+      {/* Sidebar container - responsive */}
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-[50] transform transition-all duration-300 ease-in-out bg-slate-50 dark:bg-slate-900 border-r shadow-sm",
+          isOpen ? "w-64" : "w-16",
+          "lg:w-64 lg:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+          "lg:relative lg:inset-0"
+        )}
+        aria-label="Sidebar navigation"
+        tabIndex={-1}
+      >
         <div className="flex flex-col h-full">
           <div className={cn(
             "h-16 flex items-center border-b px-4 relative",

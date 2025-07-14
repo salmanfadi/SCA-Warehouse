@@ -274,8 +274,10 @@ const StockOutManagement: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Order ID</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>Requested By</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Destination</TableHead>
                     <TableHead>Reason</TableHead>
@@ -284,60 +286,71 @@ const StockOutManagement: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockOutRequests.map((stockOut) => (
-                    <TableRow key={stockOut.id}>
-                      <TableCell>
-                        {format(new Date(stockOut.created_at), 'MMM d, yyyy HH:mm')}
-                      </TableCell>
-                      <TableCell>
-                        {stockOut.product_name || 'Unknown Product'}
-                        {stockOut.product_sku && (
-                          <div className="text-sm text-muted-foreground">
-                            SKU: {stockOut.product_sku}
+                  {stockOutRequests.map((stockOut) => {
+                    // Friendly order code logic
+                    const orderCode = stockOut.reference_number || (stockOut.id ? `ORDER-${stockOut.id.substring(0, 8).toUpperCase()}` : 'N/A');
+                    const customerName = stockOut.customer_name || stockOut.requester_name || stockOut.requested_by || 'Unknown';
+                    return (
+                      <TableRow key={stockOut.id}>
+                        <TableCell>
+                          {format(new Date(stockOut.created_at), 'MMM d, yyyy HH:mm')}
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                            {orderCode}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {stockOut.product_name || 'Unknown Product'}
+                          {stockOut.product_sku && (
+                            <div className="text-sm text-muted-foreground">
+                              SKU: {stockOut.product_sku}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>{stockOut.requester_name || stockOut.requested_by || 'Unknown'}</TableCell>
+                        <TableCell>{customerName}</TableCell>
+                        <TableCell>{stockOut.total_quantity}</TableCell>
+                        <TableCell>{stockOut.destination || 'N/A'}</TableCell>
+                        <TableCell>{stockOut.notes || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(stockOut.status)}>
+                            {formatStatus(stockOut.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            {stockOut.status === 'pending' && (
+                              <>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleApprove(stockOut)}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleStatusUpdate(stockOut.id, 'rejected')}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {stockOut.status === 'processing' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleProcess(stockOut)}
+                              >
+                                Continue
+                              </Button>
+                            )}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell>{stockOut.requester_name || stockOut.requested_by || 'Unknown'}</TableCell>
-                      <TableCell>{stockOut.total_quantity}</TableCell>
-                      <TableCell>{stockOut.destination || 'N/A'}</TableCell>
-                      <TableCell>{stockOut.notes || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(stockOut.status)}>
-                          {formatStatus(stockOut.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          {stockOut.status === 'pending' && (
-                            <>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleApprove(stockOut)}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleStatusUpdate(stockOut.id, 'rejected')}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {stockOut.status === 'processing' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleProcess(stockOut)}
-                            >
-                              Continue
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
               {/* Pagination Controls */}
