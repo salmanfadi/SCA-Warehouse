@@ -204,13 +204,13 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
     try {
       console.log('🔒 [RESERVATION DETAILS] Fetching reservation details for inquiry:', inquiryId);
       
-      // Get the reservation ID
-      const { data: reservation, error: reservationError } = await executeQuery('reservation-lookup', supabase => 
+      // Get the reservation ID - use order by to get the most recent one if multiple exist
+      const { data: reservations, error: reservationError } = await executeQuery('reservation-lookup', supabase => 
         supabase
           .from('custom_reservations')
           .select('id')
           .eq('inquiry_id', inquiryId)
-          .single()
+          .order('created_at', { ascending: false })
       );
       
       if (reservationError) {
@@ -218,12 +218,13 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
         return;
       }
       
-      if (!reservation) {
+      if (!reservations || reservations.length === 0) {
         console.warn('⚠️ [RESERVATION DETAILS] No reservation found for inquiry:', inquiryId);
         return;
       }
       
-      const reservationId = reservation.id;
+      // Use the most recent reservation (first in the array since we ordered by created_at desc)
+      const reservationId = reservations[0].id;
       console.log('🔒 [RESERVATION DETAILS] Found reservation ID:', reservationId);
       
       // Store the reservation ID in state
@@ -914,12 +915,12 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       // If we don't have a reservation ID yet, try to get it
       let finalReservationId = reservationId || stockOutState?.reservation_id;
       if (!finalReservationId) {
-        const { data: customReservation, error: customReservationError } = await executeQuery('custom-reservation-lookup', async (supabase) => {
+        const { data: customReservations, error: customReservationError } = await executeQuery('custom-reservation-lookup', async (supabase) => {
           return await supabase
             .from('custom_reservations')
             .select('id')
             .eq('inquiry_id', inquiryId)
-            .single();
+            .order('created_at', { ascending: false });
         });
 
         if (customReservationError) {
@@ -927,12 +928,14 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
           return;
         }
 
-        if (!customReservation) {
+        if (!customReservations || customReservations.length === 0) {
           console.log('⚠️ [RESERVED BOXES] No custom reservation found for this inquiry');
           return;
         }
         
-        finalReservationId = customReservation.id;
+        // Use the most recent reservation (first in the array since we ordered by created_at desc)
+        finalReservationId = customReservations[0].id;
+        console.log('✅ [RESERVED BOXES] Using most recent reservation ID:', finalReservationId);
         
         // Store the reservation ID for future use
         setStockOutState(prev => {
