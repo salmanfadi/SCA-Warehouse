@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen, 
 
   return (
     <header className={cn(
-      "bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 transition-opacity duration-300 z-50 sticky top-0",
+      "bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 transition-opacity duration-300 z-50 sticky top-0 w-full left-0 right-0",
       scrolled ? "opacity-0 pointer-events-none" : "opacity-100"
     )}>
       <div className="flex items-center justify-between">
@@ -62,19 +62,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen, 
             variant="ghost"
             size="sm"
             onClick={onToggleSidebar}
-            className="lg:hidden"
+            className="mr-3"
           >
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
           
-          <div className={cn(
-            "fixed transition-all duration-300 ease-in-out",
-            isSidebarOpen ? "left-[280px]" : "left-24"
-          )}>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white transition-opacity duration-300" style={{ opacity: scrolled ? 0 : 1 }}>
-              {title || 'Warehouse Management'}
-            </h1>
-          </div>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white transition-opacity duration-300" style={{ opacity: scrolled ? 0 : 1 }}>
+            {title || 'Warehouse Management'}
+          </h1>
 
         </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BatchData } from './StockInStepBatches';
+import { BatchFormData } from './StockInStepBatches';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, AlertCircle, CheckCircle2, Box as BoxIcon } from 'lucide-react';
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 
 interface StockInStepFinalizeProps {
-  batches: BatchData[];
+  batches: BatchFormData[];
   stockIn: StockInRequestData;
   isSubmitting: boolean;
   onSubmit: () => Promise<void>;
@@ -33,7 +33,7 @@ const StockInStepFinalize: React.FC<StockInStepFinalizeProps> = ({
   processingStatus 
 }) => {
   // Function to render the boxes table for a batch
-  const renderBoxesTable = (batch: BatchData) => {
+  const renderBoxesTable = (batch: BatchFormData) => {
     const boxes = Array.from({ length: batch.boxCount }, (_, i) => ({
       id: i + 1,
       quantity: batch.quantityPerBox,
@@ -44,12 +44,12 @@ const StockInStepFinalize: React.FC<StockInStepFinalizeProps> = ({
     }));
 
     return (
-      <div className="mt-4 border rounded-md">
+      <div className="mt-4 border rounded-md overflow-hidden">
         <div className="p-4 border-b flex items-center gap-2 bg-muted/50">
           <BoxIcon className="h-4 w-4" />
           <span className="font-medium">Boxes ({batch.boxCount})</span>
         </div>
-        <ScrollArea className="h-[300px] w-full">
+        <ScrollArea className="h-[250px] sm:h-[300px] w-full">
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0">
               <TableRow>
@@ -85,13 +85,13 @@ const StockInStepFinalize: React.FC<StockInStepFinalizeProps> = ({
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="px-3 sm:px-6">
           <CardTitle>Preview & Submit</CardTitle>
           <CardDescription>
             Review the batches before finalizing the stock-in process
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <Alert className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Ready to Submit</AlertTitle>
@@ -103,8 +103,8 @@ const StockInStepFinalize: React.FC<StockInStepFinalizeProps> = ({
           
           <div className="space-y-6">
             {batches.map((batch, idx) => (
-              <Card key={idx} className="border-dashed">
-                <CardHeader className="pb-2">
+              <Card key={idx} className="border-dashed overflow-hidden">
+                <CardHeader className="pb-2 px-3 sm:px-6">
                   <div className="flex justify-between items-center">
                     <div>
                       <CardTitle>Batch #{idx + 1}</CardTitle>
@@ -114,7 +114,7 @@ const StockInStepFinalize: React.FC<StockInStepFinalizeProps> = ({
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 px-3 sm:px-6">
                   <div className="grid grid-cols-1 gap-1 text-sm">
                     <div className="flex justify-between py-1 border-b">
                       <span className="text-muted-foreground">Warehouse:</span>
@@ -171,14 +171,14 @@ const StockInStepFinalize: React.FC<StockInStepFinalizeProps> = ({
         </Alert>
       )}
       
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack} disabled={isSubmitting}>
+      <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-4 pt-4">
+        <Button variant="outline" onClick={onBack} disabled={isSubmitting} className="w-full sm:w-auto">
           Back
         </Button>
         <Button 
           onClick={onSubmit} 
           disabled={isSubmitting || batches.length === 0}
-          className="min-w-[120px]"
+          className="w-full sm:w-auto min-w-[120px]"
         >
           {isSubmitting ? (
             <>

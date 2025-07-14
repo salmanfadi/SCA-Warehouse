@@ -1,43 +1,166 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Search, Calendar, Package, Plus, Truck, RefreshCw } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
-import { useSalesOrders } from '@/hooks/useSalesOrders';
-// No need for useQueryClient
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Calendar, Package, Truck, Loader2, Search, RefreshCw, Plus } from 'lucide-react';
+import { useSalesOrders, SalesOrder } from '@/hooks/useSalesOrders';
 import { CreateSalesOrderForm } from '@/components/sales/CreateSalesOrderForm';
+import { ReserveOrderButton } from '@/components/warehouse/ReserveOrderButton';
+import { ProductToReserve } from '@/components/warehouse/ReservationModal';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
+/**
+ * Sales Orders Management Component
+ * Displays and manages sales orders with action buttons for stock operations
+ */
 const OrdersManagement: React.FC = () => {
-  const [searchTerm, setSearchTerm] = React.useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
+  const [orderToPush, setOrderToPush] = useState<any>(null);
+  const [productData, setProductData] = useState<Record<string, ProductToReserve>>({});
+  const [isLoadingProductData, setIsLoadingProductData] = useState<boolean>(false);
+  const [productDataError, setProductDataError] = useState<string | null>(null);
   const { salesOrders, isLoading, isRefreshing, refreshSalesOrders, createSalesOrder, pushToStockOut } = useSalesOrders();
   
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Orders page - salesOrders:', salesOrders);
+  // Create a stable reference for order IDs to prevent infinite loops
+  const orderIdsString = useMemo(() => {
+    return JSON.stringify(salesOrders?.map(order => order.id) || []);
   }, [salesOrders]);
+  
+  // Fetch product data for all order items
+  useEffect(() => {
+    const fetchProductData = async () => {
+      if (!salesOrders || salesOrders.length === 0) {
+        setProductData({});
+        return;
+      }
+      
+      setIsLoadingProductData(true);
+      setProductDataError(null);
+      const productIds = new Set<string>();
+      
+      // Collect all unique product IDs from orders
+      salesOrders.forEach((order) => {
+        if (order.items && order.items.length > 0) {
+          order.items.forEach((item: any) => {
+            if (item.product_id) {
+              productIds.add(item.product_id);
+            }
+          });
+        }
+      });
+      
+      // Fetch product data for all collected IDs
+      if (productIds.size > 0) {
+        try {
+          console.log('Fetching product data for IDs:', Array.from(productIds));
+          
+          // First get basic product info
+          const { data: productsData, error: productsError } = await supabase
+            .from('products')
+            .select('id, name, sku, category')
+            .in('id', Array.from(productIds));
+          
+          if (productsError) {
+            console.error('Error fetching product data:', productsError);
+            toast.error('Failed to load product data');
+            setProductDataError('Failed to load product data');
+            setIsLoadingProductData(false);
+            return;
+          }
+          
+          if (!productsData || productsData.length === 0) {
+            console.log('No products found');
+            setIsLoadingProductData(false);
+            return;
+          }
+          
+          // Now get inventory quantities for these products
+          const { data: inventoryData, error: inventoryError } = await supabase
+            .from('inventory')
+            .select('product_id, total_quantity, reserved_quantity')
+            .in('product_id', Array.from(productIds));
+            
+          if (inventoryError) {
+            console.error('Error fetching inventory data:', inventoryError);
+            toast.error('Failed to load inventory data');
+            setProductDataError('Failed to load inventory data');
+          }
+          
+          // Create maps for total and reserved quantities
+          const totalQuantityMap: Record<string, number> = {};
+          const reservedQuantityMap: Record<string, number> = {};
+          const availableQuantityMap: Record<string, number> = {};
+          
+          if (inventoryData) {
+            inventoryData.forEach((item: any) => {
+              const productId = item.product_id;
+              const quantity = item.total_quantity || 0;
+              const reservedQty = item.reserved_quantity || 0;
+              
+              // Initialize if not exists
+              if (!totalQuantityMap[productId]) {
+                totalQuantityMap[productId] = 0;
+                reservedQuantityMap[productId] = 0;
+              }
+              
+              // Add to totals
+              totalQuantityMap[productId] += quantity;
+              reservedQuantityMap[productId] += reservedQty;
+            });
+            
+            // Calculate available quantities
+            Array.from(productIds).forEach(productId => {
+              const total = totalQuantityMap[productId] || 0;
+              const reserved = reservedQuantityMap[productId] || 0;
+              availableQuantityMap[productId] = Math.max(0, total - reserved);
+            });
+          }
+          
+          // Create the final product map with quantities
+          const productMap: Record<string, ProductToReserve> = {};
+          productsData.forEach((product: any) => {
+            productMap[product.id] = {
+              id: product.id,
+              name: product.name,
+              sku: product.sku,
+              category: product.category,
+              total_quantity: totalQuantityMap[product.id] || 0,
+              reserved_quantity: reservedQuantityMap[product.id] || 0,
+              available_quantity: availableQuantityMap[product.id] || 0
+            };
+          });
+          
+          setProductData(productMap);
+          console.log('Product data map created with inventory quantities:', productMap);
+          
+        } catch (err) {
+          console.error('Error in product data fetching process:', err);
+          toast.error('Failed to load product data');
+          setProductDataError('Failed to load product data');
+        } finally {
+          setIsLoadingProductData(false);
+        }
+      } else {
+        console.log('No product IDs found in orders');
+        setIsLoadingProductData(false);
+      }
+    };
+    
+    fetchProductData();
+  }, [orderIdsString]); // Only re-run when order IDs change
+  
   // We rely on the status from the database for button visibility
 
-  const filteredOrders = React.useMemo(() => {
+  const filteredOrders = useMemo(() => {
     if (!salesOrders || salesOrders.length === 0) return [];
     return salesOrders.filter(order => 
       (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -56,8 +179,7 @@ const OrdersManagement: React.FC = () => {
     }
   };
 
-  const [orderToPush, setOrderToPush] = useState<any | null>(null);
-  const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
+  // Order push confirmation state is already defined above
 
   const handlePushToStockOut = (order: any) => {
     setIsPushDialogOpen(false);
@@ -68,7 +190,7 @@ const OrdersManagement: React.FC = () => {
     pushToStockOut.mutate(order);
   };
   
-  const openPushConfirmation = (order: any) => {
+  const openPushConfirmation = (order: SalesOrder) => {
     setOrderToPush(order);
     setIsPushDialogOpen(true);
   };
@@ -88,7 +210,7 @@ const OrdersManagement: React.FC = () => {
     }
   };
 
-  const canPushToStockOut = (order: any) => {
+  const canPushToStockOut = (order: SalesOrder) => {
     // Only allow pushing to stock-out if the order is in_progress
     // Don't allow if it's already finalizing (being processed for stock-out) or completed
     return order.status === 'in_progress';
@@ -141,10 +263,10 @@ const OrdersManagement: React.FC = () => {
                 <TableRow>
                   <TableHead>Order Number</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Company</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Reserved</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -158,7 +280,6 @@ const OrdersManagement: React.FC = () => {
                         <div className="text-sm text-muted-foreground">{order.customer_email}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{order.customer_company}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -175,20 +296,84 @@ const OrdersManagement: React.FC = () => {
                       {getStatusBadge(order.status)}
                     </TableCell>
                     <TableCell>
-                      {canPushToStockOut(order) && (
+                      {order.is_reserved ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700">Reserved</Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-gray-50 text-gray-700">Not Reserved</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-row gap-2 items-center justify-start">
+                        {/* Push to Stock-Out Button - Always visible but conditionally disabled */}
                         <Button
-                          onClick={() => openPushConfirmation(order)}
-                          disabled={pushToStockOut.isPending}
+                          onClick={() => canPushToStockOut(order) && openPushConfirmation(order)}
+                          disabled={!canPushToStockOut(order) || pushToStockOut.isPending}
                           size="sm"
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-1 px-2 h-8"
                           variant="secondary"
+                          title={!canPushToStockOut(order) ? 'Cannot push to stock-out in current status' : 'Push this order to stock-out'}
                         >
-                          <Truck className="h-4 w-4" />
+                          <Truck className="h-3 w-3 mr-1" />
                           {pushToStockOut.isPending && pushToStockOut.variables?.id === order.id 
                             ? 'Processing...' 
-                            : 'Push to Stock-Out'}
+                            : 'Stock-Out'}
                         </Button>
-                      )}
+                        
+                        {/* Reserve Stock Button - Always visible but conditionally disabled */}
+                        {(() => {
+                          // Create a list of products with required quantities for this order
+                          const orderProducts: ProductToReserve[] = [];
+                          const uniqueProductIds = new Set<string>();
+                          
+                          // Collect unique product IDs and calculate required quantities
+                          if (order.items) {
+                            order.items.forEach((item: any) => {
+                              if (item.product_id && productData[item.product_id]) {
+                                uniqueProductIds.add(item.product_id);
+                              }
+                            });
+                          }
+                          
+                          // Create product objects with required quantities
+                          Array.from(uniqueProductIds).forEach(productId => {
+                            const product = productData[productId];
+                            if (product) {
+                              // Calculate required quantity from order items
+                              const requiredQty = order.items
+                                .filter((item: any) => item.product_id === productId)
+                                .reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+                              
+                              orderProducts.push({
+                                ...product,
+                                required_quantity: requiredQty
+                              });
+                            }
+                          });
+                          
+                          if (isLoadingProductData) {
+                            return (
+                              <Button size="sm" variant="outline" disabled className="px-2 h-8">
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                Loading...
+                              </Button>
+                            );
+                          }
+                          
+                          // Always show the button, but disable it if needed
+                          return (
+                            <ReserveOrderButton
+                              orderId={order.id}
+                              products={orderProducts}
+                              size="sm"
+                              variant="outline"
+                              className="px-2 h-8"
+                              onReservationComplete={() => refreshSalesOrders()}
+                              isDisabled={order.is_reserved || orderProducts.length === 0}
+                              disabledReason={order.is_reserved ? 'Already Reserved' : 'No Products Available'}
+                            />
+                          );
+                        })()}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

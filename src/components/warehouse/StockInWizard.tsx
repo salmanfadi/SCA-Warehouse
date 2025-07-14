@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { ToastAction } from "@/components/ui/toast";
+// Toast action is imported from sonner
 
 // Import step components
 import StockInStepReview from './StockInStepReview';
@@ -20,7 +20,7 @@ import StockInStepBatches from './StockInStepBatches';
 import StockInStepFinalize from './StockInStepFinalize';
 
 // Import shared types
-import { BoxData, StepType, LOCATION_SEPARATOR, BatchData } from '../../types/shared';
+import { BoxData, StepType, LOCATION_SEPARATOR } from '../../types/shared';
 
 // Define StockIn type based on database schema and StockInRequestData requirements
 interface StockIn {
@@ -400,8 +400,8 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
               id: batchId,
               product_name: batchData.product?.name || 'Unknown Product',
               product_sku: batchData.product?.sku || 'N/A',
-              warehouse_name: batchData.warehouse_name || 'Unknown Warehouse',
-              location_name: batchData.location_name || 'Unknown Location',
+              warehouse_name: (batchData as any).warehouse_name || 'Unknown Warehouse',
+              location_name: (batchData as any).location_name || 'Unknown Location',
               barcodes: barcodes?.map(b => b.barcode) || []
             };
           }
@@ -521,11 +521,11 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
   const { isMobile, isSmall, isMedium } = useBreakpoint();
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+    <div className="space-y-4 sm:space-y-6 px-1 sm:px-0 max-w-full overflow-x-hidden">
       <h2 className="text-xl sm:text-2xl font-bold">Stock In Wizard</h2>
       
       <Tabs value={activeStep} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 p-1">
+        <TabsList className="grid w-full grid-cols-3 p-1 text-xs sm:text-sm">
           <TabsTrigger 
             value="review" 
             onClick={() => navigateToStep('review')}
@@ -566,7 +566,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="review" className="mt-4 sm:mt-6">
+        <TabsContent value="review" className="mt-3 sm:mt-6">
           <div className="bg-white dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-800 p-3 sm:p-4">
             <StockInStepReview
               stockIn={stockIn}
@@ -585,7 +585,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="batches" className="mt-4 sm:mt-6">
+        <TabsContent value="batches" className="mt-3 sm:mt-6">
           <div className="bg-white dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-800 p-3 sm:p-4">
             <StockInStepBatches
               onBack={() => navigateToStep('review')}
@@ -598,7 +598,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="finalize" className="mt-4 sm:mt-6">
+        <TabsContent value="finalize" className="mt-3 sm:mt-6">
           <div className="bg-white dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-800 p-3 sm:p-4">
             <StockInStepFinalize
               batches={batches}

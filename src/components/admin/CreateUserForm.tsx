@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
+import { testEmailSending } from '@/lib/email-test';
 import { UserRole } from '@/types/auth';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,21 +55,8 @@ interface ResendConfirmationProps {
  */
 export const resendConfirmationEmail = async ({ email, onResendSuccess, onResendError }: ResendConfirmationProps): Promise<void> => {
   try {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    toast.success('Confirmation email sent', {
-      description: `A new confirmation email has been sent to ${email}`,
-    });
+    // Use our test utility to try different methods of sending the email
+    await testEmailSending(email);
 
     if (onResendSuccess) {
       onResendSuccess();

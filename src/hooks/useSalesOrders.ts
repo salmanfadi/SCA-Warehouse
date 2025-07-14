@@ -40,6 +40,8 @@ export interface SalesOrder {
   order_date: string;
   total_amount: number;
   pushed_to_stockout?: boolean;
+  // Reservation status
+  is_reserved?: boolean;
 }
 
 export const useSalesOrders = () => {
@@ -75,7 +77,7 @@ export const useSalesOrders = () => {
         const { data: inquiries, error: inquiriesError } = await executeQuery('customer_inquiries', async (supabase) => {
           return await supabase
             .from('customer_inquiries')
-            .select('id, customer_name, customer_email, status, message, created_at, reference_number, product_id, product_name, quantity')
+            .select('id, customer_name, customer_email, status, message, created_at, reference_number, product_id, product_name, quantity, is_reserved')
             .or('status.eq.in_progress,status.eq.finalizing')
             .order('created_at', { ascending: false });
         });
@@ -89,6 +91,13 @@ export const useSalesOrders = () => {
           console.log('No orders found with in_progress or finalizing status');
           return [];
         }
+        
+        // Debug log to check if is_reserved field is being fetched
+        console.log('Fetched inquiries with is_reserved field:', inquiries.map(inq => ({ 
+          id: inq.id, 
+          reference: inq.reference_number, 
+          is_reserved: inq.is_reserved 
+        })));
         
         const inquiryIds = inquiries.map(inquiry => inquiry.id);
         console.log('Inquiry IDs to fetch items for:', inquiryIds);
@@ -156,6 +165,11 @@ export const useSalesOrders = () => {
           // Combine both sources of items, prioritizing external items if they exist
           const items = externalItems.length > 0 ? externalItems : defaultItems;
           
+          // Calculate total amount from items if available
+          const totalAmount = items.reduce((sum, item) => {
+            return sum + (item.price || 0) * (item.quantity || 0);
+          }, 0);
+          
           return {
             id: inquiry.id,
             sales_order_number: inquiry.reference_number || `SO-${inquiry.id.substring(0, 8)}`,
@@ -167,7 +181,12 @@ export const useSalesOrders = () => {
             message: inquiry.message || '',
             notes: '', // Not in DB, but needed for UI
             created_at: inquiry.created_at,
-            items: items
+            items: items,
+            // Include the is_reserved field from the inquiry
+            is_reserved: inquiry.is_reserved || false,
+            // Required fields for the UI
+            order_date: inquiry.created_at,
+            total_amount: totalAmount
           };
         });
         

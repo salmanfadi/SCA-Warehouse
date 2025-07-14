@@ -75,14 +75,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const pageTitle = getPageTitle(location.pathname);
   
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200 overflow-x-hidden">
       <StandaloneDetector />
       <OfflineDetector className="offline-indicator" />
       
-      <div className={cn(
-        "transition-all duration-200 bg-white dark:bg-gray-900",
-        isSidebarOpen ? "pl-64" : "pl-16"
-      )}>
+      <div className="w-full bg-white dark:bg-gray-900">
         <Header
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           isSidebarOpen={isSidebarOpen}
@@ -90,13 +87,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         />
       </div>
       
-      <div className="flex flex-1">
+      <div className="flex flex-1 w-full overflow-x-hidden">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <main className={cn(
-          "flex-1 p-4 md:p-6 transition-all duration-200 bg-white dark:bg-gray-900",
-          isSidebarOpen ? "ml-64" : "ml-16"
+          "flex-1 p-4 md:p-6 transition-all duration-200 bg-white dark:bg-gray-900 w-full overflow-x-hidden",
+          isSidebarOpen ? "ml-64" : "ml-16",
+          "sm:ml-0 md:ml-16 lg:ml-16"
         )}>
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto w-full overflow-x-hidden">
             {children || <Outlet />}
           </div>
         </main>

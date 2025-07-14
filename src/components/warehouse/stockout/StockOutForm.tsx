@@ -7,20 +7,22 @@ import BarcodeScanner from './BarcodeScanner';
 import BatchItemDetails from './BatchItemDetails';
 import StockOutProgress from './StockOutProgress';
 import { useStockOut } from '@/hooks/useStockOut';
-import { StockOutRequest } from '@/services/stockout/types';
+import { StockOutRequest, ProcessedItem } from '@/services/stockout/types';
 
 interface StockOutFormProps {
   userId: string;
   stockOutRequest: StockOutRequest | null;
   initialBarcode?: string;
-  onComplete: () => void;
+  onComplete: (processedItems: ProcessedItem[]) => void;
+  skipStockOutCompletion?: boolean; // Flag to skip completing the stock out in the database
 }
 
 const StockOutForm: React.FC<StockOutFormProps> = ({
   userId,
   stockOutRequest,
-  initialBarcode,
-  onComplete
+  initialBarcode = '',
+  onComplete,
+  skipStockOutCompletion = false
 }) => {
   const {
     state,
@@ -58,7 +60,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             <p className="text-center text-muted-foreground">
               All items have been processed and the stock out has been completed.
             </p>
-            <Button onClick={onComplete}>Return to Stock Out List</Button>
+            <Button onClick={() => onComplete(state.processedItems)}>Return to Stock Out List</Button>
           </div>
         </CardContent>
       </Card>
@@ -113,7 +115,17 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           <Button
             className="w-full"
             disabled={!isReadyForApproval() || state.isLoading}
-            onClick={handleCompleteStockOut}
+            onClick={async (e) => {
+              e.preventDefault();
+              if (skipStockOutCompletion) {
+                // Skip the database updates and just pass the processed items to the callback
+                onComplete(state.processedItems);
+              } else {
+                // Complete the stock out in the database and then call the callback
+                await handleCompleteStockOut();
+                onComplete(state.processedItems);
+              }
+            }}
           >
             {state.isLoading ? (
               <>

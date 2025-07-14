@@ -48,15 +48,17 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({
             <p className="text-gray-500 text-center py-4">No recent activity</p>
           ) : (
             activities.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">{activity.action}</p>
-                  <p className="text-sm text-gray-600">by {activity.user}</p>
+              <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg gap-2">
+                <div className="flex-grow">
+                  <p className="font-medium line-clamp-2">{activity.action}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">by {activity.user}</p>
                   {activity.details && (
-                    <p className="text-xs text-gray-500">{activity.details}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mt-1" title={activity.details}>
+                      {activity.details}
+                    </p>
                   )}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 sm:mt-0 sm:ml-4 sm:text-right whitespace-nowrap">
                   {format(new Date(activity.timestamp), 'MMM dd, HH:mm')}
                 </div>
               </div>

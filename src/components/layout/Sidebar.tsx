@@ -5,7 +5,8 @@ import {
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, Warehouse, PanelLeft,
   MessageSquare, Users2, Store, Clock,
-  BarChart3, BarChart, ChartBar, AlertTriangle
+  BarChart3, BarChart, ChartBar, AlertTriangle,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -86,6 +87,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {renderNavItem("/admin/warehouses", <Warehouse className="h-5 w-5" />, "Warehouses")}
                 {renderNavItem("/admin/stock-in", <PackageOpen className="h-5 w-5" />, "Stock In")}
                 {renderNavItem("/admin/stock-out", <Package className="h-5 w-5" />, "Stock Out")}
+                {renderNavItem("/admin/stock-out-history", <History className="h-5 w-5" />, "Stock-Out History")}
                 {renderNavItem("/admin/transfers", <Warehouse className="h-5 w-5" />, "Transfers")}
                 {renderNavItem("/admin/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
                 {renderNavItem("/admin/users", <Users className="h-5 w-5" />, "Users")}
@@ -103,7 +105,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {renderNavItem("/manager/inventory", <Boxes className="h-5 w-5" />, "Inventory")}
                 {renderNavItem("/manager/stock-in", <PackageOpen className="h-5 w-5" />, "Stock In")}
                 {renderNavItem("/manager/stock-out", <Package className="h-5 w-5" />, "Stock Out")}
-                {renderNavItem("/manager/reserve-stock", <Clock className="h-5 w-5" />, "Reserve Stock")}
+                {renderNavItem("/manager/stock-out-history", <History className="h-5 w-5" />, "Stock-Out History")}
                 {renderNavItem("/manager/transfers", <Warehouse className="h-5 w-5" />, "Transfers")}
                 {renderNavItem("/manager/barcode", <ShoppingBag className="h-5 w-5" />, "Barcode Lookup")}
 

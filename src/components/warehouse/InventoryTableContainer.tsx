@@ -184,88 +184,106 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
           <>
             {/* Desktop/tablet table with scroll hint */}
             <div className="hidden sm:block relative">
-              <div className="overflow-x-auto">
-                <Table className="min-w-full">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Warehouse</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Attributes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredItems.map((item) => (
-                      <TableRow 
-                        key={item.id}
-                        className={highlightedBarcode && item.barcode === highlightedBarcode ? 'bg-yellow-100' : ''}
-                      >
-                        <TableCell className="font-medium">
-                          {item.product_name}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.product_sku}
-                        </TableCell>
-                        <TableCell>{item.warehouse_name}</TableCell>
-                        <TableCell className="text-sm">
-                          {item.location_details}
-                        </TableCell>
-                        <TableCell className="text-center font-semibold">
-                          {item.quantity}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={
-                            item.status === 'available' ? 'bg-green-500' :
-                            item.status === 'reserved' ? 'bg-blue-500' :
-                            item.status === 'sold' ? 'bg-purple-500' :
-                            item.status === 'damaged' ? 'bg-red-500' : ''
-                          }>
-                            {item.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {(item.color || item.size) ? (
-                            <div className="flex flex-wrap gap-1">
-                              {item.color && <Badge variant="outline" className="text-xs">{item.color}</Badge>}
-                              {item.size && <Badge variant="outline" className="text-xs">{item.size}</Badge>}
-                            </div>
-                          ) : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="overflow-x-auto -mx-4 sm:mx-0 p-4 sm:p-0">
+                <div className="inline-block min-w-full align-middle">
+                  <div className="overflow-hidden rounded-md border">
+                    <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="whitespace-nowrap">Product</TableHead>
+                          <TableHead className="whitespace-nowrap hidden md:table-cell">SKU</TableHead>
+                          <TableHead className="whitespace-nowrap">Warehouse</TableHead>
+                          <TableHead className="whitespace-nowrap hidden lg:table-cell">Location</TableHead>
+                          <TableHead className="whitespace-nowrap text-center">Quantity</TableHead>
+                          <TableHead className="whitespace-nowrap">Status</TableHead>
+                          <TableHead className="whitespace-nowrap hidden md:table-cell">Attributes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredItems.map((item) => (
+                          <TableRow 
+                            key={item.id}
+                            className={highlightedBarcode && item.barcode === highlightedBarcode ? 'bg-yellow-100 dark:bg-yellow-900/20' : ''}
+                          >
+                            <TableCell className="font-medium truncate max-w-[150px] lg:max-w-xs" title={item.product_name}>
+                              {item.product_name}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground hidden md:table-cell truncate max-w-[100px]" title={item.product_sku}>
+                              {item.product_sku}
+                            </TableCell>
+                            <TableCell className="truncate max-w-[100px]" title={item.warehouse_name}>{item.warehouse_name}</TableCell>
+                            <TableCell className="text-sm hidden lg:table-cell truncate max-w-[150px]" title={item.location_details}>
+                              {item.location_details}
+                            </TableCell>
+                            <TableCell className="text-center font-semibold">
+                              {item.quantity}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={
+                                item.status === 'available' ? 'bg-green-500' :
+                                item.status === 'reserved' ? 'bg-blue-500' :
+                                item.status === 'sold' ? 'bg-purple-500' :
+                                item.status === 'damaged' ? 'bg-red-500' : ''
+                              }>
+                                {item.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {(item.color || item.size) ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {item.color && <Badge variant="outline" className="text-xs">{item.color}</Badge>}
+                                  {item.size && <Badge variant="outline" className="text-xs">{item.size}</Badge>}
+                                </div>
+                              ) : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
-              {/* Right-edge gradient scroll hint */}
-              <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-gray-900 to-transparent" />
+              {/* Scroll hints */}
+              <div className="pointer-events-none absolute top-0 right-0 bottom-0 h-full w-12 bg-gradient-to-l from-white dark:from-gray-900 to-transparent opacity-75" />
+              <div className="pointer-events-none absolute top-0 left-0 bottom-0 h-full w-12 bg-gradient-to-r from-white dark:from-gray-900 to-transparent opacity-75" />
             </div>
             {/* Mobile stacked card view */}
-            <div className="sm:hidden space-y-3">
+            <div className="sm:hidden space-y-4">
               {filteredItems.map((item) => (
                 <div
                   key={item.id}
                   className={`rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900 ${highlightedBarcode && item.barcode === highlightedBarcode ? 'ring-2 ring-yellow-400' : ''}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-bold text-lg">{item.product_name}</div>
-                    <Badge className="text-xs">{item.status}</Badge>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="font-bold text-base line-clamp-2">{item.product_name}</div>
+                    <Badge className={`text-xs ml-2 shrink-0 ${item.status === 'available' ? 'bg-green-500' : item.status === 'reserved' ? 'bg-blue-500' : item.status === 'sold' ? 'bg-purple-500' : item.status === 'damaged' ? 'bg-red-500' : ''}`}>
+                      {item.status}
+                    </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground mb-1">SKU: {item.product_sku}</div>
-                  <div className="text-xs text-muted-foreground mb-1">Warehouse: {item.warehouse_name}</div>
-                  <div className="text-xs text-muted-foreground mb-1">Location: {item.location_details}</div>
-                  <div className="flex flex-wrap gap-2 text-sm mb-2">
-                    <span>Qty: <span className="font-semibold">{item.quantity}</span></span>
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
-                    {(item.color || item.size) ? (
-                      <>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                    <div className="col-span-2 flex items-center justify-between border-b pb-2 mb-1">
+                      <span className="font-medium text-base">Qty: {item.quantity}</span>
+                      <div className="flex flex-wrap gap-1">
                         {item.color && <Badge variant="outline" className="text-xs">{item.color}</Badge>}
                         {item.size && <Badge variant="outline" className="text-xs">{item.size}</Badge>}
-                      </>
-                    ) : '—'}
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs">
+                      <span className="text-muted-foreground block">SKU</span>
+                      <span className="font-medium truncate block">{item.product_sku || 'N/A'}</span>
+                    </div>
+                    
+                    <div className="text-xs">
+                      <span className="text-muted-foreground block">Warehouse</span>
+                      <span className="font-medium truncate block">{item.warehouse_name || 'N/A'}</span>
+                    </div>
+                    
+                    <div className="text-xs col-span-2">
+                      <span className="text-muted-foreground block">Location</span>
+                      <span className="font-medium truncate block">{item.location_details || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -11,6 +11,7 @@ import {
   ProcessedItem,
   StockOutState
 } from '@/services/stockout/types';
+import { Box } from '@/types/stockout';
 import {
   fetchBatchItemByBarcode,
   validateBarcodeForStockOut,
@@ -27,6 +28,13 @@ interface UseStockOutOptions {
 }
 
 export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: UseStockOutOptions) => {
+  // Define status constants to avoid hardcoded strings
+  const BATCH_STATUS = {
+    ACTIVE: 'active',
+    OUT: 'out',
+    PARTIAL: 'partial',
+    RESERVED: 'reserved'
+  } as const;
   const queryClient = useQueryClient();
   
   // Initialize state
@@ -67,8 +75,10 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
 
   /**
    * Handle barcode scanned event
+   * @param barcode - The scanned barcode
+   * @param boxData - Optional pre-validated box data from BarcodeScannerPage
    */
-  const handleBarcodeScanned = useCallback(async (barcode: string) => {
+  const handleBarcodeScanned = useCallback(async (barcode: string, boxData?: Box) => {
     try {
       // Validate input
       if (!barcode || !state.stockOutRequest) {
@@ -77,29 +87,57 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
         return;
       }
       
-      console.log(`Barcode scanned: ${barcode}`);
+      console.log(`Barcode scanned: ${barcode}`, boxData ? 'with pre-validated box data' : 'without pre-validation');
       
       // Set loading state
       updateState({ isLoading: true });
       
-      // Fetch the batch item for this barcode
-      const batchItem = await fetchBatchItemByBarcode(barcode);
+      // If we have pre-validated box data, use it directly instead of fetching again
+      let batchItem: BatchItem | null;
       
-      if (!batchItem) {
-        toast.error('Invalid Barcode', {
-          description: 'Barcode not found in any batch items'
-        });
-        updateState({ isLoading: false });
-        return;
-      }
-      
-      // Check if the product matches
-      if (batchItem.product_id !== state.stockOutRequest.product_id) {
-        toast.error('Invalid Product', {
-          description: 'Product does not match the stock out request'
-        });
-        updateState({ isLoading: false });
-        return;
+      if (boxData) {
+        // Convert the Box type to BatchItem type
+        batchItem = {
+          id: boxData.id,
+          barcode: boxData.barcode,
+          quantity: boxData.quantity,
+          reserved_quantity: boxData.reserved_quantity || 0,
+          product_id: state.stockOutRequest.product_id, // We know this matches because it was validated
+          status: 'active', // Default status
+          // Add required properties for BatchItem
+          batch_id: boxData.id, // Use box ID as batch ID if not available
+          product_name: state.stockOutRequest.product_name || 'Unknown Product',
+          batch_number: boxData.barcode // Use barcode as batch number if not available
+        };
+        
+        console.log('Using pre-validated box data:', boxData);
+      } else {
+        // Fetch the batch item for this barcode if we don't have pre-validated data
+        batchItem = await fetchBatchItemByBarcode(barcode);
+        
+        if (!batchItem) {
+          toast.error('Invalid Barcode', {
+            description: 'Barcode not found in any batch items'
+          });
+          updateState({ isLoading: false });
+          return;
+        }
+        
+        // Check if the product matches
+        if (batchItem.product_id !== state.stockOutRequest.product_id) {
+          toast.error('Invalid Product', {
+            description: 'Product does not match the stock out request'
+          });
+          updateState({ isLoading: false });
+          return;
+        }
+        
+        // Check for reservations if not already validated
+        if (batchItem.reserved_quantity && batchItem.reserved_quantity > 0) {
+          toast.warning('Partially Reserved Item', {
+            description: `This item has ${batchItem.reserved_quantity} units reserved. Only ${batchItem.quantity - batchItem.reserved_quantity} units available.`
+          });
+        }
       }
       
       // Calculate how much has been processed for this batch item in the current session
@@ -107,7 +145,9 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       const processedQuantityForBatch = getProcessedQuantityForBatchItem(batchItem.id);
       
       // Calculate how much can still be processed from this batch item
-      const availableQuantityInBatch = Math.max(0, batchItem.quantity - processedQuantityForBatch);
+      // Account for both already processed quantity AND reserved quantity
+      const reservedQuantity = batchItem.reserved_quantity || 0;
+      const availableQuantityInBatch = Math.max(0, batchItem.quantity - reservedQuantity - processedQuantityForBatch);
       
       // Calculate how much is still needed for the stock out request
       const originalQuantity = state.stockOutRequest.quantity;
@@ -124,9 +164,11 @@ export const useStockOut = ({ userId, initialBarcode, initialStockOutRequest }: 
       const remainingNeeded = Math.max(0, originalQuantity - totalProcessedQuantity);
       
       // The max deductible is the minimum of the batch item available quantity and remaining needed
-      const maxDeductible = Math.min(availableQuantityInBatch, remainingNeeded);
+      // If boxData is provided, use its quantity as it's already been validated
+      const maxDeductible = boxData ? boxData.quantity : Math.min(availableQuantityInBatch, remainingNeeded);
       
       console.log('Batch item:', batchItem);
+      console.log('Reserved quantity:', reservedQuantity);
       console.log('Processed quantity for batch:', processedQuantityForBatch);
       console.log('Available quantity in batch:', availableQuantityInBatch);
       console.log('Original quantity:', originalQuantity);

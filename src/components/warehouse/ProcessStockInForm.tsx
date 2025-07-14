@@ -90,7 +90,7 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] max-h-[90vh] h-[90vh] overflow-hidden flex flex-col p-2 sm:p-6">
         {stockIn && userId ? (
           <>
             <DialogHeader>

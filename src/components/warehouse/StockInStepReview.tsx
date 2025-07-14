@@ -42,7 +42,7 @@ const StockInStepReview: React.FC<StockInStepReviewProps> = ({
         <CardHeader>
           <CardTitle>Stock-In Request Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-2 sm:px-6">
           <div>
             <p className="text-sm text-muted-foreground">Product</p>
             <p className="font-medium">{stockIn.product?.name}</p>
@@ -70,9 +70,9 @@ const StockInStepReview: React.FC<StockInStepReviewProps> = ({
       </Card>
 
 
-      <div className="flex justify-end space-x-4">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={onContinue}>Next</Button>
+      <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 sm:space-x-4">
+        <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">Cancel</Button>
+        <Button onClick={onContinue} className="w-full sm:w-auto">Next</Button>
       </div>
     </div>
   );

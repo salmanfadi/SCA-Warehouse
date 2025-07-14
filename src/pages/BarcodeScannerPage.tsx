@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import BatchItemDetails from '@/components/warehouse/stockout/BatchItemDetails';
 import StockOutProgress from '@/components/warehouse/stockout/StockOutProgress';
 import { executeQuery } from '@/lib/supabase';
 import { StockOutRequest, ProcessedItem, BatchItem } from '@/services/stockout/types';
+import { Box } from '@/types/stockout';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -101,14 +102,40 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
     if (stockOutRequestData) {
       console.log('Stock out request data received:', stockOutRequestData);
       console.log('Current state.stockOutRequest:', state.stockOutRequest);
+      console.log('Location state:', location.state);
       
       // Extract product information from items array if available
       let productId = '';
       let productName = 'Unknown Product';
       let quantity = 0;
+      let detailId = '';
       
-      // Check if items array exists and has at least one item
-      if (stockOutRequestData.items && stockOutRequestData.items.length > 0) {
+      // IMPORTANT: First check if we have a specific productId in the location state
+      // This ensures we use the product the user clicked on, not just the first one
+      if (location.state?.productId) {
+        console.log('🔍 [PRODUCT] Using productId from location state:', location.state.productId);
+        productId = location.state.productId;
+        detailId = location.state.detailId || '';
+        
+        // Find the matching product in the items array to get its name and quantity
+        if (stockOutRequestData.items && stockOutRequestData.items.length > 0) {
+          const matchingItem = stockOutRequestData.items.find(item => 
+            item.product_id === location.state.productId || 
+            String(item.product_id) === location.state.productId
+          );
+          
+          if (matchingItem) {
+            console.log('🔍 [PRODUCT] Found matching item in stockOutRequestData:', matchingItem);
+            productName = matchingItem.product_name || 'Unknown Product';
+            quantity = matchingItem.quantity || 0;
+          } else {
+            console.warn('⚠️ [PRODUCT] Could not find matching item for productId:', location.state.productId);
+          }
+        }
+      }
+      // Only fall back to the first item if we didn't get a productId from location state
+      else if (stockOutRequestData.items && stockOutRequestData.items.length > 0) {
+        console.log('⚠️ [PRODUCT] No productId in location state, falling back to first item');
         const firstItem = stockOutRequestData.items[0];
         
         // Extract product information from the first item
@@ -128,6 +155,7 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
         }
       } else {
         // Fallback to direct properties if items array is not available
+        console.log('⚠️ [PRODUCT] No items array, falling back to direct properties');
         productId = stockOutRequestData.product_id ? String(stockOutRequestData.product_id) : '';
         productName = stockOutRequestData.product_name || 'Unknown Product';
         quantity = stockOutRequestData.quantity || 0;
@@ -159,9 +187,367 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
     }
   }, [stockOutRequestData, updateState]);
 
+  // We'll only save batch item to session storage when the user clicks "Proceed to Stockout"
+  // This prevents automatic processing in the stockout form
+  const saveCurrentBatchItemToSession = useCallback((): void => {
+    if (state.currentBatchItem && location.state?.stockOutId) {
+      const storageKey = `barcode-scanner-batch-item-${location.state.stockOutId}`;
+      console.log('💾 [STORAGE] Saving currentBatchItem to sessionStorage', {
+        key: storageKey,
+        data: state.currentBatchItem
+      });
+      
+      // Include both stockOutId and productId in the saved data
+      const enhancedData = {
+        ...state.currentBatchItem,
+        stockOutId: location.state.stockOutId,
+        productId: state.stockOutRequest?.product_id || ''
+      };
+      
+      sessionStorage.setItem(storageKey, JSON.stringify(enhancedData));
+    }
+  }, [state.currentBatchItem, location.state?.stockOutId, state.stockOutRequest?.product_id]);
+
   // Handle navigation back to stock out list
   const handleBackToList = () => {
-    navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
+    if (location.state?.returnPath) {
+      navigate(location.state.returnPath);
+    } else {
+      navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
+    }
+  };
+
+  // Define status constants to avoid hardcoded strings
+  const BATCH_STATUS = {
+    ACTIVE: 'active',
+    OUT: 'out',
+    PARTIAL: 'partial',
+    RESERVED: 'reserved'
+  } as const;
+
+  // Validate inventory quantity before processing barcode scan
+  const validateAndHandleBarcodeScanned = async (barcode: string) => {
+    try {
+      console.log('Barcode scanned in BarcodeScannerPage, forwarding to useStockOut hook:', barcode);
+      console.log('Current stock out request state:', {
+        stockOutRequestId,
+        stockOutRequest: state.stockOutRequest,
+        productId: state.stockOutRequest?.product_id,
+        productName: state.stockOutRequest?.product_name
+      });
+      
+      if (!barcode || !stockOutRequestId || !state.stockOutRequest?.product_id) {
+        toast.error('Invalid barcode or stock out request');
+        return;
+      }
+      
+      console.log('🔍 [BARCODE] Processing barcode:', barcode);
+      
+      // Step 1: Try to find the product info from barcode_batch_view
+      const { data: barcodeData, error: barcodeError } = await executeQuery('barcode_batch_view', async (supabase) => {
+        try {
+          console.log('🔍 [BARCODE] Querying barcode_batch_view for barcode:', barcode);
+          return await supabase
+            .from('barcode_batch_view')
+            .select(`
+              barcode_id,
+              barcode,
+              product_id,
+              product_name,
+              batch_item_id,
+              quantity,
+              status,
+              warehouse_id,
+              batch_id
+            `)
+            .eq('barcode', barcode)
+            .single(); // We expect exactly one result for a specific barcode
+        } catch (error) {
+          console.error('Error in barcode_batch_view query:', error);
+          throw error;
+        }
+      });
+      
+      // If we can't find the barcode in the view
+      if (barcodeError || !barcodeData) {
+        console.warn('🚨 [BARCODE] Could not find product info for barcode:', barcode);
+        console.log('💡 [BARCODE] Creating manual batch item for product:', state.stockOutRequest.product_name);
+        
+        // Generate a unique ID for this batch item
+        const timestamp = Date.now();
+        const manualId = `manual-${timestamp}`;
+        
+        // Create box data for the handler
+        const boxData = {
+          id: manualId,
+          barcode: barcode,
+          quantity: state.stockOutRequest.remaining_quantity || 1,
+          warehouse: location.state?.warehouseName || 'Unknown',
+          floor: location.state?.floor || '',
+          zone: location.state?.zone || ''
+        };
+        
+        // Create a manual batch item
+        const manualBatchItem = {
+          id: manualId,
+          batch_item_id: manualId,
+          barcode: barcode,
+          quantity: boxData.quantity,
+          product_id: state.stockOutRequest.product_id,
+          product_name: state.stockOutRequest.product_name || 'Unknown Product',
+          batch_number: barcode,
+          status: 'active',
+          batch_id: manualId,
+          warehouse_name: boxData.warehouse,
+          warehouse_id: location.state?.warehouseId || '',
+          floor: boxData.floor,
+          zone: boxData.zone
+        };
+        
+        // Step 2: Check inventory for this product
+        const { data: inventoryDataArray, error: inventoryError } = await executeQuery('inventory', async (supabase) => {
+          try {
+            console.log('🔍 [INVENTORY] Querying inventory for product ID:', state.stockOutRequest.product_id);
+            return await supabase
+              .from('inventory')
+              .select('*')
+              .eq('product_id', state.stockOutRequest.product_id);
+          } catch (error) {
+            console.error('Error in inventory query:', error);
+            throw error;
+          }
+        });
+        
+        // Check if inventory is available
+        if (!inventoryError && inventoryDataArray && inventoryDataArray.length > 0) {
+          // Use the first inventory record
+          const inventoryData = inventoryDataArray[0];
+          console.log('🔍 [INVENTORY] Using first inventory record from', inventoryDataArray.length, 'records:', inventoryData);
+          console.log('🔍 [INVENTORY] Found inventory data:', inventoryData);
+          
+          // Calculate available quantity (total minus reserved)
+          const totalQuantity = inventoryData.total_quantity || 0;
+          const reservedQuantity = inventoryData.reserved_quantity || 0;
+          const availableQuantity = totalQuantity - reservedQuantity;
+          
+          console.log('📊 [INVENTORY] Available quantity:', availableQuantity, 'Total:', totalQuantity, 'Reserved:', reservedQuantity);
+          
+          // If no available quantity but items are reserved
+          if (availableQuantity <= 0 && reservedQuantity > 0) {
+            toast.error('Items are reserved', {
+              description: 'No available quantity. All items are reserved.',
+              duration: 5000
+            });
+            return;
+          }
+          
+          // If no quantity at all
+          if (totalQuantity <= 0) {
+            toast.error('No inventory', {
+              description: 'This product has no inventory.',
+              duration: 5000
+            });
+            return;
+          }
+          
+          // Adjust quantity to available
+          if (availableQuantity < boxData.quantity) {
+            boxData.quantity = availableQuantity;
+            manualBatchItem.quantity = availableQuantity;
+            console.log('📊 [INVENTORY] Adjusted quantity to available:', availableQuantity);
+          }
+        }
+        
+        // Set the current batch item in state
+        console.log('🔄 [BARCODE] Setting manual batch item', manualBatchItem);
+        updateState({ currentBatchItem: manualBatchItem });
+        
+        // Save to session storage
+        console.log('💾 [STORAGE] Saving manual batch item to sessionStorage', manualBatchItem);
+        saveBatchItemToSession(manualBatchItem);
+        
+        // Pass to the handler
+        handleBarcodeScanned(barcode, boxData);
+        
+        toast.success('Product processed', {
+          description: `Added ${boxData.quantity} units of ${state.stockOutRequest.product_name}`,
+          duration: 3000
+        });
+        
+        return;
+      }
+      
+      // Get the expected product ID from location state (passed from ProcessStockOutForm)
+      // IMPORTANT: Always prioritize the productId from location.state as it represents the specific
+      // product the user clicked on in the stock-out form
+      const expectedProductId = location.state?.productId || state.stockOutRequest?.product_id;
+      
+      // Get the expected product name - try to find it from the stockOutRequestData if possible
+      let expectedProductName = 'expected product';
+      if (location.state?.productId && stockOutRequestData?.items) {
+        const matchingItem = stockOutRequestData.items.find(item => 
+          item.product_id === location.state.productId || 
+          String(item.product_id) === location.state.productId
+        );
+        if (matchingItem?.product_name) {
+          expectedProductName = matchingItem.product_name;
+        }
+      } else {
+        expectedProductName = state.stockOutRequest?.product_name || 'expected product';
+      }
+      
+      console.log('🔍 [BARCODE] Validating product match:', {
+        scannedProductId: barcodeData.product_id,
+        scannedProductName: barcodeData.product_name,
+        expectedProductId: expectedProductId,
+        expectedProductName: expectedProductName,
+        fromLocationState: !!location.state?.productId,
+        locationState: {
+          productId: location.state?.productId,
+          detailId: location.state?.detailId,
+          stockOutId: location.state?.stockOutId
+        },
+        stockOutRequest: {
+          productId: state.stockOutRequest?.product_id,
+          productName: state.stockOutRequest?.product_name
+        }
+      });
+      
+      // Verify that the scanned barcode matches the product we're processing
+      if (barcodeData.product_id !== expectedProductId) {
+        console.error('🚨 [BARCODE] Product mismatch:', {
+          scannedProductId: barcodeData.product_id,
+          scannedProductName: barcodeData.product_name,
+          expectedProductId: expectedProductId,
+          expectedProductName: expectedProductName
+        });
+        
+        toast.error('Product mismatch', {
+          description: `Scanned ${barcodeData.product_name || 'unknown product'} but expected ${expectedProductName}`,
+          duration: 5000
+        });
+        
+        return;
+      }
+      
+      console.log('🔍 [BARCODE] Found product from barcode:', barcodeData);
+      
+      // Step 3: Check inventory for this specific barcode
+      const { data: inventoryDataArray, error: inventoryError } = await executeQuery('inventory', async (supabase) => {
+        try {
+          console.log('🔍 [INVENTORY] Querying inventory for barcode:', barcodeData.barcode);
+          return await supabase
+            .from('inventory')
+            .select('*')
+            .eq('barcode', barcodeData.barcode);
+        } catch (error) {
+          console.error('Error in inventory query:', error);
+          throw error;
+        }
+      });
+      
+      // Process inventory data
+      let availableQuantity = barcodeData.quantity || 0;
+      
+      if (!inventoryError && inventoryDataArray && inventoryDataArray.length > 0) {
+        // Use the inventory record for this specific barcode
+        const inventoryData = inventoryDataArray[0];
+        console.log('🔍 [INVENTORY] Found inventory data for barcode:', inventoryData);
+        
+        // Calculate available quantity (total minus reserved)
+        const totalQuantity = inventoryData.total_quantity || 0;
+        const reservedQuantity = inventoryData.reserved_quantity || 0;
+        availableQuantity = Math.max(0, totalQuantity - reservedQuantity);
+        
+        console.log('📊 [INVENTORY] Available quantity:', availableQuantity, 'Total:', totalQuantity, 'Reserved:', reservedQuantity);
+        
+        // Check if there's no available quantity but there are reserved items
+        if (availableQuantity === 0 && totalQuantity > 0) {
+          console.log('🚨 [INVENTORY] No available quantity, but items are reserved');
+          toast.error('No available products', {
+            description: 'All items for this barcode are currently reserved.',
+          });
+          return false;
+        }
+        
+        // Check if there's no inventory at all
+        if (totalQuantity === 0) {
+          console.log('🚨 [INVENTORY] No inventory found for this barcode');
+          toast.error('No inventory', {
+            description: 'There is no inventory for this barcode.',
+          });
+          return false;
+        }
+      } else {
+        console.log('🚨 [INVENTORY] No inventory records found for barcode:', barcodeData.barcode);
+        toast.error('Barcode not found in inventory', {
+          description: 'This barcode does not exist in inventory.',
+        });
+        return false;
+      }
+      
+      // Calculate the maximum quantity that can be processed
+      const remainingNeeded = state.stockOutRequest.remaining_quantity || 0;
+      const maxQuantity = Math.min(availableQuantity, remainingNeeded);
+      
+      if (maxQuantity <= 0) {
+        toast.error('No quantity needed', {
+          description: 'This product has already been fully processed or has no available quantity.',
+          duration: 5000
+        });
+        return;
+      }
+      
+      // Create an enhanced batch item with additional data
+      const enhancedBatchItem = {
+        id: barcodeData.batch_item_id || barcodeData.barcode_id,
+        batch_item_id: barcodeData.batch_item_id,
+        barcode: barcode,
+        product_id: barcodeData.product_id,
+        product_name: barcodeData.product_name || state.stockOutRequest.product_name || 'Unknown Product',
+        quantity: maxQuantity,
+        status: barcodeData.status || 'active',
+        batch_id: barcodeData.batch_id,
+        batch_number: barcodeData.batch_number || '', // Add missing batch_number property
+        warehouse_id: barcodeData.warehouse_id,
+        warehouse_name: location.state?.warehouseName || 'Unknown',
+        floor: location.state?.floor || '',
+        zone: location.state?.zone || ''
+      };
+      
+      // Create box data from the batch item
+      const boxData = {
+        id: enhancedBatchItem.id,
+        barcode: barcode,
+        quantity: maxQuantity,
+        warehouse: enhancedBatchItem.warehouse_name,
+        floor: enhancedBatchItem.floor,
+        zone: enhancedBatchItem.zone
+      };
+      
+      // Set the current batch item in state
+      console.log('🔄 [BARCODE] Setting batch item', enhancedBatchItem);
+      updateState({ currentBatchItem: enhancedBatchItem });
+      
+      // Save to session storage
+      console.log('💾 [STORAGE] Saving batch item to sessionStorage', enhancedBatchItem);
+      saveBatchItemToSession(enhancedBatchItem);
+      
+      // Pass to the handler
+      handleBarcodeScanned(barcode, boxData);
+      
+      toast.success('Product processed', {
+        description: `Added ${maxQuantity} units of ${enhancedBatchItem.product_name}`,
+        duration: 3000
+      });
+      
+      return;
+    } catch (error) {
+      console.error('Error validating barcode:', error);
+      toast.error('Failed to validate barcode', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    }
   };
 
   // Handle success state after completing stock out
@@ -176,16 +562,131 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
     });
   };
 
-  // Handle complete stock out
-  const handleComplete = async () => {
+  // Store the last processed batch item to use for navigation
+  // This is needed because currentBatchItem gets cleared after processing
+  const [lastProcessedItem, setLastProcessedItem] = useState<BatchItem | null>(null);
+  
+  // Update lastProcessedItem whenever currentBatchItem changes
+  useEffect(() => {
+    if (state.currentBatchItem) {
+      console.log('💾 [STORAGE] Saving currentBatchItem to lastProcessedItem state');
+      setLastProcessedItem(state.currentBatchItem);
+    }
+  }, [state.currentBatchItem]);
+  
+  // Handle proceeding back to stock-out form
+  const handleProceedToStockOut = () => {
     try {
-      await handleCompleteStockOut();
-      toast.success('Stock out completed successfully', {
-        description: 'The stock out request has been completed.',
+      // Get the return path from location state or default to stock-out page
+      const returnPath = location.state?.returnPath || '/stock-out';
+      
+      // Use either currentBatchItem or lastProcessedItem
+      const boxData = state.currentBatchItem || lastProcessedItem;
+      
+      // Validate that we have the necessary data before navigating back
+      if (!boxData) {
+        console.error('🚨 [NAVIGATION] Cannot navigate back without boxData');
+        toast.error('Missing box data', {
+          description: 'Please scan a barcode and process a box before proceeding.',
+        });
+        return;
+      }
+      
+      // Now is when we actually save the data to session storage
+      // This prevents automatic processing in the stock-out form
+      saveCurrentBatchItemToSession();
+      
+      // Save additional data to ensure the dialog stays open
+      if (location.state?.stockOutId) {
+        // Save the stockOutId to ensure dialog opens
+        console.log('🔄 [NAVIGATION] Storing dialog open state in sessionStorage', location.state.stockOutId);
+        sessionStorage.setItem('stockout-dialog-open', location.state.stockOutId);
+        
+        // Store the product ID to ensure correct product is selected
+        if (state.stockOutRequest?.product_id) {
+          console.log('🔄 [NAVIGATION] Storing product ID in sessionStorage', state.stockOutRequest.product_id);
+          sessionStorage.setItem(`stockout-product-${location.state.stockOutId}`, state.stockOutRequest.product_id);
+        }
+        
+        // Store form state to ensure it's restored
+        const formStateKey = `stockout-form-state-${location.state.stockOutId}`;
+        const existingFormState = sessionStorage.getItem(formStateKey);
+        let formState = existingFormState ? JSON.parse(existingFormState) : {};
+        
+        // Update form state with current product data
+        if (state.stockOutRequest?.product_id) {
+          formState[state.stockOutRequest.product_id] = {
+            isExpanded: true, // Auto-expand this product
+            isProcessed: false, // Will be processed in the form
+            notes: formState[state.stockOutRequest.product_id]?.notes || '',
+            boxes: [...(formState[state.stockOutRequest.product_id]?.boxes || [])]
+          };
+          
+          // Save updated form state
+          sessionStorage.setItem(formStateKey, JSON.stringify(formState));
+        }
+        
+        // Also store the detail ID if available
+        if (location.state?.detailId) {
+          sessionStorage.setItem(`stockout-detail-${location.state.stockOutId}`, location.state.detailId);
+        }
+      }
+      
+      // Create a deep copy of the boxData to avoid any reference issues
+      const boxDataCopy = JSON.parse(JSON.stringify(boxData));
+      
+      // Add product ID and stock out ID to the box data
+      // Use the productId from location.state if available, otherwise fallback to state.stockOutRequest
+      boxDataCopy.productId = location.state?.productId || state.stockOutRequest?.product_id || '';
+      boxDataCopy.stockOutId = location.state?.stockOutId || '';
+      
+      console.log('💾 [STORAGE] Adding productId and stockOutId to boxData', {
+        productId: boxDataCopy.productId,
+        stockOutId: boxDataCopy.stockOutId,
+        fromLocationState: !!location.state?.productId,
+        fromStockOutRequest: !!state.stockOutRequest?.product_id
       });
-      handleSuccess();
+      
+      // Log the data being passed back to ensure it's complete
+      console.log('✅ [NAVIGATION] Proceeding to stock-out with box data:', {
+        detailId: location.state?.detailId,
+        boxData: {
+          id: boxDataCopy.id,
+          barcode: boxDataCopy.barcode,
+          quantity: boxDataCopy.quantity,
+          productId: boxDataCopy.productId,
+          stockOutId: boxDataCopy.stockOutId,
+          warehouse: boxDataCopy.warehouse_name || boxDataCopy.warehouse
+        },
+        stockOutId: location.state?.stockOutId,
+        productId: boxDataCopy.productId,
+        locationState: {
+          productId: location.state?.productId,
+          detailId: location.state?.detailId,
+          stockOutId: location.state?.stockOutId
+        }
+      });
+      
+      // Navigate back to the stock-out form with the detailId and boxData if available
+      navigate(returnPath, {
+        state: {
+          detailId: location.state?.detailId,
+          boxData: boxDataCopy,
+          fromBarcodeScanner: true,
+          keepDialogOpen: true,
+          stockOutId: location.state?.stockOutId,
+          productId: state.stockOutRequest?.product_id,
+          timestamp: new Date().getTime() // Add timestamp to ensure state is unique
+        },
+        replace: true // Replace the current history entry to avoid navigation issues
+      });
+      
+      toast.success('Box data processed', {
+        description: `Box ${boxData.barcode} with quantity ${boxData.quantity} will be added to the stock-out.`,
+      });
     } catch (error) {
-      toast.error('Error completing stock out', {
+      console.error('❌ [NAVIGATION] Error navigating back:', error);
+      toast.error('Error navigating back', {
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
     }
@@ -203,6 +704,30 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
     });
   };
 
+  // Save batch item to session storage as a backup mechanism
+  const saveBatchItemToSession = (batchItem: BatchItem | null = null) => {
+    // Use provided batch item, or try currentBatchItem, or lastProcessedItem
+    const itemToSave = batchItem || state.currentBatchItem || lastProcessedItem;
+    
+    if (itemToSave && location.state?.stockOutId) {
+      const storageKey = `barcode-scanner-batch-item-${location.state.stockOutId}`;
+      console.log('💾 [STORAGE] Saving batch item to sessionStorage', {
+        key: storageKey,
+        data: itemToSave,
+        source: batchItem ? 'provided' : (state.currentBatchItem ? 'currentBatchItem' : 'lastProcessedItem')
+      });
+      sessionStorage.setItem(storageKey, JSON.stringify(itemToSave));
+      
+      // Also save detail ID if available
+      if (location.state?.detailId) {
+        sessionStorage.setItem(`stockout-detail-${location.state.stockOutId}`, location.state.detailId);
+      }
+      
+      return true;
+    }
+    return false;
+  };
+  
   // Update scanner enabled state
   const updateScannerEnabled = (enabled: boolean) => {
     updateState({
@@ -447,10 +972,10 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
             </CardContent>
             <CardFooter className="border-t pt-4">
               <Button 
-                onClick={handleComplete} 
-                disabled={!isReadyForApproval() || state.isProcessing} 
+                onClick={handleProceedToStockOut} 
+                disabled={state.processedItems.length === 0 || state.isProcessing} 
                 className="w-full"
-                variant={isReadyForApproval() ? "default" : "outline"}
+                variant="default"
               >
                 {state.isProcessing ? (
                   <>
@@ -458,7 +983,7 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
                     Processing...
                   </>
                 ) : (
-                  'Complete Stock Out'
+                  '➡️ Proceed to Stockout'
                 )}
               </Button>
             </CardFooter>
@@ -481,7 +1006,7 @@ const BarcodeScannerPage: React.FC<BarcodeScannerPageProps> = ({ isAdminView = f
                 <BarcodeScanner 
                   onBarcodeScanned={(barcode: string) => {
                     console.log('Barcode scanned in BarcodeScannerPage, forwarding to useStockOut hook:', barcode);
-                    handleBarcodeScanned(barcode);
+                    validateAndHandleBarcodeScanned(barcode);
                   }} 
                   isProcessing={state.isProcessing}
                   isEnabled={state.scannerEnabled}

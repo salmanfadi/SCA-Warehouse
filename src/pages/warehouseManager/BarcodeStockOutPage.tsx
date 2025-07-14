@@ -9,10 +9,17 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import StockOutForm from '@/components/warehouse/stockout/StockOutForm';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { StockOutRequest } from '@/services/stockout/types';
+import { StockOutRequest, ProcessedItem } from '@/services/stockout/types';
 
 interface LocationState {
   barcode?: string;
+  returnPath?: string;
+  productId?: string;
+  detailId?: string;
+  quantity?: number;
+  processedQuantity?: number;
+  productName?: string;
+  stockOutId?: string;
 }
 
 interface BarcodeStockOutPageProps {
@@ -31,105 +38,265 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
   const [isProcessComplete, setIsProcessComplete] = useState(false);
   const [initialBarcode, setInitialBarcode] = useState<string | undefined>(undefined);
   
+  // Get stockOutId from URL params or location state
+  const [effectiveStockOutId, setEffectiveStockOutId] = useState<string | undefined>(stockOutId);
+  
+  useEffect(() => {
+    // If stockOutId is not in URL params, try to get it from location state
+    if (!stockOutId) {
+      const state = location.state as LocationState;
+      if (state?.stockOutId) {
+        // We have the stock out ID in the location state
+        console.log('Using stock out ID from location state:', state.stockOutId);
+        setEffectiveStockOutId(state.stockOutId);
+      } else if (state?.detailId) {
+        // We don't have the stock out ID in this case, but we have the detail ID
+        // which is sufficient for the barcode scanning process
+        console.log('Using detail ID from location state:', state.detailId);
+      }
+    }
+  }, [stockOutId, location]);
+  
+  // Create a stock out request directly from location state if available
+  const stockOutFromLocationState = React.useMemo(() => {
+    const state = location.state as LocationState;
+    if (state?.productId && state?.detailId) {
+      console.log('Creating stock out request from location state:', state);
+      return {
+        id: state.stockOutId || ('temp-' + state.detailId),
+        product_id: state.productId,
+        product_name: state.productName || 'Product',
+        quantity: state.quantity || 0,
+        processed_quantity: state.processedQuantity || 0,
+        detailId: state.detailId,
+        returnPath: state.returnPath,
+        stock_out_details: [
+          {
+            id: state.detailId,
+            product_id: state.productId,
+            quantity: state.quantity || 0,
+            processed_quantity: state.processedQuantity || 0,
+            product: {
+              id: state.productId,
+              name: state.productName || 'Product'
+            }
+          }
+        ]
+      };
+    }
+    return null;
+  }, [location.state]);
+
   // Fetch stock out request details if ID is provided
   const { data: stockOutRequestRaw, isLoading: isLoadingRequest, error: requestError } = useQuery({
-    queryKey: ['stock-out-request', stockOutId],
+    queryKey: ['stock-out-request', effectiveStockOutId],
     queryFn: async () => {
-      if (!stockOutId) return null;
-      
-      // First, get the stock out details with product information
-      const { data: stockOutData, error: stockOutError } = await executeQuery('stock_out', async (supabase) => {
-        return await supabase
-          .from('stock_out')
-          .select(`
-            *,
-            stock_out_details!inner(*, product_id),
-            profiles:requested_by(full_name)
-          `)
-          .eq('id', stockOutId)
-          .single();
-      });
-
-      if (stockOutError) throw stockOutError;
-      if (!stockOutData) throw new Error('Stock out request not found');
-      
-      // If we have stock_out_details, fetch the product information directly
-      if (stockOutData.stock_out_details && stockOutData.stock_out_details.length > 0) {
-        const productId = stockOutData.stock_out_details[0].product_id;
+      try {
+        // If we have location state with product info, use that instead of making a query
+        if (stockOutFromLocationState) {
+          console.log('Using stock out request from location state');
+          return stockOutFromLocationState;
+        }
         
-        if (productId) {
-          console.log('Found product ID in stock out details:', productId);
+        if (!effectiveStockOutId) {
+          console.log('No effectiveStockOutId available, returning null');
+          return null;
+        }
+        
+        console.log('Fetching stock out data with ID:', effectiveStockOutId);
+        
+        // First, get the basic stock out information
+        const { data: stockOutData, error: stockOutError } = await executeQuery('stock_out', async (supabase) => {
+          console.log('Executing basic stock out query for ID:', effectiveStockOutId);
+          return await supabase
+            .from('stock_out')
+            .select('*')
+            .eq('id', effectiveStockOutId)
+            .single();
+        });
+        
+        if (stockOutError) {
+          console.error('Error fetching basic stock out data:', stockOutError);
+          // If we have location state as a fallback, use it
+          if (stockOutFromLocationState) {
+            return stockOutFromLocationState;
+          }
+          throw stockOutError;
+        }
+        
+        if (!stockOutData) {
+          if (stockOutFromLocationState) {
+            return stockOutFromLocationState;
+          }
+          throw new Error('Stock out request not found');
+        }
+        
+        // Now get the stock out details separately
+        const { data: detailsData, error: detailsError } = await executeQuery('stock_out_details', async (supabase) => {
+          console.log('Fetching stock out details for stock out ID:', effectiveStockOutId);
+          return await supabase
+            .from('stock_out_details')
+            .select('*')
+            .eq('stock_out_id', effectiveStockOutId);
+        });
+        
+        if (detailsError) {
+          console.error('Error fetching stock out details:', detailsError);
+        }
+        
+        // Now fetch product data for each detail
+        if (detailsData && detailsData.length > 0) {
+          const firstDetail = detailsData[0];
+          const productId = firstDetail.product_id;
           
-          // Get product details
-          const { data: productData, error: productError } = await executeQuery('products', async (supabase) => {
+          if (productId) {
+            const { data: productData, error: productError } = await executeQuery('products', async (supabase) => {
+              console.log('Fetching product data for product ID:', productId);
+              return await supabase
+                .from('products')
+                .select('*')
+                .eq('id', productId)
+                .single();
+            });
+            
+            if (productError) {
+              console.error('Error fetching product data:', productError);
+            } else if (productData) {
+              // Attach product data to the detail
+              firstDetail.product = productData;
+            }
+          }
+          
+          // Attach the details to the stock out data
+          stockOutData.stock_out_details = detailsData;
+        }
+        
+        // Get the user profile information if we have a requested_by field
+        if (stockOutData.requested_by) {
+          const { data: profileData, error: profileError } = await executeQuery('profiles', async (supabase) => {
+            console.log('Fetching profile data for user ID:', stockOutData.requested_by);
             return await supabase
-              .from('products')
-              .select('*')
-              .eq('id', productId)
+              .from('profiles')
+              .select('full_name')
+              .eq('id', stockOutData.requested_by)
               .single();
           });
           
-          if (!productError && productData) {
-            console.log('Found product details:', productData);
-            
-            // Attach product data to the first stock_out_detail
-            stockOutData.stock_out_details[0].product = productData;
-          } else {
-            console.error('Error fetching product details:', productError);
+          if (profileError) {
+            console.error('Error fetching profile data:', profileError);
+          } else if (profileData) {
+            stockOutData.profiles = profileData;
           }
-        } else {
-          console.warn('No product ID found in stock out details');
         }
+        
+        console.log('Final stock out data response:', stockOutData);
+        return stockOutData;
+      } catch (error) {
+        console.error('Error in stock out request query:', error);
+        // If we have location state as a fallback, use it
+        if (stockOutFromLocationState) {
+          return stockOutFromLocationState;
+        }
+        throw error;
       }
-
-      return stockOutData;
     },
-    enabled: !!stockOutId,
+    enabled: !!effectiveStockOutId || !!stockOutFromLocationState,
   });
   
-  // Process the stock out request to ensure remaining_quantity is properly initialized
+  // Transform the raw stock out request into a format suitable for the StockOutForm
   const stockOutRequest = React.useMemo<StockOutRequest | null>(() => {
-    if (!stockOutRequestRaw) return null;
+    // First priority: Use location state directly if available
+    const state = location.state as LocationState;
+    if (state?.productId && state?.detailId) {
+      console.log('Creating StockOutRequest directly from location state');
+      const quantity = state.quantity || 0;
+      return {
+        id: state.stockOutId || ('temp-' + state.detailId),
+        product_id: state.productId,
+        product_name: state.productName || 'Unknown Product',
+        product_sku: '', // No SKU in location state
+        quantity: quantity,
+        processed_quantity: state.processedQuantity || 0,
+        barcode: '',
+        status: 'pending',
+        remaining_quantity: quantity, // Required by StockOutRequest type
+        requested_by: 'System', // Required by StockOutRequest type
+        requested_at: new Date().toISOString() // Required by StockOutRequest type
+      };
+    }
     
-    // Get the details from the first stock out detail
-    const stockOutDetail = stockOutRequestRaw.stock_out_details?.[0];
-    if (!stockOutDetail) {
-      console.error('No stock out details found in the request');
+    // Second priority: Use stockOutRequestRaw if available
+    if (!stockOutRequestRaw) {
+      console.log('No stock out request data available');
       return null;
     }
     
-    const originalQuantity = stockOutDetail.quantity || 0;
+    console.log('Processing stock out request raw data:', stockOutRequestRaw);
     
-    // Extract product information directly from the product relation
-    // or from the product_id if the relation is not available
-    const product = stockOutDetail.product;
-    
-    // Ensure we have a valid product ID
-    const productId = product?.id || stockOutDetail.product_id || '';
-    const productName = product?.name || 'Unknown Product';
-    
-    console.log('Stock out detail:', stockOutDetail);
-    console.log('Product from relation:', product);
-    console.log('Extracted product ID:', productId);
-    console.log('Extracted product name:', productName);
-    
-    if (!productId) {
-      console.error('Failed to extract product ID from stock out request');
+    try {
+      // Extract the product details from the first stock_out_detail
+      let details = stockOutRequestRaw.stock_out_details;
+      
+      // Check if details is an array or a single object
+      if (!Array.isArray(details) && details) {
+        console.log('Converting stock_out_details object to array');
+        details = [details];
+      }
+      
+      const detail = Array.isArray(details) ? details[0] : null;
+      
+      // If we have a detail with product information
+      if (detail) {
+        console.log('Processing stock out detail:', detail);
+        
+        // Extract product information
+        const product = detail.product;
+        const productId = product?.id || detail.product_id || '';
+        const productName = product?.name || 'Unknown Product';
+        const originalQuantity = detail.quantity || 0;
+        
+        console.log('Product from relation:', product);
+        console.log('Extracted product ID:', productId);
+        console.log('Extracted product name:', productName);
+        
+        return {
+          id: stockOutRequestRaw.id,
+          status: stockOutRequestRaw.status || 'pending',
+          requested_by: stockOutRequestRaw.profiles?.full_name || 'Unknown',
+          requested_at: stockOutRequestRaw.created_at || new Date().toISOString(),
+          quantity: originalQuantity,
+          remaining_quantity: originalQuantity,
+          product_id: productId,
+          product_name: productName,
+          product_sku: product?.sku || '',
+          barcode: ''
+        };
+      }
+      
+      // If we don't have details but have basic stock out info
+      if (stockOutRequestRaw.id) {
+        console.log('Creating minimal StockOutRequest from raw data without details');
+        return {
+          id: stockOutRequestRaw.id,
+          product_id: stockOutRequestRaw.product_id || '',
+          product_name: stockOutRequestRaw.product_name || 'Unknown Product',
+          product_sku: '',
+          quantity: stockOutRequestRaw.quantity || 0,
+          processed_quantity: stockOutRequestRaw.processed_quantity || 0,
+          barcode: '',
+          status: stockOutRequestRaw.status || 'pending',
+          remaining_quantity: stockOutRequestRaw.quantity || 0,
+          requested_by: stockOutRequestRaw.profiles?.full_name || 'Unknown',
+          requested_at: stockOutRequestRaw.created_at || new Date().toISOString()
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error transforming stock out request:', error);
+      return null;
     }
-    
-    // Initialize the remaining quantity to the original quantity
-    // This ensures the progress bar starts at 0%
-    return {
-      id: stockOutRequestRaw.id,
-      status: stockOutRequestRaw.status,
-      requested_by: stockOutRequestRaw.profiles?.full_name || 'Unknown',
-      requested_at: stockOutRequestRaw.created_at,
-      quantity: originalQuantity,
-      remaining_quantity: originalQuantity,
-      product_id: productId,
-      product_name: productName
-    };
-  }, [stockOutRequestRaw]);
+  }, [stockOutRequestRaw, location.state]);
   
   // Log the processed stock out request for debugging
   React.useEffect(() => {
@@ -159,14 +326,62 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
     navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
   };
 
-  const handleComplete = () => {
-    setIsProcessComplete(true);
-    toast.success('Stock out processed successfully');
+  const handleComplete = (processedItems: ProcessedItem[]) => {
+    // Get the return path from location state
+    const state = location.state as LocationState;
+    const returnPath = state?.returnPath;
+    const detailId = state?.detailId;
     
-    // Navigate back to stock out page after a delay
-    setTimeout(() => {
-      navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
-    }, 2000);
+    console.log('Handle complete called with processed items:', processedItems);
+    console.log('Location state:', state);
+    
+    if (returnPath && detailId) {
+      // Transform processed items into boxes for the ProcessStockOutForm
+      const boxes = processedItems.map(item => ({
+        id: item.batch_item_id,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        warehouse_name: item.location_info?.warehouse_name || 'Unknown',
+        floor: item.location_info?.floor || '1',
+        zone: item.location_info?.zone || 'A',
+        processed_at: item.processed_at || new Date().toISOString()
+      }));
+      
+      // Calculate total processed quantity
+      const totalProcessedQuantity = boxes.reduce((sum, box) => sum + (box.quantity || 0), 0);
+      
+      // Save the processed items to sessionStorage for the ProcessStockOutForm
+      const scanResults = {
+        detailId,
+        boxes,
+        processedItems, // Also store the original processed items for reference
+        totalProcessedQuantity,
+        stockOutId: state.stockOutId,
+        productId: state.productId,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('Saving barcode scan results to sessionStorage:', scanResults);
+      sessionStorage.setItem('barcodeScanResults', JSON.stringify(scanResults));
+      
+      setIsProcessComplete(true);
+      toast.success(`${boxes.length} items scanned successfully. Returning to stock-out form...`);
+      
+      // Navigate back to the original page
+      setTimeout(() => {
+        console.log('Navigating back to:', returnPath);
+        navigate(returnPath);
+      }, 1000);
+    } else {
+      // Navigate back to stock out page after a delay if no return path
+      setIsProcessComplete(true);
+      toast.success(`${processedItems.length} items scanned successfully`);
+      
+      console.log('No return path specified, navigating to stock-out page');
+      setTimeout(() => {
+        navigate(isAdminView ? '/admin/stock-out' : '/manager/stock-out');
+      }, 2000);
+    }
   };
 
   if (!user?.id) {
@@ -236,6 +451,7 @@ const BarcodeStockOutPage: React.FC<BarcodeStockOutPageProps> = ({
             userId={user.id}
             initialBarcode={initialBarcode}
             onComplete={handleComplete}
+            skipStockOutCompletion={true} // Skip completing the stock out in this component
           />
         )
       )}
