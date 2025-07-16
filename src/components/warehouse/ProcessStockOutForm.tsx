@@ -22,6 +22,7 @@ import {
 import { executeQuery } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { stockOperations } from "@/lib/supabase";
 
 interface StockOutWithDetails {
   id: string;
@@ -971,18 +972,13 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
         }
       }
       
-      // 3. Update stock_out status to completed
-      console.log('💾 [SUBMIT] 3. Updating stock out status');
-      const { error: stockOutUpdateError } = await executeQuery('stock_out', async (supabase) => {
-        return await supabase
-          .from('stock_out')
-          .update({
-            status: 'completed',
-            processed_at: new Date().toISOString(),
-            processed_by: userId
-          })
-          .eq('id', stockOut.id);
-      });
+      // 3. Update stock_out status to approved
+      console.log('💾 [SUBMIT] 3. Updating stock out status to approved');
+      const { error: stockOutUpdateError } = await stockOperations.processStockOut(
+        stockOut.id,
+        userId,
+        'approved'
+      );
       
       if (stockOutUpdateError) {
         console.error('❌ [SUBMIT] Error updating stock out:', stockOutUpdateError);
@@ -1249,19 +1245,30 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
 
       // Invalidate queries to refresh data
       try {
-        queryClient.invalidateQueries({ queryKey: ['stockOutRequests'] });
-        queryClient.invalidateQueries({ queryKey: ['stockOutRequest', stockOut.id] });
-        queryClient.invalidateQueries({ queryKey: ['customerInquiries'] });
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        // Invalidate all stock-out-requests queries regardless of filters
+        await queryClient.invalidateQueries({ 
+          queryKey: ['stock-out-requests'] 
+        });
+        
+        // Invalidate related queries
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['customerInquiries'] }),
+          queryClient.invalidateQueries({ queryKey: ['inventory'] })
+        ]);
       } catch (error) {
         console.warn('⚠️ [SUBMIT] Error invalidating queries:', error);
       }
 
-      // Close dialog and navigate back to stock out list
+      // Close dialog
       onOpenChange(false);
-      navigate('/warehouse/stock-out'); // Fixed navigation path to match the actual route
 
-      console.log('💾 [SUBMIT] Form submission process complete');
+      // Force a refresh after a short delay to ensure the list is updated
+      setTimeout(() => {
+        queryClient.invalidateQueries({ 
+          queryKey: ['stock-out-requests'],
+          refetchType: 'active' // Only refetch active queries
+        });
+      }, 300);
     } catch (error) {
       console.error('❌ [SUBMIT] Error approving stock out:', error);
       toast.error(`Error approving stock out: ${error.message || 'Unknown error'}`);
@@ -1438,8 +1445,31 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
     );
   };
 
+  const handleNotesChange = (detailId: string, notes: string) => {
+    setProductStatuses(prev => ({
+      ...prev,
+      [detailId]: {
+        ...prev[detailId],
+        notes
+      }
+    }));
+  };
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // First update the parent's state
+      onOpenChange(false);
+      // Then navigate after a small delay to allow the dialog to close smoothly
+      setTimeout(() => {
+        navigate('/warehouse/stock-out');
+      }, 100);
+    } else {
+      onOpenChange(true);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="stock-out-form-description">
         <div id="stock-out-form-description" className="sr-only">Process stock out form for approving scanned items</div>
         <DialogHeader>

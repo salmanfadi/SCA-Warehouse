@@ -123,6 +123,9 @@ function App() {
               <Route path="/admin/stock-in" element={<StockInManagement />} />
               <Route path="/admin/stock-out" element={<StockOutApproval isAdminView={true} />} />
               <Route path="/admin/stock-out-history" element={<StockOutHistoryPage />} />
+              
+              {/* Stock In Management */}
+              <Route path="/admin/stock-in" element={<StockInManagement />} />
 
               <Route path="/admin/stock-out/barcode-scanner" element={<BarcodeScannerPage isAdminView={true} />} />
               <Route path="/admin/stock-out/barcode-scanner/:stockOutId" element={<BarcodeScannerPage isAdminView={true} />} />
@@ -156,6 +159,8 @@ function App() {
               <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
               <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />
               <Route path="/manager/transfers" element={<ManagerInventoryTransfers />} />
+              <Route path="/manager/inventory/batches" element={<BatchOverviewPage />} />
+              <Route path="/manager/inventory/batches/:batchId" element={<BatchDetailsPage />} />
               <Route path="/manager/stock-in/batch/:stockInId" element={<ManagerBatchStockInPage />} />
               <Route path="/manager/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
               <Route path="/manager/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
