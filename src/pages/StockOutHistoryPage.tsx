@@ -456,6 +456,7 @@ const StockOutHistoryPage: React.FC = () => {
   };
   
   return (
+<<<<<<< Updated upstream
     <DashboardLayout>
       <div className="flex-1 w-full h-full bg-white px-6 py-6">
         <div className="flex justify-between items-center mb-6">
@@ -553,6 +554,113 @@ const StockOutHistoryPage: React.FC = () => {
                               variant="outline" 
                               size="sm"
                               onClick={async () => {
+=======
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Stock-Out History</h1>
+        <Button
+          onClick={handleExport}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          Export CSV
+        </Button>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <h2 className="text-lg font-medium mb-4 dark:text-gray-100">Filters</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">Filter stock-out history by various criteria</p>
+        
+        <div className="flex gap-4 mb-4">
+          <div className="flex-1">
+            <Input
+              type="text"
+              placeholder="Search by reference number"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          
+          <Select
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <Table className="w-full border-collapse table-auto">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Reference</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Notes</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <Loader2 className="animate-spin mr-2" />
+                  <span>Loading history data...</span>
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-md">
+                    <p className="font-medium">Error loading stock-out history</p>
+                    <p className="text-sm mt-1">{error.message}</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-2"
+                      onClick={() => queryClient.invalidateQueries({ queryKey: ['stock-out-history'] })}
+                    >
+                      Try Again
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              <>
+                {data?.stock_outs?.length ? (
+                  data.stock_outs.map((stockOut) => (
+                    <TableRow key={stockOut.id}>
+                      <TableCell className="font-medium">{stockOut.reference_number}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(stockOut.status)}>
+                          {stockOut.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(stockOut.created_at)}</TableCell>
+                      <TableCell>
+                        {stockOut.notes && (
+                          <span className="text-sm text-gray-600 dark:text-gray-400">{stockOut.notes}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="relative group">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                // Fetch detailed processed items if completed
+                                let processedItems = [];
+>>>>>>> Stashed changes
                                 if (stockOut.status === 'completed') {
                                   // Show loading state
                                   const loadingToast = toast.loading('Loading detailed information...');
@@ -607,9 +715,229 @@ const StockOutHistoryPage: React.FC = () => {
                         No stock-out history found matching your criteria.
                       </TableCell>
                     </TableRow>
+<<<<<<< Updated upstream
                   )}
                 </TableBody>
               </Table>
+=======
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      No stock-out history found matching your criteria.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Pagination */}
+      {totalPages > 0 && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, data?.total_count || 0)} of {data?.total_count || 0} entries
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className={page === 1 ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                // Show pages around current page
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (page <= 3) {
+                  pageNum = i + 1;
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = page - 2 + i;
+                }
+                
+                return (
+                  <PaginationItem key={i}>
+                    <PaginationLink
+                      onClick={() => setPage(pageNum)}
+                      isActive={page === pageNum}
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  className={page === totalPages ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+      
+      {/* Details Dialog */}
+      {selectedStockOut && (
+        <Dialog open={!!selectedStockOut} onOpenChange={(open) => !open && setSelectedStockOut(null)}>
+          <DialogContent className="max-w-4xl p-6">
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-xl font-semibold">Stock-Out Details - {selectedStockOut.reference_number}</DialogTitle>
+              <DialogDescription>
+                View detailed information about this stock-out order
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-3">Stock Out Information</h3>
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Reference Number</h3>
+                      <p className="font-medium">{selectedStockOut.reference_number}</p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Status</h3>
+                      <Badge variant={getStatusVariant(selectedStockOut.status)} className="mt-1">
+                        {selectedStockOut.status}
+                      </Badge>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Created Date</h3>
+                      <p className="font-medium">{formatDate(selectedStockOut.created_at)}</p>
+                    </div>
+
+                    {selectedStockOut.customer_name && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Customer</h3>
+                        <p className="font-medium">{selectedStockOut.customer_name}</p>
+                      </div>
+                    )}
+
+                    {selectedStockOut.approved_at && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Approved Date</h3>
+                        <p className="font-medium">{formatDate(selectedStockOut.approved_at)}</p>
+                      </div>
+                    )}
+
+                    {selectedStockOut.approved_by && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Approved By</h3>
+                        <p className="font-medium">{selectedStockOut.approved_by}</p>
+                      </div>
+                    )}
+
+                    {selectedStockOut.status === 'rejected' && selectedStockOut.notes && (
+                      <div className="col-span-3">
+                        <h3 className="text-sm font-medium text-gray-500">Rejection Notes</h3>
+                        <p className="font-medium">{selectedStockOut.notes}</p>
+                      </div>
+                    )}
+
+                    {selectedStockOut.status !== 'rejected' && selectedStockOut.notes && (
+                      <div className="col-span-3">
+                        <h3 className="text-sm font-medium text-gray-500">Notes</h3>
+                        <p className="font-medium">{selectedStockOut.notes}</p>
+                      </div>
+                    )}
+
+                    {selectedStockOut.destination && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Destination</h3>
+                        <p className="font-medium">{selectedStockOut.destination}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Stock Out Details Section */}
+                <div className="p-4">
+                  <h3 className="text-lg font-medium mb-3">Stock Out Details</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Requested Quantity</TableHead>
+                        {selectedStockOut.status === 'completed' && (
+                          <TableHead>Processed Quantity</TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedStockOut.details?.map((detail) => (
+                        <TableRow key={detail.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{detail.product?.name || 'Unknown Product'}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{detail.product?.sku || 'N/A'}</Badge>
+                          </TableCell>
+                          <TableCell>{detail.product?.category || 'N/A'}</TableCell>
+                          <TableCell className="font-medium">{detail.quantity}</TableCell>
+                          {selectedStockOut.status === 'completed' && (
+                            <TableCell className="font-medium">{detail.processed_quantity || 0}</TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {selectedStockOut.status === 'completed' && selectedStockOut.processed_items && selectedStockOut.processed_items.length > 0 && (
+                  <div className="p-4 border-t">
+                    <h3 className="text-lg font-medium mb-3">Processed Items</h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Barcode</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Processed By</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedStockOut.processed_items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{item.product_name || 'Unknown Product'}</p>
+                                <p className="text-sm text-gray-500">{item.product_sku || 'No SKU'}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{item.barcode || 'N/A'}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{item.quantity}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{item.user_name || 'Unknown'}</p>
+                                <p className="text-sm text-gray-500">{item.user_role || 'Staff'}</p>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+>>>>>>> Stashed changes
             </div>
             
             {/* Pagination */}

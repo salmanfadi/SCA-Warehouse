@@ -1,79 +1,84 @@
 
 import React from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-
-interface ScannedItem {
-  barcode: string;
-  inventory_id: string;
-  product_name: string;
-  product_id: string;
-  warehouse_name: string;
-  warehouse_id: string;
-  location_name: string;
-  location_id: string;
-  quantity: number;
-}
+import { Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScannedItem } from '@/hooks/useTransferLogic';
 
 interface ScannedItemsListProps {
   scannedItems: ScannedItem[];
-  onRemoveItem: (index: number) => void;
+  onRemoveItem: (barcode: string) => void;
+  selectedBoxes: string[];
+  onBoxSelectionChange: (boxId: string, selected: boolean) => void;
 }
 
 export const ScannedItemsList: React.FC<ScannedItemsListProps> = ({
   scannedItems,
-  onRemoveItem
+  onRemoveItem,
+  selectedBoxes,
+  onBoxSelectionChange
 }) => {
-  // Group scanned items by warehouse
-  const groupedItems = scannedItems.reduce<Record<string, ScannedItem[]>>((acc, item) => {
-    if (!acc[item.warehouse_name]) {
-      acc[item.warehouse_name] = [];
-    }
-    acc[item.warehouse_name].push(item);
-    return acc;
-  }, {});
-
   if (scannedItems.length === 0) {
-    return null;
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No boxes scanned yet
+      </div>
+    );
   }
 
   return (
-    <div className="mt-6">
-      <h3 className="text-sm font-medium mb-2">Scanned Items: {scannedItems.length}</h3>
-      <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-        {Object.entries(groupedItems).map(([warehouseName, items]) => (
-          <div key={warehouseName} className="border rounded-md overflow-hidden">
-            <div className="bg-muted p-2">
-              <h4 className="text-sm font-medium">{warehouseName}</h4>
-            </div>
-            <div className="divide-y">
-              {items.map((item, idx) => {
-                const itemIndex = scannedItems.findIndex(si => si.barcode === item.barcode);
-                return (
-                  <div key={idx} className="p-2 flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">{item.product_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Location: {item.location_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Qty: {item.quantity} • Barcode: {item.barcode}
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => onRemoveItem(itemIndex)}
-                      className="h-8 w-8 p-0 text-destructive"
-                    >
-                      &times;
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="mt-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[50px]">Select</TableHead>
+            <TableHead>Barcode</TableHead>
+            <TableHead>Product</TableHead>
+            <TableHead>Quantity</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {scannedItems.map((item) => (
+            <TableRow key={item.barcode}>
+              <TableCell>
+                <Checkbox
+                  checked={selectedBoxes.includes(item.id)}
+                  onCheckedChange={(checked) => onBoxSelectionChange(item.id, checked as boolean)}
+                />
+              </TableCell>
+              <TableCell className="font-mono">{item.barcode}</TableCell>
+              <TableCell>
+                {item.product_name}
+                {item.product_sku && (
+                  <span className="text-gray-500 text-sm ml-2">
+                    ({item.product_sku})
+                  </span>
+                )}
+              </TableCell>
+              <TableCell>{item.quantity}</TableCell>
+              <TableCell>
+                {item.warehouse_name}
+                <br />
+                <span className="text-gray-500 text-sm">
+                  {item.location_name}
+                </span>
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onRemoveItem(item.barcode)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 };

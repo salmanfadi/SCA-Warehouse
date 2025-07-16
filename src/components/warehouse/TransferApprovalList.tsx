@@ -31,6 +31,21 @@ type Transfer = {
   to_location: string;
   status: string;
   created_at: string;
+  transfer_details: {
+    id: string;
+    quantity: number;
+    product: {
+      id: string;
+      name: string;
+      sku: string | null;
+    };
+    boxes: {
+      id: string;
+      barcode: string;
+      quantity: number;
+      status: string;
+    }[];
+  }[];
 };
 
 export const TransferApprovalList: React.FC = () => {
@@ -64,29 +79,74 @@ export const TransferApprovalList: React.FC = () => {
               zone,
               floor
             )
+          ),
+          transfer_details:inventory_transfer_details(
+            id,
+            quantity,
+            products(
+              id,
+              name,
+              sku
+            ),
+            barcodes(
+              id,
+              barcode,
+              quantity,
+              status
+            )
           )
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching transfers:', error);
+        return;
+      }
 
-      const formattedTransfers: Transfer[] = data.map(transfer => ({
-        id: transfer.id,
-        reference: `TR-${transfer.id.slice(0, 8)}`,
-        source_warehouse_id: transfer.source_warehouse_id,
-        destination_warehouse_id: transfer.destination_warehouse_id,
-        from_warehouse: transfer.source_warehouse?.name || 'Unknown',
-        from_location: transfer.source_warehouse?.source_location?.[0] 
-          ? `${transfer.source_warehouse.source_location[0].zone} / ${transfer.source_warehouse.source_location[0].floor}`
-          : '-',
-        to_warehouse: transfer.destination_warehouse?.name || 'Unknown',
-        to_location: transfer.destination_warehouse?.destination_location?.[0]
-          ? `${transfer.destination_warehouse.destination_location[0].zone} / ${transfer.destination_warehouse.destination_location[0].floor}`
-          : '-',
-        status: transfer.status,
-        created_at: transfer.created_at,
-      }));
+      console.log('Raw transfer data:', data);
+      console.log('First transfer details:', data[0]?.transfer_details);
+
+      const formattedTransfers = data.map((transfer) => {
+        console.log('Processing transfer:', transfer.id);
+        console.log('Transfer details for transfer:', transfer.transfer_details);
+        
+        return {
+          id: transfer.id,
+          reference: transfer.id.slice(0, 8),
+          source_warehouse_id: transfer.source_warehouse_id,
+          destination_warehouse_id: transfer.destination_warehouse_id,
+          from_warehouse: transfer.source_warehouse?.name || 'Unknown',
+          from_location: transfer.source_warehouse?.source_location?.zone || 'Unknown',
+          to_warehouse: transfer.destination_warehouse?.name || 'Unknown',
+          to_location: transfer.destination_warehouse?.destination_location?.zone || 'Unknown',
+          status: transfer.status,
+          created_at: transfer.created_at,
+          transfer_details: transfer.transfer_details?.map(detail => {
+            console.log('Processing detail:', detail);
+            console.log('Detail product:', detail.products);
+            console.log('Detail barcodes:', detail.barcodes);
+            
+            return {
+              id: detail.id,
+              quantity: detail.quantity,
+              product: {
+                id: detail.products?.id,
+                name: detail.products?.name,
+                sku: detail.products?.sku
+              },
+              boxes: detail.barcodes?.map(box => ({
+                id: box.id,
+                barcode: box.barcode,
+                quantity: box.quantity,
+                status: box.status
+              })) || []
+            };
+          }) || []
+        };
+      });
+
+      console.log('Final formatted transfers:', formattedTransfers);
 
       setTransfers(formattedTransfers);
     } catch (error) {

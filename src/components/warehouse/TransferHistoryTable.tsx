@@ -8,6 +8,24 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
 
+interface WarehouseLocation {
+  zone: string | null;
+  floor: string | null;
+}
+
+interface RawTransfer {
+  id: string;
+  status: 'pending' | 'completed' | 'in_transit' | 'cancelled';
+  created_at: string;
+  source_warehouse: {
+    name: string;
+    source_location: WarehouseLocation[] | null;
+  } | null;
+  destination_warehouse: {
+    name: string;
+    destination_location: WarehouseLocation[] | null;
+  } | null;
+}
 
 interface Transfer {
   id: string;
@@ -53,17 +71,20 @@ export const TransferHistoryTable: React.FC = () => {
       if (error) throw error;
 
       // Transform the data to match our interface
-      const transformedData = (data || []).map(transfer => ({
-        id: transfer.id,
-        source_warehouse_name: transfer.source_warehouse?.name || 'Unknown',
-        source_zone: transfer.source_warehouse?.source_location?.[0]?.zone || null,
-        source_floor: transfer.source_warehouse?.source_location?.[0]?.floor || null,
-        destination_warehouse_name: transfer.destination_warehouse?.name || 'Unknown',
-        destination_zone: transfer.destination_warehouse?.destination_location?.[0]?.zone || null,
-        destination_floor: transfer.destination_warehouse?.destination_location?.[0]?.floor || null,
-        status: transfer.status,
-        created_at: transfer.created_at
-      }));
+      const transformedData: Transfer[] = (data || []).map(transfer => {
+        const rawTransfer = transfer as unknown as RawTransfer;
+        return {
+          id: rawTransfer.id,
+          source_warehouse_name: rawTransfer.source_warehouse?.name || 'Unknown',
+          source_zone: rawTransfer.source_warehouse?.source_location?.[0]?.zone || null,
+          source_floor: rawTransfer.source_warehouse?.source_location?.[0]?.floor || null,
+          destination_warehouse_name: rawTransfer.destination_warehouse?.name || 'Unknown',
+          destination_zone: rawTransfer.destination_warehouse?.destination_location?.[0]?.zone || null,
+          destination_floor: rawTransfer.destination_warehouse?.destination_location?.[0]?.floor || null,
+          status: rawTransfer.status,
+          created_at: rawTransfer.created_at
+        };
+      });
 
       setTransfers(transformedData);
     } catch (error) {
@@ -78,25 +99,16 @@ export const TransferHistoryTable: React.FC = () => {
     fetchTransferHistory();
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Pending</Badge>;
-      case 'completed':
-        return <Badge variant="outline" className="bg-green-50 text-green-700">Completed</Badge>;
-      case 'in_transit':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700">In Transit</Badge>;
-      case 'cancelled':
-        return <Badge variant="outline" className="bg-red-50 text-red-700">Cancelled</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
   return (
     <Card>
       <CardHeader className="px-3 sm:px-6">
         <CardTitle>Transfer History</CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Warehouse locations are shown as: Warehouse Name (Zone). For example: "Main Warehouse (Zone A)"
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Transfer IDs follow the format: TRF + Date + Number (e.g., TRF2403200001 = First transfer on March 20, 2024)
+        </p>
       </CardHeader>
       <CardContent className="px-2 sm:px-6">
         {transfers.length === 0 ? (
@@ -118,20 +130,21 @@ export const TransferHistoryTable: React.FC = () => {
                           <TableHead className="whitespace-nowrap hidden md:table-cell">To Warehouse</TableHead>
                           <TableHead className="whitespace-nowrap">Status</TableHead>
                           <TableHead className="whitespace-nowrap">Date</TableHead>
-                          <TableHead className="whitespace-nowrap hidden lg:table-cell">Initiated By</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {transfers.map((transfer) => (
                           <TableRow key={transfer.id}>
                             <TableCell className="font-mono text-sm">
-                              {transfer.id.substring(0, 8)}...
+                              {transfer.id}
                             </TableCell>
-                            <TableCell className="hidden md:table-cell truncate max-w-[120px]" title={transfer.source_warehouse_id}>
-                              {transfer.source_warehouse_id}
+                            <TableCell className="hidden md:table-cell truncate max-w-[120px]" title={transfer.source_warehouse_name}>
+                              {transfer.source_warehouse_name}
+                              {transfer.source_zone && ` (${transfer.source_zone})`}
                             </TableCell>
-                            <TableCell className="hidden md:table-cell truncate max-w-[120px]" title={transfer.destination_warehouse_id}>
-                              {transfer.destination_warehouse_id}
+                            <TableCell className="hidden md:table-cell truncate max-w-[120px]" title={transfer.destination_warehouse_name}>
+                              {transfer.destination_warehouse_name}
+                              {transfer.destination_zone && ` (${transfer.destination_zone})`}
                             </TableCell>
                             <TableCell>
                               <Badge 
@@ -148,9 +161,6 @@ export const TransferHistoryTable: React.FC = () => {
                             <TableCell>
                               {new Date(transfer.created_at).toLocaleDateString()}
                             </TableCell>
-                            <TableCell className="hidden lg:table-cell truncate max-w-[120px]" title={transfer.initiated_by}>
-                              {transfer.initiated_by}
-                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -158,9 +168,6 @@ export const TransferHistoryTable: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {/* Scroll hints */}
-              <div className="pointer-events-none absolute top-0 right-0 bottom-0 h-full w-12 bg-gradient-to-l from-white dark:from-gray-900 to-transparent opacity-75" />
-              <div className="pointer-events-none absolute top-0 left-0 bottom-0 h-full w-12 bg-gradient-to-r from-white dark:from-gray-900 to-transparent opacity-75" />
             </div>
 
             {/* Mobile card view */}
@@ -169,7 +176,7 @@ export const TransferHistoryTable: React.FC = () => {
                 <div key={transfer.id} className="rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900">
                   <div className="flex justify-between items-center mb-4">
                     <div className="font-mono text-sm font-medium bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                      {transfer.id.substring(0, 8)}...
+                      {transfer.id}
                     </div>
                     <Badge 
                       className={
@@ -186,12 +193,14 @@ export const TransferHistoryTable: React.FC = () => {
                   <div className="space-y-3 mb-4">
                     <div>
                       <span className="text-xs text-muted-foreground block mb-1">From Warehouse</span>
-                      <span className="text-sm font-medium truncate block">{transfer.source_warehouse_id}</span>
+                      <span className="text-sm font-medium truncate block">{transfer.source_warehouse_name}</span>
+                      {transfer.source_zone && <span className="text-xs text-muted-foreground"> ({transfer.source_zone})</span>}
                     </div>
                     
                     <div>
                       <span className="text-xs text-muted-foreground block mb-1">To Warehouse</span>
-                      <span className="text-sm font-medium truncate block">{transfer.destination_warehouse_id}</span>
+                      <span className="text-sm font-medium truncate block">{transfer.destination_warehouse_name}</span>
+                      {transfer.destination_zone && <span className="text-xs text-muted-foreground"> ({transfer.destination_zone})</span>}
                     </div>
                   </div>
                   
@@ -206,25 +215,12 @@ export const TransferHistoryTable: React.FC = () => {
                         })}
                       </span>
                     </div>
-                    
-                    <div className="text-right">
-                      <span className="text-xs text-muted-foreground block mb-1">Initiated By</span>
-                      <span className="text-sm font-medium truncate block max-w-[140px]">{transfer.initiated_by}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4">
-                    <Button variant="outline" size="sm" className="w-full">
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                    </Button>
                   </div>
                 </div>
               ))}
             </div>
           </>
         )}
-
       </CardContent>
     </Card>
   );

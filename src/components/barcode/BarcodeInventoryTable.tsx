@@ -138,9 +138,7 @@ const BarcodeInventoryTable: React.FC<BarcodeInventoryTableProps> = ({
             </div>
           </div>
         </div>
-        {/* Scroll hints */}
-        <div className="pointer-events-none absolute top-0 right-0 bottom-0 h-full w-12 bg-gradient-to-l from-white dark:from-gray-900 to-transparent opacity-75" />
-        <div className="pointer-events-none absolute top-0 left-0 bottom-0 h-full w-12 bg-gradient-to-r from-white dark:from-gray-900 to-transparent opacity-75" />
+        {/* Remove scroll hints */}
       </div>
 
       {/* Mobile card view */}
