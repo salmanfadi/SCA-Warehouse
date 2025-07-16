@@ -8,14 +8,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/table';
+} from '../../components/ui/table';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card';
+} from '../../components/ui/card';
 import {
   Pagination,
   PaginationContent,
@@ -23,17 +23,17 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from '../components/ui/pagination';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
+} from '../../components/ui/pagination';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select';
+} from '../../components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -41,11 +41,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog';
+} from '../../components/ui/dialog';
 import { Loader2, Search, FileDown, Eye, X } from 'lucide-react';
-import { executeQuery } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import DashboardLayout from '../components/layouts/DashboardLayout';
+import { executeQuery } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
+import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { toast } from 'sonner';
 
 // Define the interface for processed items
