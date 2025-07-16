@@ -91,16 +91,31 @@ export function useCustomerInquiries() {
 
   const moveToOrders = useMutation({
     mutationFn: async (inquiryId: string) => {
-      const result = await executeQuery('customer_inquiries', async (client) => {
-        return client
-          .from('customer_inquiries')
-          .update({ status: 'in_progress' })
-          .eq('id', inquiryId)
-          .select();
-      });
-
-      if (result.error) throw result.error;
-      return result.data;
+      console.log('📝 [MOVE_TO_ORDERS] Moving inquiry to orders:', inquiryId);
+      
+      try {
+        const result = await executeQuery('customer_inquiries', async (client) => {
+          return client
+            .from('customer_inquiries')
+            .update({ 
+              status: 'in_progress',
+              moved_to_orders: true // Set moved_to_orders flag to true
+            })
+            .eq('id', inquiryId)
+            .select();
+        });
+        
+        if (result.error) {
+          console.error('❌ [MOVE_TO_ORDERS] Error updating inquiry:', inquiryId, result.error);
+          throw result.error;
+        }
+        
+        console.log('✅ [MOVE_TO_ORDERS] Successfully moved inquiry to orders:', inquiryId);
+        return result.data;
+      } catch (error) {
+        console.error('❌ [MOVE_TO_ORDERS] Error in moveToOrders mutation:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customerInquiries'] });

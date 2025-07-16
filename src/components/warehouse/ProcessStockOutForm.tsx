@@ -199,6 +199,34 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
     }
   }, [stockOutState?.id]); // Only depend on the ID to prevent re-runs
   
+  /**
+   * Saves the current form state to session storage
+   * This includes product statuses and expanded accordion state
+   */
+  const saveFormStateToSession = (): void => {
+    if (!stockOutState?.id) {
+      console.log('⚠️ [FORM STATE] Cannot save form state - no stockOutId');
+      return;
+    }
+    
+    const formState: FormState = {
+      productStatuses,
+      expandedProducts
+    };
+    
+    try {
+      console.log('💾 [FORM STATE] Saving form state to session storage', {
+        stockOutId: stockOutState.id,
+        productStatusCount: Object.keys(productStatuses).length,
+        expandedProductCount: Object.keys(expandedProducts).length
+      });
+      
+      sessionStorage.setItem(`stockout-form-${stockOutState.id}`, JSON.stringify(formState));
+    } catch (error) {
+      console.error('❌ [FORM STATE] Error saving form state to session storage:', error);
+    }
+  };
+  
   // Separate function to fetch reservation details to avoid circular dependencies
   const fetchReservationDetails = async (inquiryId: string) => {
     try {
@@ -244,6 +272,543 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       fetchReservedBoxes(stockOutState.customer_inquiry_id);
     }
   }, [stockOutState?.id, stockOutState?.is_reserved]);
+  
+  // Effect to restore form state from session storage when component mounts
+  useEffect(() => {
+    if (!stockOutState?.id) return;
+    
+    console.log('📋 [FORM STATE] Restoring form state for stockOut', stockOutState.id);
+    
+    // Check for all possible sources of box data
+    const checkAllNavigationSources = () => {
+      let processedAnyData = false;
+      
+      // 1. Check React Router location.state
+      console.log('🔍 [NAVIGATION] Checking React Router location state:', location.state);
+      if (location.state?.boxData && location.state?.stockOutId === stockOutState.id) {
+        try {
+          console.log('✅ [NAVIGATION] Found boxData in React Router location state');
+          const { detailId, boxData, productId } = location.state;
+          if (detailId && boxData) {
+            processScannedBoxDirectly(detailId, boxData, productId);
+            processedAnyData = true;
+          }
+        } catch (error) {
+          console.error('❌ [NAVIGATION] Error processing React Router location state:', error);
+        }
+      }
+      
+      // 2. Check window.history.state.state (as seen in logs)
+      const navigationStateData = window.history.state?.state;
+      console.log('🔍 [NAVIGATION] Checking window.history.state.state:', navigationStateData);
+      if (!processedAnyData && navigationStateData?.detailId && navigationStateData?.boxData && 
+          navigationStateData?.stockOutId === stockOutState.id) {
+        try {
+          console.log('✅ [NAVIGATION] Found boxData in window.history.state.state');
+          const { detailId, boxData, productId } = navigationStateData;
+          if (detailId && boxData) {
+            processScannedBoxDirectly(detailId, boxData, productId);
+            processedAnyData = true;
+          }
+        } catch (error) {
+          console.error('❌ [NAVIGATION] Error processing window.history.state.state:', error);
+        }
+      }
+      
+      // 3. Check window.history.state directly
+      console.log('🔍 [NAVIGATION] Checking window.history.state directly:', window.history.state);
+      if (!processedAnyData && window.history.state?.detailId && window.history.state?.boxData && 
+          window.history.state?.stockOutId === stockOutState.id) {
+        try {
+          console.log('✅ [NAVIGATION] Found boxData directly in window.history.state');
+          const { detailId, boxData, productId } = window.history.state;
+          if (detailId && boxData) {
+            processScannedBoxDirectly(detailId, boxData, productId);
+            processedAnyData = true;
+          }
+        } catch (error) {
+          console.error('❌ [NAVIGATION] Error processing window.history.state directly:', error);
+        }
+      }
+      
+      // 4. Check window.history.state.usr (React Router internal format)
+      console.log('🔍 [NAVIGATION] Checking window.history.state.usr:', window.history.state?.usr);
+      if (!processedAnyData && window.history.state?.usr?.boxData && 
+          window.history.state?.usr?.stockOutId === stockOutState.id) {
+        try {
+          console.log('✅ [NAVIGATION] Found boxData in window.history.state.usr');
+          const { detailId, boxData, productId } = window.history.state.usr;
+          if (detailId && boxData) {
+            processScannedBoxDirectly(detailId, boxData, productId);
+            processedAnyData = true;
+          }
+        } catch (error) {
+          console.error('❌ [NAVIGATION] Error processing window.history.state.usr:', error);
+        }
+      }
+      
+      return processedAnyData;
+    };
+    
+    // Helper function to process a scanned box directly and update state
+    const processScannedBoxDirectly = (detailId: string, boxData: any, productId?: string) => {
+      try {
+        // Update product status with this box
+        setProductStatuses(prev => {
+          const currentStatus = prev[detailId] || {
+            status: PRODUCT_STATUS.PENDING,
+            boxes: [],
+            notes: '',
+            processedQuantity: 0
+          };
+          
+          // Check if this box is already added
+          const boxExists = currentStatus.boxes.some(box => box.barcode === boxData.barcode);
+          if (boxExists) {
+            console.log('📋 [FORM STATE] Box already exists in product status', boxData.barcode);
+            return prev;
+          }
+          
+          // Add the box and update processed quantity
+          const enhancedBoxData = {
+            ...boxData,
+            stockOutId: stockOutState.id,
+            productId: productId || boxData.productId
+          };
+          
+          const updatedBoxes = [...currentStatus.boxes, enhancedBoxData];
+          const processedQuantity = updatedBoxes.reduce((sum, box) => sum + box.quantity, 0);
+          
+          // Determine if the product is now fully processed
+          const stockOutDetail = stockOutState.stock_out_details?.find(detail => detail.id === detailId);
+          const isFullyProcessed = stockOutDetail && processedQuantity >= stockOutDetail.quantity;
+          
+          console.log('✅ [NAVIGATION] Adding box from navigation state', {
+            detailId,
+            boxCount: updatedBoxes.length,
+            processedQuantity,
+            requiredQuantity: stockOutDetail?.quantity,
+            isFullyProcessed
+          });
+          
+          // Ensure the product accordion is expanded
+          setExpandedProducts(prevExpanded => ({
+            ...prevExpanded,
+            [detailId]: true
+          }));
+          
+          // Determine the appropriate status based on order type and processing state
+          let statusToUse;
+          
+          // If this is a reserved order, use RESERVED status
+          if (stockOutState?.is_reserved) {
+            statusToUse = PRODUCT_STATUS.RESERVED;
+            console.log('🔒 [RESERVED] Setting status to RESERVED for reserved order');
+          } else {
+            // For regular orders, use PROCESSED or PENDING based on quantity
+            statusToUse = isFullyProcessed ? PRODUCT_STATUS.PROCESSED : PRODUCT_STATUS.PENDING;
+          }
+          
+          const updatedStatuses = {
+            ...prev,
+            [detailId]: {
+              ...currentStatus,
+              status: statusToUse,
+              boxes: updatedBoxes,
+              processedQuantity
+            }
+          };
+          
+          // Immediately save to session storage to prevent overwriting
+          if (stockOutState?.id) {
+            // Get current expanded products state
+            const currentExpandedProducts = { ...expandedProducts, [detailId]: true };
+            
+            const formState: FormState = {
+              productStatuses: updatedStatuses,
+              expandedProducts: currentExpandedProducts
+            };
+            
+            try {
+              console.log('💾 [FORM STATE] Immediately saving updated form state to session storage', {
+                stockOutId: stockOutState.id,
+                productStatusCount: Object.keys(updatedStatuses).length
+              });
+              
+              sessionStorage.setItem(`stockout-form-${stockOutState.id}`, JSON.stringify(formState));
+            } catch (error) {
+              console.error('❌ [FORM STATE] Error saving form state to session storage:', error);
+            }
+          }
+          
+          return updatedStatuses;
+        });
+        
+        return true;
+      } catch (error) {
+        console.error('❌ [NAVIGATION] Error processing box data:', error);
+        return false;
+      }
+    };
+    
+    // First check if we have any barcode scanner data in the navigation state
+    // This needs to be done before restoring from sessionStorage to avoid overwriting
+    const processedFromNavigation = checkAllNavigationSources();
+    
+    const restoreFormState = (): void => {
+      // If we already processed navigation data, don't restore from session storage
+      // This prevents overwriting the newly processed box data with old session data
+      if (processedFromNavigation) {
+        console.log('📋 [FORM STATE] Skipping session storage restoration since navigation data was processed');
+        return;
+      }
+      
+      // Check for main form state in session storage
+      const savedState = sessionStorage.getItem(`stockout-form-${stockOutState.id}`);
+      let hasRestoredMainState = false;
+      
+      if (savedState) {
+        try {
+          console.log('📋 [FORM STATE] Found saved state in sessionStorage');
+          const parsedState = JSON.parse(savedState) as FormState;
+          console.log('📋 [FORM STATE] Parsed state:', {
+            productStatusCount: Object.keys(parsedState.productStatuses || {}).length,
+            expandedProductsCount: Object.keys(parsedState.expandedProducts || {}).length
+          });
+          
+          if (parsedState.productStatuses && Object.keys(parsedState.productStatuses).length > 0) {
+            // Ensure all boxes have the correct flags and properties
+            const restoredStatuses = { ...parsedState.productStatuses };
+            
+            Object.keys(restoredStatuses).forEach(detailId => {
+              const status = restoredStatuses[detailId];
+              if (status.boxes && status.boxes.length > 0) {
+                status.boxes = status.boxes.map(box => ({
+                  ...box,
+                  is_reserved: status.status === PRODUCT_STATUS.RESERVED,
+                  stockOutId: stockOutState.id
+                }));
+              }
+            });
+            
+            setProductStatuses(restoredStatuses);
+            hasRestoredMainState = true;
+            console.log('📋 [FORM STATE] Restored product statuses with', Object.keys(restoredStatuses).length, 'items');
+          }
+          
+          if (parsedState.expandedProducts) {
+            setExpandedProducts(parsedState.expandedProducts);
+            console.log('📋 [FORM STATE] Restored expanded products state');
+          }
+        } catch (error) {
+          console.error('❌ [FORM STATE] Error parsing saved form state:', error);
+        }
+      } else {
+        console.log('📋 [FORM STATE] No saved state found, initializing new state');
+        
+        // Initialize product statuses if not restored from session
+        const initialStatuses: Record<string, ProductStatus> = {};
+        stockOutState.stock_out_details?.forEach(detail => {
+          initialStatuses[detail.id] = {
+            status: PRODUCT_STATUS.PENDING,
+            boxes: [],
+            notes: '',
+            processedQuantity: 0
+          };
+          // Default to expanded for the first product
+          if (stockOutState.stock_out_details && stockOutState.stock_out_details[0]?.id === detail.id) {
+            setExpandedProducts(prev => ({ ...prev, [detail.id]: true }));
+          }
+        });
+        
+        console.log('📋 [FORM STATE] Initialized product statuses:', {
+          count: Object.keys(initialStatuses).length
+        });
+        
+        setProductStatuses(initialStatuses);
+      }
+      
+      // Check for barcode scanner data
+      const processBarcodeData = () => {
+        console.log('📋 [FORM STATE] Checking for barcode scanner data in session storage');
+        let processedAnyData = false;
+        
+        // Check for location state data first (from barcode scanner return)
+        // First check React Router location state
+        console.log('📋 [FORM STATE] Checking location state:', location.state);
+        if (location.state?.boxData && location.state?.stockOutId === stockOutState.id) {
+          try {
+            console.log('📋 [FORM STATE] Found boxData in React Router location state', location.state);
+            
+            // Find the detail ID for this product
+            const detailId = location.state.detailId;
+            const productId = location.state.productId || location.state.boxData.productId;
+            const boxData = location.state.boxData;
+            
+            if (detailId && boxData) {
+              console.log('📋 [FORM STATE] Processing boxData from location state', {
+                detailId,
+                productId,
+                boxData
+              });
+              
+              // Process the box data
+              processScannedBox(detailId, boxData, productId);
+              processedAnyData = true;
+            }
+          } catch (error) {
+            console.error('❌ [FORM STATE] Error processing location state:', error);
+          }
+        }
+        
+        // Also check window.history.state as a fallback
+        const historyState = window.history.state;
+        if (!processedAnyData && historyState?.usr?.boxData && historyState?.usr?.stockOutId === stockOutState.id) {
+          try {
+            console.log('📋 [FORM STATE] Found boxData in history state', historyState.usr);
+            
+            // Find the detail ID for this product
+            const detailId = historyState.usr.detailId;
+            const productId = historyState.usr.productId || historyState.usr.boxData.productId;
+            const boxData = historyState.usr.boxData;
+            
+            if (detailId && boxData) {
+              console.log('📋 [FORM STATE] Processing boxData from history state', {
+                detailId,
+                productId,
+                boxData
+              });
+              
+              // Process the box data
+              processScannedBox(detailId, boxData, productId);
+              processedAnyData = true;
+            }
+          } catch (error) {
+            console.error('❌ [FORM STATE] Error processing history state:', error);
+          }
+        }
+        
+        // Check for last processed item
+        const lastProcessedItem = sessionStorage.getItem('lastProcessedItem');
+        if (lastProcessedItem) {
+          try {
+            console.log('📋 [FORM STATE] Found lastProcessedItem in session storage');
+            const parsedItem = JSON.parse(lastProcessedItem);
+            
+            if (!parsedItem || !parsedItem.boxData) {
+              console.log('📋 [FORM STATE] Invalid lastProcessedItem format');
+            } else {
+              // Get the product ID and stockOutId
+              const productId = sessionStorage.getItem('productId');
+              const stockOutIdFromSession = sessionStorage.getItem('stockOutId');
+              
+              console.log('📋 [FORM STATE] lastProcessedItem data:', {
+                productId,
+                stockOutIdFromSession,
+                currentStockOutId: stockOutState.id,
+                boxData: parsedItem.boxData
+              });
+              
+              if (stockOutIdFromSession === stockOutState.id) {
+                // Find the detail ID for this product
+                const detail = stockOutState.stock_out_details?.find(d => d.product_id === productId);
+                if (detail) {
+                  const detailId = detail.id;
+                  const boxData = parsedItem.boxData;
+                  
+                  console.log('📋 [FORM STATE] Processing lastProcessedItem for current stockOut', {
+                    detailId,
+                    productId,
+                    boxData
+                  });
+                  
+                  // Process the box data
+                  processScannedBox(detailId, boxData, productId);
+                  processedAnyData = true;
+                } else {
+                  console.warn('⚠️ [FORM STATE] Could not find detail for product ID', productId);
+                }
+              } else {
+                console.log('📋 [FORM STATE] stockOutId mismatch, not processing lastProcessedItem');
+              }
+            }
+          } catch (error) {
+            console.error('❌ [FORM STATE] Error processing lastProcessedItem:', error);
+          }
+        }
+        
+        // Check for boxData directly
+        const boxDataString = sessionStorage.getItem('boxData');
+        if (boxDataString && !processedAnyData) {
+          try {
+            console.log('📋 [FORM STATE] Found boxData in session storage');
+            const boxData = JSON.parse(boxDataString);
+            
+            console.log('📋 [FORM STATE] boxData content:', boxData);
+            
+            if (boxData) {
+              // Get the detailId from session storage or try to find it
+              const detailId = sessionStorage.getItem('detailId');
+              const productId = boxData.productId || sessionStorage.getItem('productId');
+              
+              // Check if this box is for the current stock out
+              if (boxData.stockOutId === stockOutState.id || sessionStorage.getItem('stockOutId') === stockOutState.id) {
+                console.log('📋 [FORM STATE] Processing boxData from session storage', {
+                  detailId,
+                  productId,
+                  boxData
+                });
+                
+                if (detailId) {
+                  // If we have a detailId, use it directly
+                  processScannedBox(detailId, boxData, productId);
+                  processedAnyData = true;
+                } else if (productId) {
+                  // Find the detail for this product
+                  const detail = stockOutState.stock_out_details?.find(d => d.product_id === productId);
+                  if (detail) {
+                    processScannedBox(detail.id, boxData, productId);
+                    processedAnyData = true;
+                  } else {
+                    console.warn('⚠️ [FORM STATE] Could not find detail for product ID', productId);
+                  }
+                } else {
+                  console.warn('⚠️ [FORM STATE] No detailId or productId found for boxData');
+                }
+              } else {
+                console.log('📋 [FORM STATE] boxData stockOutId mismatch, not processing');
+              }
+            }
+          } catch (error) {
+            console.error('❌ [FORM STATE] Error processing boxData:', error);
+          }
+        }
+        
+        // Check for barcode-scanner-batch-item
+        if (!processedAnyData) {
+          const storageKey = `barcode-scanner-batch-item-${stockOutState.id}`;
+          const storedBoxDataStr = sessionStorage.getItem(storageKey);
+          const detailIdFromStorage = sessionStorage.getItem(`stockout-detail-${stockOutState.id}`);
+          
+          if (storedBoxDataStr) {
+            try {
+              const storedBoxData = JSON.parse(storedBoxDataStr);
+              console.log('📋 [FORM STATE] Retrieved box data from batch-item storage', {
+                boxData: storedBoxData,
+                detailId: detailIdFromStorage
+              });
+              
+              if (detailIdFromStorage) {
+                // Process the box data with the stored detail ID
+                processScannedBox(detailIdFromStorage, storedBoxData);
+                processedAnyData = true;
+              } else if (storedBoxData.productId) {
+                // Try to find the detail ID from the product ID
+                const detail = stockOutState.stock_out_details?.find(d => d.product_id === storedBoxData.productId);
+                if (detail) {
+                  processScannedBox(detail.id, storedBoxData, storedBoxData.productId);
+                  processedAnyData = true;
+                } else {
+                  console.warn('⚠️ [FORM STATE] Could not find detail for product ID', storedBoxData.productId);
+                }
+              } else {
+                console.warn('⚠️ [FORM STATE] No detailId or productId found for batch item');
+              }
+            } catch (error) {
+              console.error('❌ [FORM STATE] Error parsing stored box data', error);
+            }
+          }
+        }
+        
+        return processedAnyData;
+      };
+      
+      // Helper function to process a scanned box and update state
+      const processScannedBox = (detailId: string, boxData: Box, productId?: string) => {
+        // Ensure the box has all required properties
+        const enhancedBoxData = {
+          ...boxData,
+          stockOutId: stockOutState.id,
+          productId: productId || boxData.productId
+        };
+        
+        // Update the product status with this box
+        setProductStatuses(prev => {
+          const currentStatus = prev[detailId] || {
+            status: PRODUCT_STATUS.PENDING,
+            boxes: [],
+            notes: '',
+            processedQuantity: 0
+          };
+          
+          // Check if this box is already added
+          const boxExists = currentStatus.boxes.some(box => box.barcode === boxData.barcode);
+          if (boxExists) {
+            console.log('📋 [FORM STATE] Box already exists in product status', boxData.barcode);
+            return prev;
+          }
+          
+          // Add the box and update processed quantity
+          const updatedBoxes = [...currentStatus.boxes, enhancedBoxData];
+          const processedQuantity = updatedBoxes.reduce((sum, box) => sum + box.quantity, 0);
+          
+          // Determine if the product is now fully processed
+          const stockOutDetail = stockOutState.stock_out_details?.find(detail => detail.id === detailId);
+          const isFullyProcessed = stockOutDetail && processedQuantity >= stockOutDetail.quantity;
+          
+          console.log('📋 [FORM STATE] Adding box from session storage', {
+            detailId,
+            boxCount: updatedBoxes.length,
+            processedQuantity,
+            requiredQuantity: stockOutDetail?.quantity,
+            isFullyProcessed
+          });
+          
+          // Ensure the product accordion is expanded
+          setExpandedProducts(prevExpanded => ({
+            ...prevExpanded,
+            [detailId]: true
+          }));
+          
+          return {
+            ...prev,
+            [detailId]: {
+              ...currentStatus,
+              status: isFullyProcessed ? PRODUCT_STATUS.PROCESSED : PRODUCT_STATUS.PENDING,
+              boxes: updatedBoxes,
+              processedQuantity
+            }
+          };
+        });
+      };
+      
+      // Process barcode data if main state wasn't restored
+      if (!hasRestoredMainState) {
+        const processedBarcodeData = processBarcodeData();
+        
+        if (processedBarcodeData) {
+          console.log('✅ [FORM STATE] Successfully restored state from barcode data');
+          // Save the consolidated state back to session storage
+          setTimeout(() => saveFormStateToSession(), 100);
+        }
+      }
+    };
+    
+    restoreFormState();
+    
+    // Check if we need to keep the dialog open based on sessionStorage
+    const dialogOpenForStockOut = sessionStorage.getItem('stockout-dialog-open');
+    console.log('🔍 [DIALOG] Checking dialog state in sessionStorage:', { 
+      dialogOpenForStockOut, 
+      stockOutId: stockOutState.id, 
+      currentlyOpen: open 
+    });
+    
+    if (dialogOpenForStockOut === stockOutState.id && !open) {
+      console.log('🔍 [DIALOG] Reopening dialog from session storage state');
+      onOpenChange(true);
+    }
+  }, [stockOutState, open, onOpenChange]);
 
   /**
    * Processes a scanned barcode box data and updates the product status
@@ -496,14 +1061,11 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       return false;
     }
     
-    // If this is a reserved order, check if all products have RESERVED status
+    // If this is a reserved order, always allow approval
+    // This is critical for reserved orders to be processed
     if (stockOutState.is_reserved === true) {
-      const allReserved = stockOutState.stock_out_details.every(detail => {
-        const status = productStatuses[detail.id];
-        return status?.status === PRODUCT_STATUS.RESERVED;
-      });
-      
-      return allReserved;
+      console.log('🔒 [RESERVED] Reserved order detected, enabling approval button');
+      return true;
     }
     
     // For non-reserved orders, check if all products are fully processed
@@ -604,6 +1166,67 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
               console.error('❌ [SUBMIT] Error updating inventory:', box.id, inventoryError);
               // Continue with other updates even if one fails
             }
+            
+            // Insert into stock_out_processed_items for all boxes
+            try {
+              console.log('📝 [SUBMIT] Inserting into stock_out_processed_items:', box.id);
+              
+              // Find the stock out detail for this product
+              const currentDetail = stockOutState?.stock_out_details?.find(d => d.id === detailId);
+              if (!currentDetail) {
+                console.error('❌ [SUBMIT] Could not find stock out detail for ID:', detailId);
+                continue;
+              }
+              
+              // Log the data we're about to insert for debugging
+              const insertData = {
+                stock_out_id: stockOutState?.id,
+                stock_out_detail_id: detailId,
+                batch_item_id: box.id,
+                product_id: box.productId || currentDetail.product_id, // Use the found detail
+                barcode: box.barcode, // Add required barcode
+                quantity: box.quantity,
+                // Use warehouse_name and location_name from the box data
+                // These will be mapped to the appropriate IDs by the database triggers if needed
+                warehouse_id: null, // Will be resolved by the database based on warehouse_name
+                location_id: null, // Will be resolved by the database based on location_name
+                processed_by: userId,
+                processed_at: new Date().toISOString(),
+                notes: status.notes || ''
+              };
+              
+              // Add warehouse and location info for logging and debugging
+              console.log('🏢 [SUBMIT] Warehouse info:', {
+                warehouse_name: box.warehouse_name,
+                location_name: box.location_name,
+                floor: box.floor,
+                zone: box.zone
+              });
+              
+              console.log('📋 [SUBMIT] Insert data:', insertData);
+              
+              // Validate required fields before insert
+              if (!insertData.product_id) {
+                console.error('❌ [SUBMIT] Missing required product_id for box:', box.id);
+                continue;
+              }
+              
+              if (!insertData.barcode) {
+                console.error('❌ [SUBMIT] Missing required barcode for box:', box.id);
+                continue;
+              }
+              
+              await executeQuery('insert-processed-item', async (supabase) => {
+                return await supabase
+                  .from('stock_out_processed_items')
+                  .insert(insertData);
+              });
+              
+              console.log('✅ [SUBMIT] Successfully inserted processed item:', box.id);
+            } catch (processedItemError) {
+              console.error('❌ [SUBMIT] Error inserting processed item:', box.id, processedItemError);
+              // Continue with other updates even if one fails
+            }
           }
         }
       }
@@ -624,6 +1247,30 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
         });
         
         console.log('✅ [SUBMIT] Successfully updated stock_out:', stockOutState?.id);
+        
+        // Update the corresponding customer inquiry status if it exists
+        if (stockOutState?.customer_inquiry_id) {
+          console.log('📝 [SUBMIT] Updating customer inquiry:', stockOutState.customer_inquiry_id, 'with status: completed');
+          
+          try {
+            await executeQuery('update-customer-inquiry', async (supabase) => {
+              return await supabase
+                .from('customer_inquiries')
+                .update({ 
+                  status: 'completed'
+                })
+                .eq('id', stockOutState.customer_inquiry_id);
+            });
+            
+            console.log('✅ [SUBMIT] Successfully updated customer inquiry:', stockOutState.customer_inquiry_id);
+            queryClient.invalidateQueries({ queryKey: ['customer-inquiries'] });
+          } catch (inquiryError) {
+            console.error('❌ [SUBMIT] Error updating customer inquiry:', stockOutState.customer_inquiry_id, inquiryError);
+            // Don't throw here - we want to continue even if this update fails
+          }
+        } else {
+          console.log('ℹ️ [SUBMIT] No customer inquiry ID found for this stock out');
+        }
       } catch (stockOutError) {
         console.error('❌ [SUBMIT] Error updating stock_out:', stockOutState?.id, stockOutError);
         throw stockOutError; // Re-throw to trigger the main catch block
@@ -663,17 +1310,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
     }
   };
 
-  // Save form state to session storage
-  const saveFormStateToSession = (): void => {
-    if (stockOutState?.id) {
-      const formState: FormState = {
-        productStatuses,
-        expandedProducts
-      };
-      sessionStorage.setItem(`stockout-form-${stockOutState.id}`, JSON.stringify(formState));
-      console.log('📋 [FORM STATE] Saved form state to session storage');
-    }
-  };
+  // saveFormStateToSession function is now defined at the top of the component
 
   // Handle notes change for a product detail
   const handleNotesChange = (detailId: string, value: string): void => {
@@ -1135,16 +1772,57 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       
       console.log(`✅ [RESERVED BOXES] Setting RESERVED status for product ${productId} with ${boxes.length} boxes and quantity ${processedQuantity}`);
       
-      setProductStatuses(prev => ({
-        ...prev,
-        [detail.id]: {
-          status: PRODUCT_STATUS.RESERVED,
-          boxes: boxes,
-          processedQuantity: processedQuantity,
-          notes: `Reserved: ${boxes.length} boxes`
+      // Check if we already have a status for this detail (from processed boxes)
+      setProductStatuses(prev => {
+        const existingStatus = prev[detail.id];
+        
+        // If there's an existing status and it's not RESERVED, we need to merge
+        if (existingStatus && existingStatus.status !== PRODUCT_STATUS.RESERVED) {
+          console.log(`🔧 [MERGE] Merging reserved boxes with existing processed boxes for product ${productId}`);
+          
+          // Keep track of which boxes we've already added to avoid duplicates
+          const existingBarcodes = new Set(existingStatus.boxes.map(b => b.barcode));
+          
+          // Only add boxes that aren't already in the list
+          const uniqueNewBoxes = boxes.filter(box => !existingBarcodes.has(box.barcode));
+          
+          // Combine the boxes and update the processed quantity
+          const combinedBoxes = [...existingStatus.boxes, ...uniqueNewBoxes];
+          const totalQuantity = combinedBoxes.reduce((sum, b) => sum + (b.quantity || 0), 0);
+          
+          // Determine the status based on the required quantity
+          const requiredQuantity = detail.quantity;
+          const newStatus = totalQuantity >= requiredQuantity ? PRODUCT_STATUS.PROCESSED : PRODUCT_STATUS.PENDING;
+          
+          console.log(`🔧 [MERGE] Combined ${existingStatus.boxes.length} processed boxes with ${uniqueNewBoxes.length} reserved boxes`);
+          console.log(`🔧 [MERGE] Total quantity: ${totalQuantity}/${requiredQuantity}, status: ${newStatus}`);
+          
+          return {
+            ...prev,
+            [detail.id]: {
+              ...existingStatus,
+              boxes: combinedBoxes,
+              processedQuantity: totalQuantity,
+              status: newStatus
+            }
+          };
         }
-      }));
+        
+        // If there's no existing status or it's already RESERVED, just set it
+        return {
+          ...prev,
+          [detail.id]: {
+            status: PRODUCT_STATUS.RESERVED,
+            boxes: boxes,
+            processedQuantity: processedQuantity,
+            notes: `Reserved: ${boxes.length} boxes`
+          }
+        };
+      });
     });
+    
+    // Save the updated state to session storage
+    setTimeout(() => saveFormStateToSession(), 100);
     
     console.log('✅ [RESERVED BOXES] Updated product statuses:', productStatuses);
   };
