@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Menu, X, User, LogOut, Bell } from 'lucide-react';
+import { User, LogOut, Bell } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,13 +15,9 @@ import { cn } from '@/lib/utils';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 
 
-interface HeaderProps {
-  onToggleSidebar: () => void;
-  isSidebarOpen: boolean;
-  title?: string;
-}
+interface HeaderProps {}
 
-export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen, title }) => {
+export const Header: React.FC<HeaderProps> = () => {
   const { user, logout } = useAuth();
   const [notifications] = useState([]);
   const [scrolled, setScrolled] = useState(false);
@@ -58,19 +54,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen, 
     )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleSidebar}
-            className="mr-3"
-          >
-            {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-          
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white transition-opacity duration-300" style={{ opacity: scrolled ? 0 : 1 }}>
-            {title || 'Warehouse Management'}
+            Warehouse Management
           </h1>
-
         </div>
 
         <div className="flex items-center space-x-4">
