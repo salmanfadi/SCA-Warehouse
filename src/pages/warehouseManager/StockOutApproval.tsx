@@ -59,8 +59,9 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
           .from('stock_out')
           .update({
             status: 'rejected',
-            rejected_by: user?.id,
-            rejected_at: new Date().toISOString()
+            approved_by: user?.id,
+            approved_at: new Date().toISOString(),
+            notes: 'Rejected by admin'
           })
           .eq('id', id)
           .select();
@@ -347,13 +348,12 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
         </CardContent>
       </Card>
       
-      {/* Process Stock Out Form */}
+      {/* Process Stock Out Dialog */}
       {isApprovalDialogOpen && selectedStockOut && (
         <ProcessStockOutForm
           open={isApprovalDialogOpen}
           onOpenChange={setIsApprovalDialogOpen}
           stockOut={selectedStockOut}
-          userId={user?.id}
         />
       )}
     </div>

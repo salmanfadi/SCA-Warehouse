@@ -120,6 +120,7 @@ function App() {
               <Route path="/admin/inventory/barcode/:barcodeId" element={<BarcodeInventoryPage />} />
               <Route path="/admin/barcodes" element={<BarcodeManagement />} />
               <Route path="/admin/barcode" element={<AdminBarcodeLookup />} />
+              <Route path="/admin/stock-in" element={<StockInManagement />} />
               <Route path="/admin/stock-out" element={<StockOutApproval isAdminView={true} />} />
               <Route path="/admin/stock-out-history" element={<StockOutHistoryPage />} />
 

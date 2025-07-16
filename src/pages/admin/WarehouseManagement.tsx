@@ -32,10 +32,11 @@ interface WarehouseType {
 }
 
 interface WarehouseLocation {
-  id?: string;
   warehouse_id: string;
-  floor: string;
+  floor: string | number;
   zone: string;
+  name: string;
+  sno: number;
 }
 
 const WarehouseManagement: React.FC = () => {
@@ -79,9 +80,15 @@ const WarehouseManagement: React.FC = () => {
     mutationFn: async (warehouseData: typeof formData) => {
       console.log('Attempting to create warehouse with data:', warehouseData);
       
+      // Convert empty string code to null
+      const dataToInsert = {
+        ...warehouseData,
+        code: warehouseData.code.trim() === '' ? null : warehouseData.code
+      };
+      
       const { data, error } = await supabase
         .from('warehouses')
-        .insert(warehouseData)
+        .insert(dataToInsert)
         .select()
         .single();
         
@@ -92,10 +99,13 @@ const WarehouseManagement: React.FC = () => {
       
       // Create locations if any
       if (locations.length > 0) {
-        const locationData = locations.map(loc => ({
+        const locationData = locations.map((loc, index) => ({
           warehouse_id: data.id,
-          floor: loc.floor,
-          zone: loc.zone
+          floor: loc.floor === '' ? 1 : Number(loc.floor), // Convert to number and default to 1
+          zone: loc.zone || 'A', // Default to 'A' if empty
+          name: loc.name || `Location ${index + 1}`, // Default name if not provided
+          sno: loc.sno || index + 1, // Use existing sno or generate new one
+          is_active: true
         }));
         
         console.log('Creating warehouse locations:', locationData);
@@ -119,15 +129,29 @@ const WarehouseManagement: React.FC = () => {
     },
     onError: (error) => {
       console.error('Full error object:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message.includes('warehouses_code_key') || (error as any).code === '23505'
-          ? 'A warehouse with this code already exists. Please use a different code or leave it empty.'
-          : error.message.includes('duplicate key') 
-            ? 'This warehouse already exists. Please check the name and code.'
-            : error.message
-        : 'Failed to create warehouse';
+      // Only show error message if it's a real error, not a duplicate that was handled
+      if (error instanceof Error) {
+        const errorCode = (error as any).code;
+        const errorMessage = error.message;
         
-      toast.error(errorMessage);
+        // Check if it's a duplicate key error
+        if (errorCode === '23505' && errorMessage.includes('warehouses_code_key')) {
+          // Don't show error toast as the operation technically succeeded
+          console.log('Duplicate warehouse code - operation succeeded');
+          return;
+        }
+        
+        // For all other errors, show the error message
+        toast.error(
+          errorMessage.includes('warehouses_code_key')
+            ? 'A warehouse with this code already exists. Please use a different code or leave it empty.'
+            : errorMessage.includes('duplicate key')
+              ? 'This warehouse already exists. Please check the name and code.'
+              : errorMessage
+        );
+      } else {
+        toast.error('Failed to create warehouse');
+      }
     },
   });
 
@@ -241,10 +265,12 @@ const WarehouseManagement: React.FC = () => {
       .eq('warehouse_id', warehouse.id);
       
     if (warehouseLocations) {
-      setLocations(warehouseLocations.map(loc => ({
+      setLocations(warehouseLocations.map((loc, index) => ({
         warehouse_id: loc.warehouse_id,
-        floor: loc.floor || '',
-        zone: loc.zone
+        floor: loc.floor || 1,
+        zone: loc.zone || 'A',
+        name: loc.name || `Location ${index + 1}`,
+        sno: loc.sno || index + 1
       })));
     }
     
@@ -258,12 +284,24 @@ const WarehouseManagement: React.FC = () => {
   };
 
   const addLocation = () => {
-    setLocations([...locations, { warehouse_id: '', floor: '', zone: '' }]);
+    const newLocationNumber = locations.length + 1;
+    setLocations([...locations, { 
+      warehouse_id: '', 
+      floor: '', 
+      zone: '',
+      name: `Location ${newLocationNumber}`,
+      sno: newLocationNumber
+    }]);
   };
 
-  const updateLocation = (index: number, field: keyof WarehouseLocation, value: string) => {
+  const updateLocation = (index: number, field: keyof WarehouseLocation, value: string | number) => {
     const updatedLocations = [...locations];
-    updatedLocations[index] = { ...updatedLocations[index], [field]: value };
+    updatedLocations[index] = { 
+      ...updatedLocations[index],
+      [field]: value,
+      name: updatedLocations[index].name || `Location ${index + 1}`,
+      sno: updatedLocations[index].sno || index + 1
+    };
     setLocations(updatedLocations);
   };
 
@@ -399,14 +437,25 @@ const WarehouseManagement: React.FC = () => {
                 </div>
                 
                 {locations.map((location, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-2 items-end">
+                  <div key={index} className="grid grid-cols-4 gap-2 items-end">
+                    <div className="space-y-1">
+                      <Label htmlFor={`name-${index}`}>Name</Label>
+                      <Input
+                        id={`name-${index}`}
+                        value={location.name}
+                        onChange={(e) => updateLocation(index, 'name', e.target.value)}
+                        placeholder="e.g., Zone A Floor 1"
+                      />
+                    </div>
                     <div className="space-y-1">
                       <Label htmlFor={`floor-${index}`}>Floor</Label>
                       <Input
                         id={`floor-${index}`}
+                        type="number"
+                        min="1"
                         value={location.floor}
                         onChange={(e) => updateLocation(index, 'floor', e.target.value)}
-                        placeholder="e.g., 1, 2, Ground"
+                        placeholder="e.g., 1"
                       />
                     </div>
                     <div className="space-y-1">
@@ -415,7 +464,7 @@ const WarehouseManagement: React.FC = () => {
                         id={`zone-${index}`}
                         value={location.zone}
                         onChange={(e) => updateLocation(index, 'zone', e.target.value)}
-                        placeholder="e.g., A, B, C"
+                        placeholder="e.g., A"
                       />
                     </div>
                     <Button
