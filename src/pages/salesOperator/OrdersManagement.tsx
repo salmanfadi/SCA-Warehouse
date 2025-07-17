@@ -261,7 +261,7 @@ const OrdersManagement: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order Number</TableHead>
+                  <TableHead>Sales Order #</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Items</TableHead>
@@ -273,7 +273,13 @@ const OrdersManagement: React.FC = () => {
               <TableBody>
                 {filteredOrders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.sales_order_number}</TableCell>
+                    <TableCell>
+                      {order.sales_order_number ? (
+                        <span className="font-mono text-sm">{order.sales_order_number}</span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Not assigned</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{order.customer_name}</div>
@@ -287,9 +293,21 @@ const OrdersManagement: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 group relative">
                         <Package className="h-4 w-4 text-muted-foreground" />
                         {order.items.length} items
+                        {order.items.length > 0 && (
+                          <div className="absolute z-50 invisible group-hover:visible bg-white shadow-lg rounded-md p-3 w-64 mt-1 left-0">
+                            <div className="text-sm font-medium mb-1">Products:</div>
+                            <ul className="space-y-1">
+                              {order.items.map((item: any, idx: number) => (
+                                <li key={idx} className="text-sm">
+                                  {productData[item.product_id]?.name || 'Unknown Product'} <span className="font-medium">({item.quantity})</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -419,14 +437,34 @@ const OrdersManagement: React.FC = () => {
             {orderToPush && (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="font-medium">Order Number:</div>
-                  <div>{orderToPush.sales_order_number}</div>
+                  <div className="font-medium">Sales Order #:</div>
+                  <div>
+                    {orderToPush.sales_order_number ? (
+                      <span className="font-mono text-sm">{orderToPush.sales_order_number}</span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Not assigned</span>
+                    )}
+                  </div>
                   <div className="font-medium">Customer:</div>
                   <div>{orderToPush.customer_name}</div>
                   <div className="font-medium">Company:</div>
                   <div>{orderToPush.customer_company}</div>
                   <div className="font-medium">Items:</div>
-                  <div>{orderToPush.items.length} items</div>
+                  <div className="group relative">
+                    {orderToPush.items.length} items
+                    {orderToPush.items.length > 0 && (
+                      <div className="absolute z-50 invisible group-hover:visible bg-white shadow-lg rounded-md p-3 w-64 mt-1 left-0">
+                        <div className="text-sm font-medium mb-1">Products:</div>
+                        <ul className="space-y-1">
+                          {orderToPush.items.map((item: any, idx: number) => (
+                            <li key={idx} className="text-sm">
+                              {productData[item.product_id]?.name || 'Unknown Product'} <span className="font-medium">({item.quantity})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="border-t pt-2">
                   <p className="text-sm text-muted-foreground">

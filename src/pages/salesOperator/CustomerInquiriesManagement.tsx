@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCustomerInquiries } from '@/hooks/useCustomerInquiries';
 import { CustomerInquiry, CustomerInquiryItem } from '@/types/inquiries';
 import { format } from 'date-fns';
@@ -27,14 +27,19 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from 'lucide-react';
 
 export default function CustomerInquiriesManagement() {
-  const { inquiries, isLoading, refetch, getInquiryItems, moveToOrders } = useCustomerInquiries();
+  const { inquiries, isLoading, refetch, getInquiryItems, getInquiryItemsCount, moveToOrders } = useCustomerInquiries();
   const [selectedInquiry, setSelectedInquiry] = useState<CustomerInquiry | null>(null);
   const [inquiryItems, setInquiryItems] = useState<CustomerInquiryItem[]>([]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemsCountMap, setItemsCountMap] = useState<Record<string, { count: number, items: Array<{ name: string, quantity: number }> }>>({});
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15; // Changed from 20 to 15 items per page
 
   const handleRowClick = async (inquiry: CustomerInquiry) => {
     setSelectedInquiry(inquiry);
@@ -81,11 +86,52 @@ export default function CustomerInquiriesManagement() {
     }
   };
 
+  // Fetch items count for all inquiries when inquiries data is loaded
+  useEffect(() => {
+    if (inquiries && inquiries.length > 0) {
+      const fetchItemsCount = async () => {
+        try {
+          const inquiryIds = inquiries.map(inquiry => inquiry.id);
+          const itemsData = await getInquiryItemsCount(inquiryIds);
+          setItemsCountMap(itemsData);
+        } catch (error) {
+          console.error('Error fetching inquiry items count:', error);
+        }
+      };
+      fetchItemsCount();
+    }
+  }, [inquiries, getInquiryItemsCount]);
+
   const filteredInquiries = inquiries?.filter(inquiry => 
     inquiry.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inquiry.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inquiry.id.toLowerCase().includes(searchTerm.toLowerCase())
+    inquiry.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (inquiry.sales_order_number && inquiry.sales_order_number.toLowerCase().includes(searchTerm.toLowerCase()))
   ) || [];
+  
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredInquiries.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentInquiries = filteredInquiries.slice(startIndex, endIndex);
+  
+  // Pagination handlers
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   return (
     <div className="container mx-auto py-6">
@@ -112,47 +158,73 @@ export default function CustomerInquiriesManagement() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
+      <Card className="w-full max-w-full overflow-hidden">
+        <CardContent className="p-0 overflow-hidden">
           {/* Table for desktop/tablet */}
-          <div className="hidden sm:block relative overflow-x-auto">
-            <div className="absolute top-0 right-0 h-full w-8 pointer-events-none bg-gradient-to-l from-white/90 to-transparent z-10" />
-            <Table>
+          <div className="hidden sm:block relative overflow-hidden w-full">
+            {/* Using overflow-hidden and w-full to eliminate all scroll bars */}
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Customer Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                <TableHead className="w-[15%]">Sales Order #</TableHead>
+                  <TableHead className="w-[15%]">Date</TableHead>
+                  <TableHead className="w-[15%]">Customer Name</TableHead>
+                  <TableHead className="w-[20%]">Email</TableHead>
+                  <TableHead className="w-[10%]">Items</TableHead>
+                  <TableHead className="w-[10%]">Status</TableHead>
+                  <TableHead className="w-[15%]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <div className="flex justify-center">
                         <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
                       </div>
                       <p className="text-sm text-gray-500 mt-2">Loading inquiries...</p>
                     </TableCell>
                   </TableRow>
-                ) : filteredInquiries.length === 0 ? (
+                ) : currentInquiries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <p className="text-sm text-gray-500">No customer inquiries found.</p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInquiries.map((inquiry) => (
+                  currentInquiries.map((inquiry) => (
                     <TableRow 
                       key={inquiry.id} 
                       onClick={() => handleRowClick(inquiry)}
                       className="cursor-pointer hover:bg-gray-50"
                     >
+                      <TableCell>
+                        {inquiry.sales_order_number ? (
+                          <span className="font-mono text-sm">{inquiry.sales_order_number}</span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Not assigned</span>
+                        )}
+                      </TableCell>
                       <TableCell>{formatDate(inquiry.created_at)}</TableCell>
                       <TableCell>{inquiry.customer_name}</TableCell>
                       <TableCell>{inquiry.customer_email}</TableCell>
+                      <TableCell>
+                        <div className="relative group">
+                          <span className="font-medium">{itemsCountMap[inquiry.id]?.count || 0}</span>
+                          {itemsCountMap[inquiry.id]?.count > 0 && (
+                            <div className="absolute z-50 invisible group-hover:visible bg-white shadow-lg rounded-md p-3 w-64 mt-1 left-0">
+                              <div className="text-sm font-medium mb-1">Products:</div>
+                              <ul className="space-y-1">
+                                {itemsCountMap[inquiry.id]?.items.map((item, idx) => (
+                                  <li key={idx} className="text-sm">
+                                    {item.name} <span className="font-medium">({item.quantity})</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{getStatusBadge(inquiry.status)}</TableCell>
                       <TableCell>
                         {inquiry.status === 'pending' && (
@@ -179,7 +251,7 @@ export default function CustomerInquiriesManagement() {
             </Table>
           </div>
           {/* Stacked card view for mobile */}
-          <div className="sm:hidden flex flex-col gap-4 p-4">
+          <div className="sm:hidden flex flex-col gap-4 p-4 overflow-hidden w-full max-w-full">
             {isLoading ? (
               <div className="text-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-500 mx-auto" />
@@ -190,7 +262,7 @@ export default function CustomerInquiriesManagement() {
                 <p className="text-sm text-gray-500">No customer inquiries found.</p>
               </div>
             ) : (
-              filteredInquiries.map((inquiry) => (
+              currentInquiries.map((inquiry) => (
                 <div
                   key={inquiry.id}
                   className="rounded-lg border p-4 shadow-sm bg-white cursor-pointer hover:bg-gray-50"
@@ -202,6 +274,36 @@ export default function CustomerInquiriesManagement() {
                   </div>
                   <div className="font-semibold text-base mb-1">{inquiry.customer_name}</div>
                   <div className="text-sm text-gray-700 mb-1">{inquiry.customer_email}</div>
+                  
+                  <div className="flex justify-between items-center mt-2 mb-2">
+                    <div className="relative group">
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium mr-1">Items:</span>
+                        <span className="text-sm">{itemsCountMap[inquiry.id]?.count || 0}</span>
+                      </div>
+                      {itemsCountMap[inquiry.id]?.count > 0 && (
+                        <div className="absolute z-50 invisible group-hover:visible bg-white shadow-lg rounded-md p-3 w-64 mt-1 left-0">
+                          <div className="text-sm font-medium mb-1">Products:</div>
+                          <ul className="space-y-1">
+                            {itemsCountMap[inquiry.id]?.items.map((item, idx) => (
+                              <li key={idx} className="text-sm">
+                                {item.name} <span className="font-medium">({item.quantity})</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium mr-1">SO#:</span>
+                      {inquiry.sales_order_number ? (
+                        <span className="text-sm font-mono">{inquiry.sales_order_number}</span>
+                      ) : (
+                        <span className="text-sm text-gray-400">Not assigned</span>
+                      )}
+                    </div>
+                  </div>
                   {inquiry.status === 'pending' && (
                     <Button
                       size="sm"
@@ -225,6 +327,38 @@ export default function CustomerInquiriesManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-sm text-gray-500">
+            Showing {startIndex + 1}-{Math.min(endIndex, filteredInquiries.length)} of {filteredInquiries.length} inquiries
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="sr-only">Previous Page</span>
+            </Button>
+            <div className="text-sm">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+              <span className="sr-only">Next Page</span>
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <DialogContent className="max-w-3xl">

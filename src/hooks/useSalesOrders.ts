@@ -78,7 +78,7 @@ export const useSalesOrders = () => {
         const { data: inquiries, error: inquiriesError } = await executeQuery('customer_inquiries', async (supabase) => {
           return await supabase
             .from('customer_inquiries')
-            .select('id, customer_name, customer_email, status, message, created_at, reference_number, product_id, product_name, quantity, is_reserved')
+            .select('id, customer_name, customer_email, status, message, created_at, sales_order_number, product_id, product_name, quantity, is_reserved')
             .or('status.eq.in_progress,status.eq.finalizing')
             .order('created_at', { ascending: false });
         });
@@ -96,7 +96,7 @@ export const useSalesOrders = () => {
         // Debug log to check if is_reserved field is being fetched
         console.log('Fetched inquiries with is_reserved field:', inquiries.map(inq => ({ 
           id: inq.id, 
-          reference: inq.reference_number, 
+          sales_order: inq.sales_order_number, 
           is_reserved: inq.is_reserved 
         })));
         
@@ -173,7 +173,7 @@ export const useSalesOrders = () => {
           
           return {
             id: inquiry.id,
-            sales_order_number: inquiry.reference_number || `SO-${inquiry.id.substring(0, 8)}`,
+            sales_order_number: inquiry.sales_order_number || `SO-${inquiry.id.substring(0, 8)}`,
             customer_name: inquiry.customer_name,
             customer_email: inquiry.customer_email,
             customer_company: '', // Not in DB, but needed for UI
