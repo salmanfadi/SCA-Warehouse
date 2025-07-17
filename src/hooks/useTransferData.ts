@@ -1,45 +1,43 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Warehouse, Location } from '@/types/warehouse';
 
-export const useTransferData = (targetWarehouseId: string) => {
-  // Fetch warehouses
-  const { data: warehouses, isLoading: warehousesLoading } = useQuery({
+export const useTransferData = (selectedWarehouseId: string) => {
+  const warehousesQuery = useQuery<Warehouse[]>({
     queryKey: ['warehouses'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('warehouses')
-        .select('id, name, location')
+        .select('*')
         .order('name');
-        
+      
       if (error) throw error;
       return data;
-    },
+    }
   });
 
-  // Fetch locations based on selected warehouse
-  const { data: locations, isLoading: locationsLoading } = useQuery({
-    queryKey: ['locations', targetWarehouseId],
+  const locationsQuery = useQuery<Location[]>({
+    queryKey: ['warehouse-locations', selectedWarehouseId],
     queryFn: async () => {
-      if (!targetWarehouseId) return [];
+      if (!selectedWarehouseId) return [];
       
       const { data, error } = await supabase
         .from('warehouse_locations')
-        .select('id, floor, zone, warehouse_id')
-        .eq('warehouse_id', targetWarehouseId)
-        .order('floor')
+        .select('*')
+        .eq('warehouse_id', selectedWarehouseId)
         .order('zone');
-        
+      
       if (error) throw error;
       return data;
     },
-    enabled: !!targetWarehouseId,
+    enabled: !!selectedWarehouseId
   });
 
   return {
-    warehouses,
-    warehousesLoading,
-    locations,
-    locationsLoading
+    warehouses: warehousesQuery.data || [],
+    warehousesLoading: warehousesQuery.isLoading,
+    locations: locationsQuery.data || [],
+    locationsLoading: locationsQuery.isLoading
   };
 };

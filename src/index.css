@@ -43,6 +43,9 @@
     --sidebar-accent-foreground: 222.2 47.4% 11.2%;
     --sidebar-border: 214.3 31.8% 91.4%;
     --sidebar-ring: 221 83% 53%;
+
+    --hover-background: 210 40% 96.1%;
+    --hover-foreground: 222.2 47.4% 11.2%;
   }
 
   .dark {
@@ -82,6 +85,9 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 224.3 76.3% 48%;
+
+    --hover-background: 217.2 32.6% 12.5%;
+    --hover-foreground: 210 40% 98%;
   }
 }
 
@@ -153,7 +159,7 @@
 
   /* Card styling with Apple-inspired design */
   .stats-card {
-    @apply flex flex-col p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow dark:bg-slate-800 dark:border-slate-700;
+    @apply flex flex-col p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700;
   }
   
   /* Apple-style shadows */
@@ -230,7 +236,7 @@
   
   /* Apple-style card and content transitions */
   .card-hover {
-    @apply transition-all duration-200 hover:translate-y-[-2px] hover:shadow-md;
+    @apply transition-all duration-200 hover:translate-y-[-2px] hover:shadow-md dark:hover:bg-slate-700;
   }
   
   /* Subtle hover effect for interactive elements */

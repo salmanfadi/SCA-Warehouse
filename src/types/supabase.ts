@@ -407,7 +407,7 @@ export interface Database {
       }
       inventory_transfers: {
         Row: {
-          id: string
+          id: string  // Format: TRF + YYMMDD + 4-digit counter (e.g., TRF2403010001)
           source_warehouse_id: string
           source_location_id: string | null
           destination_warehouse_id: string

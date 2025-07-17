@@ -349,8 +349,7 @@ const EnhancedBatchDetailsDialog: React.FC<EnhancedBatchDetailsDialogProps> = ({
                 </TableBody>
               </Table>
             </ScrollArea>
-            {/* Right-edge gradient scroll hint */}
-            <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-gray-900 to-transparent" />
+            {/* Remove right-edge gradient scroll hint */}
           </div>
           {/* Mobile stacked card view */}
           <div className="sm:hidden space-y-3 max-h-[400px] overflow-y-auto pr-2">
