@@ -205,23 +205,12 @@ export const CreateSalesOrderForm: React.FC<CreateSalesOrderFormProps> = ({
                   value={item.specific_requirements || ''}
                   onChange={(e) => updateItem(index, 'specific_requirements', e.target.value)}
                   placeholder="Special requirements..."
-                  rows={2}
+                  rows={1}
+                  className="overflow-ellipsis"
+                  style={{ height: '38px', resize: 'none' }} /* Match height of Input component */
                 />
               </div>
-              <div className="flex flex-col items-end gap-2">
-                {/* Reserve Stock Checkbox for Sales Operator */}
-                {user?.role === 'sales_operator' && (
-                  <div className="flex items-center mb-2">
-                    <input
-                      type="checkbox"
-                      id={`reserve-${index}`}
-                      checked={item.reserved || false}
-                      onChange={e => updateItem(index, 'reserved', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <Label htmlFor={`reserve-${index}`}>Reserve Stock</Label>
-                  </div>
-                )}
+              <div className="flex flex-col items-end justify-center">
                 <Button
                   type="button"
                   variant="destructive"

@@ -38,6 +38,7 @@ export interface StockOutRequestData {
   updated_at: string;
   priority?: string;
   reference_number?: string;
+  sales_order_number?: string; // Added sales_order_number field
   product_id?: string;
   product_name?: string;
   product_sku?: string;
@@ -226,6 +227,7 @@ export const useStockOutRequests = ({
             updated_at: stockOut.updated_at,
             priority: stockOut.priority,
             reference_number: stockOut.reference_number,
+            sales_order_number: stockOut.sales_order_number, // Include the sales_order_number field
             product_id: productId,
             product_name: productName,
             product_sku: productSku,

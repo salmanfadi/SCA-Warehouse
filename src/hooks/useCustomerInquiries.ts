@@ -18,7 +18,15 @@ export function useCustomerInquiries() {
         const result = await executeQuery('customer_inquiries', async (client) => {
           return client
             .from('customer_inquiries')
-            .select('id, customer_name, customer_email, message, status, created_at')
+            .select(`
+              id, 
+              customer_name, 
+              customer_email, 
+              message, 
+              status, 
+              created_at, 
+              sales_order_number
+            `)
             // No status filter - show all inquiries
             .order('created_at', { ascending: false });
         });
@@ -32,6 +40,42 @@ export function useCustomerInquiries() {
       }
     }
   });
+
+  // Get inquiry items count and details for all inquiries
+  const getInquiryItemsCount = async (inquiryIds: string[]) => {
+    if (!inquiryIds.length) return {};
+    
+    const result = await executeQuery('inquiry_items_count', async (client) => {
+      return client
+        .from('customer_inquiry_items')
+        .select(`
+          inquiry_id,
+          product_id,
+          quantity,
+          products(name)
+        `)
+        .in('inquiry_id', inquiryIds);
+    });
+
+    if (result.error) throw result.error;
+    
+    // Group by inquiry_id and count items
+    const itemsCountMap: Record<string, { count: number, items: Array<{ name: string, quantity: number }> }> = {};
+    
+    result.data?.forEach(item => {
+      if (!itemsCountMap[item.inquiry_id]) {
+        itemsCountMap[item.inquiry_id] = { count: 0, items: [] };
+      }
+      
+      itemsCountMap[item.inquiry_id].count++;
+      itemsCountMap[item.inquiry_id].items.push({
+        name: item.products?.name || 'Unknown Product',
+        quantity: item.quantity
+      });
+    });
+    
+    return itemsCountMap;
+  };
 
   const getInquiryItems = async (inquiryId: string) => {
     const result = await executeQuery('customer_inquiry_items', async (client) => {
@@ -91,16 +135,31 @@ export function useCustomerInquiries() {
 
   const moveToOrders = useMutation({
     mutationFn: async (inquiryId: string) => {
-      const result = await executeQuery('customer_inquiries', async (client) => {
-        return client
-          .from('customer_inquiries')
-          .update({ status: 'in_progress' })
-          .eq('id', inquiryId)
-          .select();
-      });
-
-      if (result.error) throw result.error;
-      return result.data;
+      console.log('📝 [MOVE_TO_ORDERS] Moving inquiry to orders:', inquiryId);
+      
+      try {
+        const result = await executeQuery('customer_inquiries', async (client) => {
+          return client
+            .from('customer_inquiries')
+            .update({ 
+              status: 'in_progress',
+              moved_to_orders: true // Set moved_to_orders flag to true
+            })
+            .eq('id', inquiryId)
+            .select();
+        });
+        
+        if (result.error) {
+          console.error('❌ [MOVE_TO_ORDERS] Error updating inquiry:', inquiryId, result.error);
+          throw result.error;
+        }
+        
+        console.log('✅ [MOVE_TO_ORDERS] Successfully moved inquiry to orders:', inquiryId);
+        return result.data;
+      } catch (error) {
+        console.error('❌ [MOVE_TO_ORDERS] Error in moveToOrders mutation:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customerInquiries'] });
@@ -156,6 +215,7 @@ export function useCustomerInquiries() {
     error,
     refetch,
     getInquiryItems,
+    getInquiryItemsCount,
     updateInquiryStatus: handleUpdateInquiryStatus,
     moveToOrders,
     convertInquiryToOrder,

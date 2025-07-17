@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -29,6 +29,12 @@ import { executeQuery } from '@/lib/supabase';
 interface StockOutApprovalProps {
   isAdminView?: boolean;
 }
+
+// Helper function to get sales order number
+const getSalesOrderNumber = (sales_order_number: string | null | undefined): string => {
+  if (!sales_order_number) return 'N/A';
+  return sales_order_number;
+};
 
 const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false }) => {
   const navigate = useNavigate();
@@ -155,7 +161,7 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
           <CardTitle>Pending Stock Out Requests</CardTitle>
           <CardDescription>Review and approve outgoing stock requests</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 overflow-hidden">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -168,29 +174,31 @@ const StockOutApproval: React.FC<StockOutApprovalProps> = ({ isAdminView = false
             <>
               {/* Desktop/tablet table with scroll hint */}
               <div className="hidden sm:block relative">
-                <div className="overflow-x-auto -mx-4 sm:mx-0 p-4 sm:p-0">
+                <div className="overflow-hidden -mx-4 sm:mx-0 p-4 sm:p-0">
                   <div className="inline-block min-w-full align-middle">
                     <div className="overflow-hidden rounded-md border">
-                      <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <Table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Requested By</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead>Destination</TableHead>
-                            <TableHead>Reason</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead className="w-[15%]">Sales Order #</TableHead>
+                            <TableHead className="w-[15%]">Product</TableHead>
+                            <TableHead className="w-[15%]">Requested By</TableHead>
+                            <TableHead className="w-[10%]">Quantity</TableHead>
+                            <TableHead className="w-[15%]">Customer</TableHead>
+                            <TableHead className="w-[10%]">Status</TableHead>
+                            <TableHead className="w-[10%] text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {stockOutRequests.map((item) => (
                             <TableRow key={item.id}>
+                              <TableCell>
+                                <span className="font-mono text-sm font-medium">{getSalesOrderNumber(item.sales_order_number)}</span>
+                              </TableCell>
                               <TableCell>{item.product_name || 'Unknown Product'}</TableCell>
                               <TableCell>{item.requester_name || 'Unknown'}</TableCell>
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell>{item.destination}</TableCell>
-                              <TableCell>{item.reason || '-'}</TableCell>
                               <TableCell><StatusBadge status={item.status} /></TableCell>
                               <TableCell className="text-right">
                                 <div className="flex gap-2 justify-end">

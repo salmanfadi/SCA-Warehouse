@@ -90,14 +90,30 @@ export const useSalesOrders = () => {
         const { data: inquiries, error: inquiriesError } = await executeQuery('customer_inquiries', async (supabase) => {
           return await supabase
             .from('customer_inquiries')
-            .select('id, customer_name, customer_email, status, message, created_at, reference_number, product_id, product_name, quantity, is_reserved')
+            .select('id, customer_name, customer_email, status, message, created_at, sales_order_number, product_id, product_name, quantity, is_reserved')
             .or('status.eq.in_progress,status.eq.finalizing')
             .order('created_at', { ascending: false })
             .range(from, to);
         });
         
-        if (inquiriesError) throw inquiriesError;
-        if (!inquiries) return { data: [], total: 0 };
+
+        if (inquiriesError) {
+          console.error('Error fetching inquiries:', inquiriesError);
+          throw inquiriesError;
+        }
+        
+        if (!inquiries || inquiries.length === 0) {
+          console.log('No orders found with in_progress or finalizing status');
+          return [];
+        }
+        
+        // Debug log to check if is_reserved field is being fetched
+        console.log('Fetched inquiries with is_reserved field:', inquiries.map(inq => ({ 
+          id: inq.id, 
+          sales_order: inq.sales_order_number, 
+          is_reserved: inq.is_reserved 
+        })));
+
         
         // Get inquiry items for each order
         const inquiryIds = inquiries.map(inquiry => inquiry.id);
@@ -114,7 +130,22 @@ export const useSalesOrders = () => {
         const orders = inquiries.map(inquiry => {
           const items = (inquiryItems || []).filter(item => item.inquiry_id === inquiry.id);
           return {
-            ...inquiry,
+
+            id: inquiry.id,
+            sales_order_number: inquiry.sales_order_number || `SO-${inquiry.id.substring(0, 8)}`,
+            customer_name: inquiry.customer_name,
+            customer_email: inquiry.customer_email,
+            customer_company: '', // Not in DB, but needed for UI
+            customer_phone: '', // Not in DB, but needed for UI
+            status: inquiry.status,
+            message: inquiry.message || '',
+            notes: '', // Not in DB, but needed for UI
+            created_at: inquiry.created_at,
+            items: items,
+            // Include the is_reserved field from the inquiry
+            is_reserved: inquiry.is_reserved || false,
+            // Required fields for the UI
+
             order_date: inquiry.created_at,
             total_amount: 0, // This would be calculated based on items
             items: items.length > 0 ? items : [
