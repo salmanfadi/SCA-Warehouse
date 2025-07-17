@@ -11,32 +11,54 @@ export interface RecentActivity {
   details?: string;
 }
 
+interface StockInWithProfile {
+  id: string;
+  created_at: string;
+  status: string;
+  profiles: {
+    full_name: string | null;
+    email: string | null;
+  } | null;
+}
+
 export const useAdminDashboardData = () => {
   const statsQuery = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: async (): Promise<DashboardStats> => {
       try {
-        // Get counts from various tables
-        const [usersResult, warehousesResult, productsResult, inventoryResult] = await Promise.all([
-          supabase.from('profiles').select('id', { count: 'exact', head: true }),
-          supabase.from('warehouses').select('id', { count: 'exact', head: true }),
-          supabase.from('products').select('id', { count: 'exact', head: true }),
-          supabase.from('inventory').select('id', { count: 'exact', head: true })
-        ]);
+        // Get total users count
+        const { count: usersCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        // Get total products count
+        const { count: productsCount } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true });
+
+        // Get total warehouses count
+        const { count: warehousesCount } = await supabase
+          .from('warehouses')
+          .select('*', { count: 'exact', head: true });
+
+        // Get total stock in requests count
+        const { count: stockInCount } = await supabase
+          .from('stock_in')
+          .select('*', { count: 'exact', head: true });
 
         return {
-          users: usersResult.count || 0,
-          warehouses: warehousesResult.count || 0,
-          products: productsResult.count || 0,
-          inventory: inventoryResult.count || 0
+          totalUsers: usersCount || 0,
+          totalProducts: productsCount || 0,
+          totalWarehouses: warehousesCount || 0,
+          totalStockIn: stockInCount || 0,
         };
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
         return {
-          users: 0,
-          warehouses: 0,
-          products: 0,
-          inventory: 0
+          totalUsers: 0,
+          totalProducts: 0,
+          totalWarehouses: 0,
+          totalStockIn: 0,
         };
       }
     }
@@ -46,27 +68,33 @@ export const useAdminDashboardData = () => {
     queryKey: ['admin-dashboard-activity'],
     queryFn: async (): Promise<RecentActivity[]> => {
       try {
-        // Use stock_in table for activity data since it has the correct columns
-        const { data, error } = await supabase
+        // Fetch stock in requests with user profiles
+        const { data: stockInData, error: stockInError } = await supabase
           .from('stock_in')
           .select(`
             id,
             created_at,
-            submitted_by,
-            status
+            status,
+            profiles:profiles!stock_in_submitted_by_fkey (
+              full_name,
+              email
+            )
           `)
           .order('created_at', { ascending: false })
           .limit(10);
 
-        if (error) throw error;
+        if (stockInError) throw stockInError;
 
-        return (data || []).map(item => ({
-          id: item.id,
-          action: `Stock in request - Status: ${item.status}`,
-          user: item.submitted_by || 'Unknown',
-          timestamp: item.created_at,
-          details: `Request ID: ${item.id}`
-        }));
+        return (stockInData || []).map(item => {
+          const typedItem = item as unknown as StockInWithProfile;
+          return {
+            id: typedItem.id,
+            action: `Stock in request - Status: ${typedItem.status}`,
+            user: typedItem.profiles?.full_name || typedItem.profiles?.email?.split('@')[0] || 'Unknown User',
+            timestamp: typedItem.created_at,
+            details: `Request ID: ${typedItem.id}`
+          };
+        });
       } catch (error) {
         console.error('Error fetching recent activity:', error);
         return [];

@@ -22,6 +22,7 @@ import {
 import { executeQuery, executeWithRetry } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { stockOperations } from "@/lib/supabase";
 
 interface StockOutWithDetails {
   id: string;
@@ -1067,10 +1068,12 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       console.log('🔒 [RESERVED] Reserved order detected, enabling approval button');
       return true;
     }
+
     
     // For non-reserved orders, check if all products are fully processed
     return stockOutState.stock_out_details.every(detail => {
       const status = productStatuses[detail.id];
+
       
       // If the product is reserved, it's considered processed
       if (status?.status === PRODUCT_STATUS.RESERVED) {
@@ -1324,6 +1327,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       toast.success('Stock out processed successfully!');
       
       // Invalidate queries to refresh data
+
       queryClient.invalidateQueries({ queryKey: ['stock-out-list'] });
       queryClient.invalidateQueries({ queryKey: ['stock-out-details'] });
       
@@ -1343,6 +1347,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       toast.error(errorMessage);
       
       // Don't close the dialog on error
+
     } finally {
       setIsSubmitting(false);
     }
@@ -1574,6 +1579,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
       </AccordionItem>
     );
   };
+
 
   // Function to fetch reserved boxes for a stock out
   const fetchReservedBoxes = async (inquiryId: string, reservationId?: string): Promise<void> => {
@@ -1863,10 +1869,11 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({ stockOut, ope
     setTimeout(() => saveFormStateToSession(), 100);
     
     console.log('✅ [RESERVED BOXES] Updated product statuses:', productStatuses);
+
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="stock-out-form-description">
         <div id="stock-out-form-description" className="sr-only">Process stock out form for approving scanned items</div>
         <DialogHeader>

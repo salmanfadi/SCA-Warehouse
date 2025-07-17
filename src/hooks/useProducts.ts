@@ -1,10 +1,31 @@
-
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from 'react';
+import { 
+  useQuery, 
+  useQueryClient, 
+  useMutation, 
+  useQueries,
+  QueryKey,
+  QueryFunction,
+  UseQueryOptions,
+  QueryFunctionContext
+} from '@tanstack/react-query';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
-import { Product } from '@/types/database';
-import { useAuth } from '@/hooks/useAuth';
+import { Product, CreateProductData, UpdateProductData, PaginatedProducts } from '../types/product';
+import { createPaginationQueryKey, getPaginationMeta, DEFAULT_PAGE_SIZE_OPTIONS } from '../lib/pagination';
+
+// Extend the UseQueryOptions type to include keepPreviousData
+declare module '@tanstack/react-query' {
+  interface UseQueryOptions<
+    TQueryFnData = unknown,
+    TError = Error,
+    TData = TQueryFnData,
+    TQueryKey extends QueryKey = QueryKey
+  > {
+    keepPreviousData?: boolean;
+  }
+}
 
 // Define a type for the minimum required fields when creating a product
 interface CreateProductData {
@@ -23,52 +44,123 @@ interface CreateProductData {
   barcode?: string | null;
 }
 
-export function useProducts() {
+export interface PaginationParams {
+  page: number;
+  pageSize: number;
+  searchQuery?: string;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+// Default pagination values
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 15;
+
+interface UseProductsOptions {
+  page?: number;
+  pageSize?: number;
+  searchQuery?: string;
+  enabled?: boolean;
+}
+
+type ProductsQueryResult = PaginatedProducts;
+
+export function useProducts({
+  page = DEFAULT_PAGE,
+  pageSize = DEFAULT_PAGE_SIZE,
+  searchQuery = '',
+  enabled = true
+}: UseProductsOptions = {}) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
 
-  // Fetch products with detailed logging
-  const {
-    data: products,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: ['products'],
-    queryFn: async () => {
-      console.log('Starting to fetch products...');
-      
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*');
+  // Fetch products with server-side pagination and search
+  const queryKey = createPaginationQueryKey(
+    'products',
+    page,
+    pageSize,
+    searchQuery ? { search: searchQuery } : undefined
+  );
 
-        console.log('Supabase response:', { data, error });
+  // Define the query function
+  const queryFn: QueryFunction<ProductsQueryResult, QueryKey> = async (): Promise<ProductsQueryResult> => {
+      console.log('Fetching products with pagination:', { page, pageSize, searchQuery });
+
+      try {
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize - 1;
+
+        // Build the base query
+        let query = supabase
+          .from('products')
+          .select('*', { count: 'exact' });
+
+        // Apply search filter if searchQuery exists
+        if (searchQuery) {
+          query = query.or(
+            `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`
+          );
+        }
+
+        // Get paginated data and count in a single query
+        const { data, error, count } = await query
+          .order('created_at', { ascending: false })
+          .range(start, end);
 
         if (error) {
-          console.error('Supabase error:', error);
+          console.error('Error fetching products:', error);
           throw error;
         }
 
-        if (!data) {
-          console.log('No data returned from Supabase');
-          return [];
-        }
+        const total = count || 0;
+        const meta = getPaginationMeta(total, page, pageSize);
 
-        console.log('Successfully fetched products:', data);
-        return data;
+        return {
+          data: data || [],
+          pagination: {
+            total,
+            page: meta.currentPage,
+            pageSize,
+            totalPages: meta.totalPages
+          }
+        };
       } catch (error) {
-        console.error('Error in queryFn:', error);
-        throw error;
+        console.error('Error in useProducts:', error);
+        return {
+          data: [],
+          pagination: {
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0
+          }
+        };
       }
-    },
-    retry: 1,
-    staleTime: 0,
-    refetchOnMount: true
-  });
+    };
+
+  // Create query options with proper typing
+  const queryOptions: UseQueryOptions<ProductsQueryResult, Error> = {
+    queryKey,
+    queryFn,
+    keepPreviousData: true,
+    refetchOnWindowFocus: false,
+    enabled
+  };
+
+  const {
+    data: productsData,
+    isLoading,
+    error,
+    refetch
+  } = useQuery<ProductsQueryResult, Error>(queryOptions);
 
   // Add validation for image files
   const validateImage = (file: File) => {
@@ -88,7 +180,7 @@ export function useProducts() {
   const createProduct = useMutation({
     mutationFn: async (productData: CreateProductData & { image_file?: File | null }) => {
       const { image_file, ...data } = productData;
-      
+
       // Validate image if provided
       if (image_file) {
         validateImage(image_file);
@@ -104,7 +196,7 @@ export function useProducts() {
         .select();
 
       if (insertError) throw insertError;
-      
+
       const newProduct = insertResult[0];
       return newProduct;
     },
@@ -119,22 +211,22 @@ export function useProducts() {
   const uploadProductImage = async (file: File, productId: string): Promise<string | null> => {
     const fileExt = file.type.split('/')[1];
     const fileName = `${productId}.${fileExt}`;
-    
+
     const { data, error } = await supabase.storage
       .from('product-images')
       .upload(fileName, file, {
         upsert: true,
         contentType: file.type
       });
-      
+
     if (error) {
       throw new Error(`Failed to upload image: ${error.message}`);
     }
-    
+
     const { data: urlData } = supabase.storage
       .from('product-images')
       .getPublicUrl(fileName);
-      
+
     return urlData?.publicUrl || null;
   };
 
@@ -163,10 +255,10 @@ export function useProducts() {
     },
     onError: (error) => {
       toast.error('Error', {
-        description: error instanceof Error ? 
-          (error.message.includes('products_sku_unique') ? 
-            'A product with this SKU already exists' : 
-            error.message) : 
+        description: error instanceof Error ?
+          (error.message.includes('products_sku_unique') ?
+            'A product with this SKU already exists' :
+            error.message) :
           'Failed to update product'
       });
     },
@@ -199,35 +291,56 @@ export function useProducts() {
   // Get product categories
   const { data: categories } = useQuery({
     queryKey: ['product-categories'],
-    queryFn: async () => {
+    queryFn: async (): Promise<string[]> => {
       const { data, error } = await supabase
         .from('products')
         .select('category')
-        .filter('category', 'neq', null)
+        .not('category', 'is', null)
         .filter('category', 'neq', '');
 
-      if (error) throw error;
-      
+      if (error) {
+        console.error('Error fetching categories:', error);
+        throw error;
+      }
+
       const uniqueCategories = [...new Set(data.map(item => item.category))];
-      return uniqueCategories.filter(Boolean);
+      return uniqueCategories.filter((category): category is string => Boolean(category));
     },
   });
 
+  // Default empty state
+  const defaultData: ProductsQueryResult = {
+    data: [],
+    pagination: {
+      page,
+      pageSize,
+      total: 0,
+      totalPages: 0
+    }
+  };
+
+  const { data = defaultData.data, pagination = defaultData.pagination } = productsData || {};
+
   return {
-    products,
+    products: data,
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total: pagination.total,
+      totalPages: pagination.totalPages
+    },
     isLoading,
     error,
+    searchQuery,
+    categoryFilter,
+    setCategoryFilter,
+    statusFilter,
+    setStatusFilter,
     refetch,
     createProduct,
     updateProduct,
     deleteProduct,
     uploadProductImage,
-    setSearchQuery,
-    setCategoryFilter,
-    setStatusFilter,
-    searchQuery,
-    categoryFilter,
-    statusFilter,
     categories
   };
 }

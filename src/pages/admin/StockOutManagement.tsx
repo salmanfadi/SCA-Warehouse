@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useStockOutRequests } from '@/hooks/useStockOutRequests';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useStockOutRequests, StockOutRequestData } from '@/hooks/useStockOutRequests';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/lib/pagination';
+import { Pagination } from '@/components/common/Pagination';
 import {
   Card,
   CardContent,
@@ -46,25 +48,78 @@ const StockOutManagement: React.FC = () => {
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<string>(
+    searchParams.get('status') || 'all'
+  );
+
+  // Get pagination from URL or use defaults
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
 
   // Handle back navigation
   const handleBackClick = () => {
     navigate('/admin');
   };
 
-  // Fetch stock out requests using the hook
-  const { data: stockOutResult, isLoading } = useStockOutRequests(
-    { status: statusFilter === 'all' ? undefined : statusFilter },
-    page,
-    pageSize
-  );
+  // Handle page change
+  const handlePageChange = useCallback((newPage: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', newPage.toString());
+    setSearchParams(params);
+    window.scrollTo(0, 0);
+  }, [searchParams, setSearchParams]);
 
-  const stockOutRequests = stockOutResult?.data ?? [];
-  const totalCount = stockOutResult?.totalCount ?? 0;
-  const totalPages = Math.ceil(totalCount / pageSize);
+  // Handle page size change
+  const handlePageSizeChange = useCallback((newSize: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('pageSize', newSize.toString());
+    params.set('page', '1'); // Reset to first page when changing page size
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
+  // Update URL when filter changes
+  React.useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (statusFilter === 'all') {
+      params.delete('status');
+    } else {
+      params.set('status', statusFilter);
+    }
+    params.set('page', '1'); // Reset to first page when filter changes
+    setSearchParams(params);
+  }, [statusFilter, searchParams, setSearchParams]);
+
+  // Fetch stock out requests using the hook
+  const { 
+    data: { data: stockOutData = [], pagination } = { 
+      data: [], 
+      pagination: { 
+        total: 0, 
+        page: 1, 
+        pageSize: 20, 
+        totalPages: 0 
+      } 
+    }, 
+    isLoading, 
+    isError,
+    refetch: refetchStockOuts 
+  } = useStockOutRequests({
+    filter: { 
+      status: statusFilter === 'all' ? undefined : statusFilter 
+    },
+    page,
+    pageSize,
+    enabled: true
+  });
+
+  useEffect(() => {
+    refetchStockOuts();
+  }, [statusFilter, refetchStockOuts]);
+
+  const stockOutRequests = stockOutData;
+  const totalCount = pagination?.total ?? 0;
+  const totalPages = pagination?.totalPages ?? 0;
 
   // Check available inventory for a product
   const getAvailableInventory = async (productId: string) => {
@@ -111,7 +166,7 @@ const StockOutManagement: React.FC = () => {
     updateStockOutMutation.mutate({ id, status });
   };
 
-  const handleApprove = async (stockOut: any) => {
+  const handleApprove = async (stockOut: StockOutRequestData) => {
     try {
       const productId = stockOut.product_id;
       
@@ -171,7 +226,7 @@ const StockOutManagement: React.FC = () => {
     setIsProcessingDialogOpen(true);
   };
 
-  const handleProcess = (stockOut: any) => {
+  const handleProcess = (stockOut: StockOutRequestData) => {
     const transformedStockOut = {
       id: stockOut.id,
       product: {
@@ -232,25 +287,44 @@ const StockOutManagement: React.FC = () => {
         </Button>
 
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Filter by status:</span>
-          <Select 
-            value={statusFilter} 
-            onValueChange={setStatusFilter}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">All Requests</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center justify-between space-x-2 mb-4">
+            <div className="flex items-center space-x-2">
+              <Select
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => handlePageSizeChange(Number(value))}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder={`${pageSize} per page`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size} per page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -267,8 +341,14 @@ const StockOutManagement: React.FC = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-4">Loading stock out requests...</div>
-          ) : stockOutRequests && stockOutRequests.length > 0 ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : isError ? (
+            <div className="text-center py-8">
+              <p className="text-destructive">Error loading stock out requests</p>
+            </div>
+          ) : stockOutRequests.length > 0 ? (
             <>
               <Table>
                 <TableHeader>
@@ -289,7 +369,7 @@ const StockOutManagement: React.FC = () => {
                   {stockOutRequests.map((stockOut) => {
                     // Friendly order code logic
                     const orderCode = stockOut.reference_number || (stockOut.id ? `ORDER-${stockOut.id.substring(0, 8).toUpperCase()}` : 'N/A');
-                    const customerName = stockOut.customer_name || stockOut.requester_name || stockOut.requested_by || 'Unknown';
+                    const customerName = stockOut.requester_name || stockOut.requested_by || 'Unknown';
                     return (
                       <TableRow key={stockOut.id}>
                         <TableCell>
@@ -353,52 +433,17 @@ const StockOutManagement: React.FC = () => {
                   })}
                 </TableBody>
               </Table>
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Showing page {page} of {totalPages} ({totalCount} requests)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage(1)}
-                      disabled={page === 1}
-                      className="h-8 w-8"
-                    >
-                      {'<<'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="h-8 w-8"
-                    >
-                      {'<'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
-                      className="h-8 w-8"
-                    >
-                      {'>'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage(totalPages)}
-                      disabled={page === totalPages}
-                      className="h-8 w-8"
-                    >
-                      {'>>'}
-                    </Button>
-                  </div>
+              {pagination.totalPages > 1 && (
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={handlePageSizeChange}
+
+                  />
                 </div>
               )}
             </>
@@ -423,19 +468,26 @@ const StockOutManagement: React.FC = () => {
       )}
 
       {/* Processing Dialog */}
-      <Dialog open={isProcessingDialogOpen} onOpenChange={setIsProcessingDialogOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Process Stock Out Request</DialogTitle>
-          </DialogHeader>
-          <ProcessStockOutForm
-            open={isProcessingDialogOpen}
-            onOpenChange={setIsProcessingDialogOpen}
-            stockOut={selectedStockOut}
-            userId={user?.id}
-          />
-        </DialogContent>
-      </Dialog>
+      {isProcessingDialogOpen && selectedStockOut && (
+        <Dialog open={isProcessingDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            // When dialog is closed, refetch the stockout list
+            refetchStockOuts();
+          }
+          setIsProcessingDialogOpen(open);
+        }}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Process Stock Out Request</DialogTitle>
+            </DialogHeader>
+            <ProcessStockOutForm
+              open={isProcessingDialogOpen}
+              onOpenChange={setIsProcessingDialogOpen}
+              stockOut={selectedStockOut}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Barcode Scanner Dialog */}
       <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>

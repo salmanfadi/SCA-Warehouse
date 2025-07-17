@@ -566,3 +566,63 @@ CREATE POLICY "Enable read access for all authenticated users" ON public.warehou
     FOR SELECT
     TO authenticated
     USING (true);
+
+-- Function to generate transfer IDs
+CREATE OR REPLACE FUNCTION generate_transfer_id()
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _date text;
+    _counter int;
+    _transfer_id text;
+BEGIN
+    -- Get current date in YYMMDD format
+    _date := to_char(current_timestamp, 'YYMMDD');
+    
+    -- Get current counter for today
+    SELECT COALESCE(MAX(SUBSTRING(id, 9)::integer), 0) + 1
+    INTO _counter
+    FROM inventory_transfers
+    WHERE id LIKE 'TRF' || _date || '%';
+    
+    -- Generate transfer ID: TRF + YYMMDD + 4-digit counter
+    _transfer_id := 'TRF' || _date || LPAD(_counter::text, 4, '0');
+    
+    RETURN _transfer_id;
+END;
+$$;
+
+-- Modify inventory_transfers table
+ALTER TABLE IF EXISTS public.inventory_transfers
+    ALTER COLUMN id SET DEFAULT generate_transfer_id(),
+    ALTER COLUMN id TYPE text;
+
+-- Add index for faster ID lookups
+CREATE INDEX IF NOT EXISTS idx_inventory_transfers_id ON public.inventory_transfers(id);
+
+-- Update existing records with new format
+WITH numbered_transfers AS (
+  SELECT 
+    id as old_id,
+    created_at,
+    'TRF' || 
+    to_char(created_at, 'YYMMDD') || 
+    LPAD(ROW_NUMBER() OVER (PARTITION BY to_char(created_at, 'YYMMDD') ORDER BY created_at)::text, 4, '0') as new_id
+  FROM inventory_transfers
+)
+UPDATE inventory_transfers it
+SET id = nt.new_id
+FROM numbered_transfers nt
+WHERE it.id = nt.old_id;
+
+-- Ensure all foreign key constraints are updated
+UPDATE inventory_transfer_details
+SET transfer_id = nt.new_id
+FROM numbered_transfers nt
+WHERE transfer_id = nt.old_id;
+
+UPDATE inventory_transfer_boxes
+SET transfer_id = nt.new_id
+FROM numbered_transfers nt
+WHERE transfer_id = nt.old_id;

@@ -26,7 +26,14 @@ const FieldOperatorTransfers: React.FC = () => {
     handleBarcodeScanned,
     removeScannedItem,
     transferMutation,
-    isSubmitDisabled
+    isSubmitDisabled,
+    selectedBoxes,
+    availableBoxes,
+    handleBoxSelectionChange,
+    products,
+    availableWarehouses,
+    selectedProductId,
+    setSelectedProductId
   } = useTransferLogic();
 
   const {
@@ -45,7 +52,7 @@ const FieldOperatorTransfers: React.FC = () => {
     <div className="space-y-6">
       <PageHeader 
         title="Transfer Inventory" 
-        description="Move inventory between warehouses and locations"
+        description="Move boxes between warehouses and locations"
       />
       
       <Button
@@ -63,10 +70,10 @@ const FieldOperatorTransfers: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <ScanLine className="mr-2 h-5 w-5" />
-              Scan Items
+              Scan Boxes
             </CardTitle>
             <CardDescription>
-              Scan inventory items to transfer
+              Scan boxes to transfer to another location
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -75,12 +82,14 @@ const FieldOperatorTransfers: React.FC = () => {
               allowManualEntry={true}
               inputValue={currentScannedBarcode}
               onInputChange={(e) => setCurrentScannedBarcode(e.target.value)}
-              scanButtonLabel="Scan Item"
+              scanButtonLabel="Scan Box"
             />
             
             <ScannedItemsList 
               scannedItems={scannedItems}
               onRemoveItem={removeScannedItem}
+              selectedBoxes={selectedBoxes}
+              onBoxSelectionChange={handleBoxSelectionChange}
             />
           </CardContent>
         </Card>
@@ -108,6 +117,13 @@ const FieldOperatorTransfers: React.FC = () => {
                 warehousesLoading={warehousesLoading}
                 locations={locations}
                 locationsLoading={locationsLoading}
+                availableBoxes={availableBoxes}
+                selectedBoxes={selectedBoxes}
+                onBoxSelectionChange={handleBoxSelectionChange}
+                products={products || []}
+                selectedProductId={selectedProductId}
+                setSelectedProductId={setSelectedProductId}
+                availableWarehouses={availableWarehouses || []}
               />
             </form>
           </CardContent>

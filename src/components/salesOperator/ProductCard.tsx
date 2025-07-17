@@ -10,30 +10,27 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
-    <Card className="overflow-hidden">
-      <div className="aspect-video bg-gray-100 flex items-center justify-center">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="object-cover w-full h-full"
-          />
-        ) : (
-          <Package className="h-12 w-12 text-gray-400" />
-        )}
+    <Card className="overflow-hidden h-full flex flex-col hover:shadow-md transition-shadow">
+      <div className="aspect-square bg-gray-50 flex items-center justify-center p-2">
+        <Package className="h-8 w-8 text-gray-300" />
       </div>
-      <CardHeader>
-        <CardTitle className="text-xl">{product.name}</CardTitle>
+      <CardHeader className="p-3 pb-0 flex-grow">
+        <CardTitle className="text-sm font-medium line-clamp-2 h-10">
+          {product.name}
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-600 mb-4">
-          {product.description || 'No description available'}
-        </p>
-        <div className="space-y-2 text-sm">
-          <p><span className="font-medium">SKU:</span> {product.sku}</p>
-          <p><span className="font-medium">Category:</span> {product.category}</p>
-          <p><span className="font-medium">Unit:</span> {product.unit}</p>
-          <p><span className="font-medium">GST Rate:</span> {product.gst_rate}%</p>
+      <CardContent className="p-3 pt-1 space-y-1 text-xs">
+        <div className="flex justify-between">
+          <span className="font-medium">SKU:</span>
+          <span className="text-gray-600">{product.sku || 'N/A'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Category:</span>
+          <span className="text-gray-600">{product.category || 'N/A'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">GST:</span>
+          <span className="text-gray-600">{product.gst_rate ? `${product.gst_rate}%` : 'N/A'}</span>
         </div>
       </CardContent>
     </Card>

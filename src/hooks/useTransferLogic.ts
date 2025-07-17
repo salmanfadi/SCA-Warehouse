@@ -1,21 +1,74 @@
 
 import { useState } from 'react';
-import { toast } from 'sonner';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+import { Box } from '@/types/stockout';
+import { Warehouse } from '@/types/warehouse';
 
-interface ScannedItem {
+export interface ScannedItem {
+  id: string;
   barcode: string;
   inventory_id: string;
-  product_name: string;
   product_id: string;
-  warehouse_name: string;
-  warehouse_id: string;
-  location_name: string;
-  location_id: string;
   quantity: number;
+  product_name: string;
+  product_sku: string;
+  warehouse_name: string;
+  location_name: string;
+  batch_id: string;
+  warehouse_id: string;
+  location_id: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string | null;
+  quantity: number;
+}
+
+interface InventoryWithProduct {
+  id: string;
+  product_id: string;
+  quantity: number;
+  products: {
+    id: string;
+    name: string;
+    sku: string | null;
+  };
+}
+
+interface InventoryWithWarehouse {
+  warehouse_id: string;
+  warehouses: Warehouse;
+}
+
+interface BatchBoxResponse {
+  id: string;
+  barcode: string;
+  batch_id: string;
+  status: string;
+  quantity: number;
+  product_id: string;
+  warehouse_id: string;
+  location_id: string;
+  products: {
+    id: string;
+    name: string;
+    sku: string | null;
+  };
+  warehouses: {
+    id: string;
+    name: string;
+  };
+  warehouse_locations: {
+    id: string;
+    zone: string;
+    floor: string;
+  };
 }
 
 export const useTransferLogic = () => {
@@ -23,135 +76,298 @@ export const useTransferLogic = () => {
   
   const [currentScannedBarcode, setCurrentScannedBarcode] = useState('');
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [targetWarehouseId, setTargetWarehouseId] = useState('');
   const [targetLocationId, setTargetLocationId] = useState('');
   const [reason, setReason] = useState('');
+  const [selectedBoxes, setSelectedBoxes] = useState<string[]>([]);
+  const [availableBoxes, setAvailableBoxes] = useState<Box[]>([]);
 
-  const handleBarcodeScanned = async (barcode: string) => {
-    setCurrentScannedBarcode(barcode);
-    
-    // Check if barcode already scanned
-    if (scannedItems.some(item => item.barcode === barcode)) {
-      toast.error('Duplicate barcode', {
-        description: 'This item has already been scanned.'
-      });
-      return;
-    }
-    
-    try {
-      // Query inventory details directly using a simple query
+  // Fetch products with quantity > 0
+  const { data: products } = useQuery<Product[]>({
+    queryKey: ['products-with-stock'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('inventory')
         .select(`
           id,
-          barcode,
+          product_id,
           quantity,
+          products (
+            id,
+            name,
+            sku
+          )
+        `)
+        .gt('quantity', 0);
+
+      if (error) throw error;
+
+      // Group by product and sum quantities
+      const productMap = new Map<string, Product>();
+      (data as unknown as InventoryWithProduct[] || []).forEach(item => {
+        if (!item.products) return;
+        const product = item.products;
+        const existingQuantity = productMap.get(product.id)?.quantity || 0;
+        productMap.set(product.id, {
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          quantity: existingQuantity + item.quantity
+        });
+      });
+
+      return Array.from(productMap.values());
+    }
+  });
+
+  // Fetch warehouses where selected product has stock
+  const { data: availableWarehouses } = useQuery<Warehouse[]>({
+    queryKey: ['warehouses-with-product', selectedProductId],
+    queryFn: async () => {
+      if (!selectedProductId) return [];
+
+      const { data, error } = await supabase
+        .from('inventory')
+        .select(`
+          warehouse_id,
+          warehouses (
+            id,
+            name,
+            location,
+            code,
+            address,
+            contact_person,
+            contact_phone,
+            is_active,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('product_id', selectedProductId)
+        .gt('quantity', 0);
+
+      if (error) throw error;
+
+      return (data as unknown as InventoryWithWarehouse[] || [])
+        .map(item => item.warehouses)
+        .filter((warehouse): warehouse is Warehouse => !!warehouse);
+    },
+    enabled: !!selectedProductId
+  });
+
+  const handleBarcodeScanned = async (barcode: string) => {
+    setCurrentScannedBarcode(barcode);
+    
+    try {
+      // Query box details using the barcode
+      const { data: boxData, error: boxError } = await supabase
+        .from('batch_items')
+        .select(`
+          id,
+          barcode,
+          batch_id,
           status,
+          quantity,
+          product_id,
           warehouse_id,
           location_id,
-          product_id,
-          color,
-          size,
-          products!inner(id, name, sku, category),
-          warehouses!inner(id, name),
-          warehouse_locations!inner(id, floor, zone)
+          products (
+            id,
+            name,
+            sku
+          ),
+          warehouses (
+            id,
+            name
+          ),
+          warehouse_locations (
+            id,
+            zone,
+            floor
+          )
         `)
         .eq('barcode', barcode)
         .eq('status', 'available')
-        .maybeSingle();
+        .single();
       
-      if (error) throw error;
+      if (boxError) throw boxError;
       
-      if (!data) {
+      if (!boxData) {
         toast.error('Invalid barcode', {
-          description: 'No inventory found with this barcode.'
+          description: 'No available box found with this barcode.'
         });
         return;
       }
+
+      // Check if box already scanned
+      if (scannedItems.some(item => item.barcode === barcode)) {
+        toast.error('Duplicate barcode', {
+          description: 'This box has already been scanned.'
+        });
+        return;
+      }
+
+      // Cast the response to our expected type
+      const box = boxData as unknown as BatchBoxResponse;
       
-      const product = data.products as any;
-      const warehouse = data.warehouses as any;
-      const location = data.warehouse_locations as any;
-      
-      // Add to scanned items
-      setScannedItems(prev => [...prev, {
-        barcode: data.barcode || '',
-        inventory_id: data.id,
+      const product = box.products;
+      const warehouse = box.warehouses;
+      const location = box.warehouse_locations;
+
+      if (!product || !warehouse || !location) {
+        toast.error('Invalid box data', {
+          description: 'Box is missing required product, warehouse, or location information.'
+        });
+        return;
+      }
+
+      // Set the selected product ID if not already set
+      if (!selectedProductId) {
+        setSelectedProductId(product.id);
+      } else if (selectedProductId !== product.id) {
+        toast.error('Product mismatch', {
+          description: 'Please scan boxes of the same product.'
+        });
+        return;
+      }
+
+      const newItem: ScannedItem = {
+        id: box.id,
+        barcode: box.barcode,
+        inventory_id: box.id,
+        product_id: product.id,
+        quantity: box.quantity,
         product_name: product.name,
-        product_id: data.product_id,
+        product_sku: product.sku || '',
         warehouse_name: warehouse.name,
-        warehouse_id: data.warehouse_id,
-        location_name: `Floor ${location.floor}, Zone ${location.zone}`,
-        location_id: data.location_id || '',
-        quantity: data.quantity
-      }]);
+        location_name: `${location.zone} - Floor ${location.floor}`,
+        batch_id: box.batch_id,
+        warehouse_id: warehouse.id,
+        location_id: location.id
+      };
+
+      setScannedItems(prev => [...prev, newItem]);
       
-      setCurrentScannedBarcode('');
-      
-      toast.success('Item scanned', {
-        description: `Added ${product.name} to transfer list.`
-      });
     } catch (error) {
-      console.error('Error fetching barcode details:', error);
-      toast.error('Error scanning barcode', {
-        description: error instanceof Error ? error.message : 'Failed to process barcode'
+      console.error('Error scanning barcode:', error);
+      toast.error('Scan failed', {
+        description: 'Failed to process barcode scan.'
       });
     }
   };
-  
-  const removeScannedItem = (index: number) => {
-    const updatedItems = [...scannedItems];
-    updatedItems.splice(index, 1);
-    setScannedItems(updatedItems);
+
+  const removeScannedItem = (barcode: string) => {
+    setScannedItems(prev => {
+      const newItems = prev.filter(item => item.barcode !== barcode);
+      // If no items left, reset selected product
+      if (newItems.length === 0) {
+        setSelectedProductId('');
+      }
+      return newItems;
+    });
   };
-  
+
+  const handleBoxSelectionChange = (boxId: string, selected: boolean) => {
+    setSelectedBoxes(prev => 
+      selected 
+        ? [...prev, boxId]
+        : prev.filter(id => id !== boxId)
+    );
+  };
+
   const transferMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id || !targetWarehouseId || !targetLocationId || scannedItems.length === 0) {
+      if (!user?.id || !targetWarehouseId || !targetLocationId || selectedBoxes.length === 0) {
         throw new Error('Missing required fields');
       }
       
-      // Generate a unique transfer reference ID to link related movements
+      // Generate a unique transfer reference ID
       const transferReferenceId = uuidv4();
       
-      // Create inventory movements for each scanned item
-      const promises = scannedItems.map(async (item) => {
-        // Create movement record
-        await supabase
-          .from('inventory_movements')
-          .insert({
-            inventory_id: item.inventory_id,
-            movement_type: 'transfer',
-            quantity: item.quantity,
-            performed_by: user.id,
-            transfer_reference_id: transferReferenceId,
-            notes: reason || 'Field transfer'
-          });
-        
-        // Update the inventory record
-        await supabase
-          .from('inventory')
+      // Create new batch for the transferred boxes
+      const newBatchId = uuidv4();
+      const firstBox = scannedItems[0];
+      
+      // Insert new batch record
+      const { error: batchError } = await supabase
+        .from('processed_batches')
+        .insert({
+          id: newBatchId,
+          batch_number: `TRF-${transferReferenceId.slice(0, 8)}`,
+          product_id: firstBox.product_id,
+          warehouse_id: targetWarehouseId,
+          location_id: targetLocationId,
+          status: 'available',
+          processed_by: user.id,
+          total_boxes: selectedBoxes.length,
+          total_quantity: scannedItems.reduce((sum, item) => sum + item.quantity, 0),
+          source: 'transfer',
+          notes: reason || 'Transfer batch'
+        });
+      
+      if (batchError) throw batchError;
+
+      // Create transfer record
+      const { error: transferError } = await supabase
+        .from('inventory_transfers')
+        .insert({
+          id: transferReferenceId,
+          source_warehouse_id: firstBox.warehouse_id,
+          destination_warehouse_id: targetWarehouseId,
+          source_location_id: firstBox.location_id,
+          destination_location_id: targetLocationId,
+          status: 'completed',
+          created_by: user.id,
+          notes: reason,
+          source_batch_id: firstBox.batch_id,
+          new_batch_id: newBatchId
+        });
+
+      if (transferError) throw transferError;
+
+      // Update boxes with new batch ID and location
+      const updatePromises = selectedBoxes.map(boxId => 
+        supabase
+          .from('batch_items')
           .update({
+            batch_id: newBatchId,
             warehouse_id: targetWarehouseId,
             location_id: targetLocationId,
+            status: 'available'
           })
-          .eq('id', item.inventory_id);
-      });
-      
-      await Promise.all(promises);
+          .eq('id', boxId)
+      );
+
+      // Create transfer box records
+      const transferBoxPromises = selectedBoxes.map(boxId =>
+        supabase
+          .from('inventory_transfer_boxes')
+          .insert({
+            transfer_id: transferReferenceId,
+            box_id: boxId,
+            source_batch_id: firstBox.batch_id,
+            new_batch_id: newBatchId
+          })
+      );
+
+      await Promise.all([...updatePromises, ...transferBoxPromises]);
       
       return { success: true };
     },
     onSuccess: () => {
-      toast.success('Transfer submitted', {
-        description: `Successfully transferred ${scannedItems.length} items.`
+      toast.success('Transfer completed', {
+        description: `Successfully transferred ${selectedBoxes.length} boxes to new batch.`
       });
       setScannedItems([]);
+      setSelectedBoxes([]);
       setTargetWarehouseId('');
       setTargetLocationId('');
       setReason('');
+      setSelectedProductId('');
     },
     onError: (error) => {
+      console.error('Transfer failed:', error);
       toast.error('Transfer failed', {
         description: error instanceof Error ? error.message : 'Failed to process transfer'
       });
@@ -159,7 +375,7 @@ export const useTransferLogic = () => {
   });
 
   const isSubmitDisabled = () => {
-    return scannedItems.length === 0 || !targetWarehouseId || !targetLocationId || transferMutation.isPending;
+    return selectedBoxes.length === 0 || !targetWarehouseId || !targetLocationId || transferMutation.isPending;
   };
 
   return {
@@ -175,6 +391,13 @@ export const useTransferLogic = () => {
     handleBarcodeScanned,
     removeScannedItem,
     transferMutation,
-    isSubmitDisabled
+    isSubmitDisabled,
+    selectedBoxes,
+    availableBoxes,
+    handleBoxSelectionChange,
+    products,
+    availableWarehouses,
+    selectedProductId,
+    setSelectedProductId
   };
 };

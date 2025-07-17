@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import type { PostgrestError } from '@supabase/supabase-js';
 
@@ -136,25 +135,42 @@ export const stockOperations = {
   /**
    * Process a stock out request
    */
-  processStockOut: async (stockOutId: string, userId: string, status: 'approved' | 'rejected') => {
-    const updateData = status === 'approved' 
-      ? {
-          status,
-          approved_by: userId,
-          approved_at: new Date().toISOString(),
-        }
-      : {
-          status,
-          rejected_by: userId,
-          rejected_at: new Date().toISOString(),
-        };
+  processStockOut: async (stockOutId: string, userId: string, status: 'approved' | 'rejected' | 'completed') => {
+    let updateData: Record<string, any> = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    // Set appropriate fields based on status
+    if (status === 'approved') {
+      updateData = {
+        ...updateData,
+        approved_by: userId,
+        approved_at: new Date().toISOString(),
+      };
+    } else if (status === 'rejected') {
+      updateData = {
+        ...updateData,
+        rejected_by: userId,
+        rejected_at: new Date().toISOString(),
+      };
+    } else if (status === 'completed') {
+      updateData = {
+        ...updateData,
+        processed_by: userId,
+        processed_at: new Date().toISOString(),
+      };
+    }
         
     return executeQuery('stock_out', async (supabase) => {
-      return await supabase
+      const { data, error } = await supabase
         .from('stock_out')
         .update(updateData)
         .eq('id', stockOutId)
         .select();
+      
+      console.log(' [processStockOut] Update result:', { data, error });
+      return { data, error };
     });
   },
   

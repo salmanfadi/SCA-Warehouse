@@ -5,13 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue, 
-} from '@/components/ui/select';
+import { Check, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -28,10 +23,12 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/types/database.types';
 
+
 type StockIn = Database['public']['Tables']['stock_in']['Insert'];
 
 interface StockInFormData {
   productId: string;
+  productName: string;
   numberOfBoxes: string | number;
   source: string;
   notes: string;
@@ -58,10 +55,26 @@ const StockInForm: React.FC = () => {
   
   const [formData, setFormData] = useState<StockInFormData>({
     productId: '',
+    productName: '',
     numberOfBoxes: '',
     source: '',
     notes: '',
   });
+
+  // Handle product selection from input
+  const handleProductInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Find if the current value matches any product
+    const selectedProduct = products?.find(p => 
+      `${p.name} ${p.sku ? `(SKU: ${p.sku})` : ''}` === value
+    );
+    
+    setFormData(prev => ({
+      ...prev,
+      productName: value,
+      productId: selectedProduct?.id || ''
+    }));
+  };
   
   const [formErrors, setFormErrors] = useState({
     numberOfBoxes: '',
@@ -123,17 +136,7 @@ const StockInForm: React.FC = () => {
     },
   });
   
-  const handleProductChange = (value: string) => {
-    setFormData({ ...formData, productId: value });
-    
-    // Find product details for confirmation dialog
-    if (products) {
-      const product = products.find(p => p.id === value);
-      if (product) {
-        setSelectedProduct({ name: product.name, sku: product.sku });
-      }
-    }
-  };
+
   
   const handleBoxesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -215,6 +218,11 @@ const StockInForm: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.productId) {
+      toast.error('Please select a valid product');
+      return;
+    }
+    
     if (!validateForm()) {
       return;
     }
@@ -274,29 +282,35 @@ const StockInForm: React.FC = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="product">Product</Label>
-                <Select 
-                  value={formData.productId} 
-                  onValueChange={handleProductChange}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="" disabled>Select a product</SelectItem>
+                <div className="relative">
+                  <Input
+                    id="product"
+                    list="products-list"
+                    value={formData.productName}
+                    onChange={handleProductInput}
+                    placeholder="Type or select a product..."
+                    className="w-full"
+                    required
+                    autoComplete="off"
+                  />
+                  <datalist id="products-list">
                     {productsLoading ? (
-                      <SelectItem value="loading-products" disabled>Loading products...</SelectItem>
+                      <option value="Loading products..." disabled />
                     ) : products && products.length > 0 ? (
-                      products.map(product => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} {product.sku ? `(SKU: ${product.sku})` : ''}
-                        </SelectItem>
+                      products.map((product) => (
+                        <option 
+                          key={product.id} 
+                          value={`${product.name} ${product.sku ? `(SKU: ${product.sku})` : ''}`}
+                        >
+                          {product.name} {product.sku && `(SKU: ${product.sku})`}
+                        </option>
                       ))
                     ) : (
-                      <SelectItem value="no-products" disabled>No products available</SelectItem>
+                      <option value="No products available" disabled />
                     )}
-                  </SelectContent>
-                </Select>
+                  </datalist>
+
+                </div>
               </div>
               
               <div className="space-y-2">

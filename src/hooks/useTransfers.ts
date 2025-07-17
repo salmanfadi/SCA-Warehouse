@@ -9,17 +9,14 @@ type InventoryTransferInsert = Database['public']['Tables']['inventory_transfers
 
 // Define interface for TransferForm.tsx
 export interface TransferFormData {
+  product_id: string;
+  quantity: number;
   source_warehouse_id: string;
-  source_location_id?: string;
+  source_location_id: string;
   destination_warehouse_id: string;
-  destination_location_id?: string;
+  destination_location_id: string;
   notes?: string;
-  
-  // Form field names that match what's used in TransferForm.tsx
-  fromWarehouseId?: string;
-  fromLocationId?: string;
-  toWarehouseId?: string;
-  toLocationId?: string;
+  transfer_reason?: string;
 }
 
 export const useTransfers = () => {

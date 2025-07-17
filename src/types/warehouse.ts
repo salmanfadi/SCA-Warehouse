@@ -2,17 +2,16 @@
 export interface Warehouse {
   id: string;
   name: string;
-  code: string | null;
-  location: string | null;
-  address: string | null;
-  contact_person: string | null;
-  contact_phone: string | null;
-  is_active: boolean;
+  code: string;
+  address: string;
+  contact_person: string;
+  contact_phone: string;
+  contact_email: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface WarehouseLocation {
+export interface Location {
   id: string;
   warehouse_id: string;
   zone: string;
