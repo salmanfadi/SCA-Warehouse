@@ -1,15 +1,16 @@
 import React from 'react';
-import { StatsCard } from '@/components/ui/StatsCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Package, Warehouse, PackageCheck } from 'lucide-react';
 
 export interface DashboardStats {
-  users: number;
-  warehouses: number;
-  products: number;
-  inventory: number;
+  totalUsers: number;
+  totalProducts: number;
+  totalWarehouses: number;
+  totalStockIn: number;
 }
 
-export interface DashboardStatsGridProps {
-  stats?: DashboardStats;
+interface DashboardStatsGridProps {
+  stats: DashboardStats;
   loading?: boolean;
 }
 
@@ -17,46 +18,70 @@ export const DashboardStatsGrid: React.FC<DashboardStatsGridProps> = ({
   stats, 
   loading = false 
 }) => {
+  const statItems = [
+    {
+      title: 'Total Users',
+      value: stats?.totalUsers || 0,
+      icon: <Users className="h-4 w-4 text-muted-foreground" />,
+      description: 'Active system users'
+    },
+    {
+      title: 'Total Products',
+      value: stats?.totalProducts || 0,
+      icon: <Package className="h-4 w-4 text-muted-foreground" />,
+      description: 'Products in catalog'
+    },
+    {
+      title: 'Total Warehouses',
+      value: stats?.totalWarehouses || 0,
+      icon: <Warehouse className="h-4 w-4 text-muted-foreground" />,
+      description: 'Active warehouses'
+    },
+    {
+      title: 'Stock In Requests',
+      value: stats?.totalStockIn || 0,
+      icon: <PackageCheck className="h-4 w-4 text-muted-foreground" />,
+      description: 'Total stock in requests'
+    }
+  ];
+
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 bg-gray-200 animate-pulse rounded-lg"></div>
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Loading...</CardTitle>
+              <div className="h-4 w-4 animate-pulse bg-muted rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                <div className="h-8 w-24 animate-pulse bg-muted rounded" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <div className="h-4 w-32 animate-pulse bg-muted rounded mt-1" />
+              </p>
+            </CardContent>
+          </Card>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="col-span-1 md:col-span-2 lg:col-span-1 flex flex-col gap-2">
-        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1 ml-1">User</span>
-        <StatsCard
-          title="Total Users"
-          value={stats?.users?.toString() || '0'}
-          description="Active users in system"
-        />
-      </div>
-      <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col gap-2">
-        <span className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1 ml-1">Stock</span>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <StatsCard
-            title="Warehouses"
-            value={stats?.warehouses?.toString() || '0'}
-            description="Total warehouse locations"
-          />
-          <StatsCard
-            title="Products"
-            value={stats?.products?.toString() || '0'}
-            description="Products in catalog"
-          />
-          <StatsCard
-            title="Inventory Items"
-            value={stats?.inventory?.toString() || '0'}
-            description="Total inventory items"
-          />
-        </div>
-      </div>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {statItems.map((item) => (
+        <Card key={item.title}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+            {item.icon}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{item.value}</div>
+            <p className="text-xs text-muted-foreground">{item.description}</p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 };
