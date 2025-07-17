@@ -1,0 +1,520 @@
+/**
+ * StockOutHistoryPage Component
+ * 
+ * This page displays a history of processed stock-outs with detailed information
+ * about which items were processed, by whom, and from which locations.
+ * 
+ * @lastModified 2025-07-16
+ */
+
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2, Search, FileDown, Eye, X, ChevronDown, Download, Filter } from 'lucide-react';
+import { executeQuery } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { StockOutDetailsView } from '@/components/stock-out/StockOutDetailsView';
+
+// Format date helper function
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+  return format(new Date(dateString), 'PPP');
+};
+
+interface StockOutHistory {
+  id: string;
+  reference_number: string;
+  customer_inquiry_id: string | null;
+  status: string;
+  created_at: string;
+  processed_at: string | null;
+  processed_by: string | null;
+  customer_name: string;
+  user_name?: string;
+}
+
+interface DateRange {
+  start?: string;
+  end?: string;
+}
+
+/**
+ * StockOutHistoryPage Component
+ */
+const StockOutHistoryPage: React.FC = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange>({});
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedStockOut, setSelectedStockOut] = useState<StockOutHistory | null>(null);
+
+  // Get status variant for badge styling
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "success" => {
+    switch (status) {
+      case 'completed':
+        return 'success';
+      case 'processing':
+        return 'secondary';
+      case 'cancelled':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
+
+  // Query to fetch stock-out history data
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['stock-out-history', page, pageSize, searchTerm, dateRange, statusFilter],
+    queryFn: async () => {
+      try {
+        // First get the total count for pagination
+        const { count, error: countError } = await executeQuery('stock-out-count', async (supabase) => {
+          let countQuery = supabase.from('stock_out').select('*', { count: 'exact', head: true });
+          
+          // Apply filters
+          if (searchTerm) {
+            countQuery = countQuery.or(`reference_number.ilike.%${searchTerm}%`);
+          }
+          
+          if (dateRange.start) {
+            countQuery = countQuery.gte('created_at', dateRange.start);
+          }
+          
+          if (dateRange.end) {
+            countQuery = countQuery.lte('created_at', dateRange.end);
+          }
+          
+          if (statusFilter !== 'all') {
+            countQuery = countQuery.eq('status', statusFilter);
+          }
+          
+          return await countQuery;
+        });
+        
+        if (countError) {
+          console.error('Error getting count:', countError);
+        }
+        
+        // Now get the actual data
+        const { data, error } = await executeQuery('stock-out-history', async (supabase) => {
+          // Direct query with minimal joins to avoid foreign key issues
+          let query = supabase
+            .from('stock_out')
+            .select(`
+              id,
+              reference_number,
+              customer_inquiry_id,
+              status,
+              created_at,
+              processed_at,
+              processed_by,
+              customer_name,
+              profiles(full_name)
+            `)
+            .order('created_at', { ascending: false })
+            .range((page - 1) * pageSize, page * pageSize - 1);
+          
+          // Apply filters
+          if (searchTerm) {
+            query = query.or(`reference_number.ilike.%${searchTerm}%`);
+          }
+          
+          if (dateRange.start) {
+            query = query.gte('created_at', dateRange.start);
+          }
+          
+          if (dateRange.end) {
+            query = query.lte('created_at', dateRange.end);
+          }
+          
+          if (statusFilter !== 'all') {
+            query = query.eq('status', statusFilter);
+          }
+          
+          return await query;
+        });
+        
+        if (error) throw new Error(error.message);
+        
+        // Transform the data to match our interface
+        const stockOuts = data?.map((stockOut: any) => ({
+          id: stockOut.id,
+          reference_number: stockOut.reference_number,
+          customer_inquiry_id: stockOut.customer_inquiry_id,
+          status: stockOut.status,
+          created_at: stockOut.created_at,
+          processed_at: stockOut.processed_at,
+          processed_by: stockOut.processed_by,
+          customer_name: stockOut.customer_name || 'Unknown Customer',
+          user_name: stockOut.profiles?.full_name || 'Unknown User'
+        })) || [];
+        
+        return {
+          stock_outs: stockOuts,
+          total: count || 0,
+          page,
+          pageSize,
+          totalPages: Math.ceil((count || 0) / pageSize)
+        };
+      } catch (err: any) {
+        console.error('Error fetching stock-out history:', err);
+        throw new Error(err.message || 'Failed to load stock-out history');
+      }
+    },
+    keepPreviousData: true
+  });
+  
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+  
+  // Handle search
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1); // Reset to first page when searching
+  };
+  
+  // Handle status filter change
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1); // Reset to first page when filtering
+  };
+  
+  // Handle date range change
+  const handleDateRangeChange = (range: DateRange) => {
+    setDateRange(range);
+    setPage(1); // Reset to first page when filtering
+  };
+  
+  // Handle export
+  const handleExport = async () => {
+    toast.info('Export functionality not implemented yet');
+  };
+  
+  return (
+    <DashboardLayout>
+      <div className="container mx-auto py-6">
+        <div className="flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Stock-Out History</h1>
+              <p className="text-muted-foreground">
+                View and manage historical stock-out records
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </div>
+          </div>
+          
+          {/* Filters */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Filters</CardTitle>
+              <CardDescription>
+                Filter stock-out records by reference number, date, or status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search by reference number..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="w-full md:w-48">
+                  <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button type="submit">
+                  <Search className="mr-2 h-4 w-4" />
+                  Search
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+          
+          {/* Results */}
+          {isLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="animate-spin mr-2" />
+              <span>Loading history data...</span>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 text-red-800 p-4 rounded-md">
+              <p className="font-medium">Error loading stock-out history</p>
+              <p className="text-sm mt-1">{(error as Error).message}</p>
+              <Button 
+                variant="outline" 
+                className="mt-2"
+                onClick={() => queryClient.invalidateQueries(['stock-out-history'])}
+              >
+                Try Again
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="relative w-full overflow-hidden">
+                <Table className="w-full border-collapse table-auto">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data?.stock_outs?.length ? (
+                      data.stock_outs.map((stockOut) => (
+                        <TableRow key={stockOut.id}>
+                          <TableCell className="font-medium">{stockOut.reference_number}</TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusVariant(stockOut.status)}>
+                              {stockOut.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{formatDate(stockOut.created_at)}</TableCell>
+                          <TableCell>
+                            <div className="relative group">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      variant={stockOut.status === 'completed' ? 'outline' : 'ghost'} 
+                                      size="sm"
+                                      onClick={() => setSelectedStockOut(stockOut)}
+                                      aria-label={`View details for stock-out ${stockOut.reference_number}`}
+                                    >
+                                      <Eye className="mr-1 h-4 w-4" />
+                                      View Details
+                                    </Button>
+                                  </TooltipTrigger>
+                                  {stockOut.status !== 'completed' && (
+                                    <TooltipContent>
+                                      <p>Limited information available for {stockOut.status} orders</p>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <div className="flex flex-col items-center justify-center text-gray-500">
+                            <p>No stock-out records found</p>
+                            <p className="text-sm mt-1">Try adjusting your filters</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Pagination */}
+              {data && data.totalPages > 1 && (
+                <div className="flex justify-center mt-6">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => handlePageChange(Math.max(1, page - 1))}
+                          disabled={page === 1}
+                        />
+                      </PaginationItem>
+                      
+                      {Array.from({ length: Math.min(5, data.totalPages) }, (_, i) => {
+                        // Show pages around current page
+                        let pageNum = page;
+                        if (page <= 3) {
+                          pageNum = i + 1;
+                        } else if (page >= data.totalPages - 2) {
+                          pageNum = data.totalPages - 4 + i;
+                        } else {
+                          pageNum = page - 2 + i;
+                        }
+                        
+                        if (pageNum > 0 && pageNum <= data.totalPages) {
+                          return (
+                            <PaginationItem key={pageNum}>
+                              <PaginationLink
+                                isActive={pageNum === page}
+                                onClick={() => handlePageChange(pageNum)}
+                              >
+                                {pageNum}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        }
+                        return null;
+                      })}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => handlePageChange(Math.min(data.totalPages, page + 1))}
+                          disabled={page === data.totalPages}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      
+      {/* Stock-out details dialog */}
+      {selectedStockOut && (
+        <Dialog open={!!selectedStockOut} onOpenChange={(open) => !open && setSelectedStockOut(null)}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex justify-between items-center">
+                <span>Stock-Out Details: {selectedStockOut.reference_number}</span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setSelectedStockOut(null)}
+                  className="h-6 w-6"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogTitle>
+              <DialogDescription>
+                Created on {formatDate(selectedStockOut.created_at)}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Status</h3>
+                  <Badge variant={getStatusVariant(selectedStockOut.status)}>
+                    {selectedStockOut.status}
+                  </Badge>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Customer</h3>
+                  <p className="font-medium">{selectedStockOut.customer_name || 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Processed At</h3>
+                  <p className="font-medium">
+                    {selectedStockOut.processed_at ? formatDate(selectedStockOut.processed_at) : 'Not processed yet'}
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Processed By</h3>
+                  <p className="font-medium">{selectedStockOut.user_name || 'Not processed yet'}</p>
+                </div>
+              </div>
+              
+              {selectedStockOut.status === 'completed' ? (
+                <StockOutDetailsView stockOutId={selectedStockOut.id} className="mt-4" />
+              ) : (
+                <div className="text-center p-6 border rounded-lg bg-gray-50 mt-4">
+                  <div className="mb-4">
+                    <p className="text-lg font-medium">Detailed information unavailable</p>
+                    <div className="text-sm text-gray-500 mt-1">
+                      This order has a status of{' '}
+                      <Badge variant={getStatusVariant(selectedStockOut.status)}>
+                        {selectedStockOut.status}
+                      </Badge>
+                      {' '}and has not been fully processed yet.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter className="pt-2 border-t">
+              <Button onClick={() => setSelectedStockOut(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </DashboardLayout>
+  );
+};
+
+export default StockOutHistoryPage;

@@ -1,3 +1,13 @@
+/**
+ * StockOutHistoryPage Component
+ * 
+ * This page displays a history of processed stock-outs with detailed information
+ * about which items were processed, by whom, and from which locations.
+ * 
+ * @author Cascade AI
+ * @lastModified 2025-07-16
+ */
+
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -8,14 +18,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/table';
+} from '@/components/ui/table';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card';
+} from '@/components/ui/card';
 import {
   Pagination,
   PaginationContent,
@@ -23,17 +33,12 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from '../components/ui/pagination';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
+} from '@/components/ui/pagination';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -41,12 +46,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog';
-import { Loader2, Search, FileDown, Eye, X } from 'lucide-react';
-import { executeQuery } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import DashboardLayout from '../components/layouts/DashboardLayout';
+} from '@/components/ui/dialog';
+import { Loader2, Search, FileDown, Eye, X, ChevronDown, Download, Filter } from 'lucide-react';
+import { executeQuery } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { StockOutDetailsView } from '@/components/stock-out/StockOutDetailsView';
+
+// Format date helper function
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+  return format(new Date(dateString), 'PPP');
+};
 
 // Define the interface for processed items
 interface ProcessedItem {
@@ -82,7 +98,7 @@ interface StockOutHistory {
   processed_by: string | null;
   customer_name: string;
   user_name: string;
-  processed_items: ProcessedItem[];
+  processed_items?: ProcessedItem[];
 }
 
 interface DateRange {
@@ -106,174 +122,19 @@ const StockOutHistoryPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedStockOut, setSelectedStockOut] = useState<StockOutHistory | null>(null);
   
-  // Function to fetch detailed processed items for a stock-out
-  const fetchProcessedItems = async (stockOutId: string) => {
-    try {
-      // Try using the database function first
-      try {
-        const { data, error } = await executeQuery('stock-out-processed-items', async (supabase) => {
-          return await supabase.rpc('get_stock_out_details', { p_stock_out_id: stockOutId });
-        });
-
-        if (!error && data && data.length > 0) {
-          // Transform the data to match our ProcessedItem interface
-          const rawItems = data.map((item: any) => ({
-            id: item.id || '',
-            stock_out_detail_id: item.stock_out_detail_id || '',
-            batch_item_id: item.batch_item_id || '',
-            quantity: item.quantity || 0,
-            processed_by: item.processed_by || '',
-            processed_at: item.processed_at || '',
-            notes: item.notes,
-            barcode: item.barcode || 'Unknown',
-            product_name: item.product_name || 'Unknown Product',
-            product_sku: item.product_sku || 'No SKU',
-            user_name: item.user_name || 'Unknown User',
-            user_role: item.user_role || 'Staff',
-            warehouse_name: item.warehouse_name || 'Unknown Warehouse',
-            floor: item.floor,
-            zone: item.zone || '',
-            location_data: {
-              warehouse_name: item.warehouse_name || 'Unknown Warehouse',
-              floor: item.floor,
-              zone: item.zone || ''
-            }
-          }));
-          
-          // Group items by product SKU and barcode to eliminate duplicates
-          const groupedItems = new Map();
-          
-          rawItems.forEach(item => {
-            const key = `${item.product_sku}-${item.barcode}`;
-            
-            if (groupedItems.has(key)) {
-              // If we already have this product+barcode combination, add the quantities
-              const existingItem = groupedItems.get(key);
-              existingItem.quantity += item.quantity;
-            } else {
-              // Otherwise add it to our map
-              groupedItems.set(key, {...item});
-            }
-          });
-          
-          // Convert the map back to an array
-          return Array.from(groupedItems.values());
-        }
-        
-        // If we get here, either there was an error or no data, so we'll fall back to the direct query
-        if (error) {
-          console.warn('RPC function error, falling back to direct query:', error.message);
-        }
-      } catch (rpcError) {
-        console.warn('RPC function failed, falling back to direct query:', rpcError);
-      }
-      
-      // Fallback: Direct query approach
-      const { data: processedItems, error: itemsError } = await executeQuery('processed-items-direct', async (supabase) => {
-        return await supabase
-          .from('stock_out_processed_items')
-          .select(`
-            id, stock_out_detail_id, batch_item_id, quantity, processed_by, processed_at, notes, barcode, product_id, location_id
-          `)
-          .eq('stock_out_id', stockOutId);
-      });
-      
-      if (itemsError) throw new Error(itemsError.message);
-      if (!processedItems || processedItems.length === 0) return [];
-      
-      // Get product details
-      const productIds = [...new Set(processedItems.map(item => item.product_id).filter(Boolean))];
-      const { data: products } = await executeQuery('products', async (supabase) => {
-        return await supabase
-          .from('products')
-          .select('id, name, sku')
-          .in('id', productIds);
-      });
-      
-      // Get user details
-      const userIds = [...new Set(processedItems.map(item => item.processed_by).filter(Boolean))];
-      const { data: users } = await executeQuery('users', async (supabase) => {
-        return await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-      });
-      
-      // Get location details
-      const locationIds = [...new Set(processedItems.map(item => item.location_id).filter(Boolean))];
-      const { data: locations } = await executeQuery('locations', async (supabase) => {
-        return await supabase
-          .from('locations')
-          .select('id, warehouse_id')
-          .in('id', locationIds);
-      });
-      
-      const { data: warehouseLocations } = await executeQuery('warehouse-locations', async (supabase) => {
-        return await supabase
-          .from('warehouse_locations')
-          .select('id, floor, zone')
-          .in('id', locationIds);
-      });
-      
-      // Get warehouse details
-      const warehouseIds = [...new Set((locations || []).map(loc => loc.warehouse_id).filter(Boolean))];
-      const { data: warehouses } = await executeQuery('warehouses', async (supabase) => {
-        return await supabase
-          .from('warehouses')
-          .select('id, name')
-          .in('id', warehouseIds);
-      });
-      
-      // Create lookup maps
-      const productMap = new Map();
-      (products || []).forEach((p: any) => productMap.set(p.id, p));
-      
-      const userMap = new Map();
-      (users || []).forEach((u: any) => userMap.set(u.id, u));
-      
-      const locationMap = new Map();
-      (locations || []).forEach((l: any) => locationMap.set(l.id, l));
-      
-      const warehouseLocationMap = new Map();
-      (warehouseLocations || []).forEach((wl: any) => warehouseLocationMap.set(wl.id, wl));
-      
-      const warehouseMap = new Map();
-      (warehouses || []).forEach((w: any) => warehouseMap.set(w.id, w));
-      
-      // Transform the data
-      return processedItems.map((item: any) => {
-        const product = productMap.get(item.product_id) || {};
-        const user = userMap.get(item.processed_by) || {};
-        const location = locationMap.get(item.location_id) || {};
-        const warehouseLocation = warehouseLocationMap.get(item.location_id) || {};
-        const warehouse = warehouseMap.get(location.warehouse_id) || {};
-        
-        return {
-          id: item.id || '',
-          stock_out_detail_id: item.stock_out_detail_id || '',
-          batch_item_id: item.batch_item_id || '',
-          quantity: item.quantity || 0,
-          processed_by: item.processed_by || '',
-          processed_at: item.processed_at || '',
-          notes: item.notes,
-          barcode: item.barcode || 'Unknown',
-          product_name: product.name || 'Unknown Product',
-          product_sku: product.sku || 'No SKU',
-          user_name: user.full_name || 'Unknown User',
-          warehouse_name: warehouse.name || 'Unknown Warehouse',
-          floor: warehouseLocation.floor,
-          zone: warehouseLocation.zone || '',
-          location_data: {
-            warehouse_name: warehouse.name || 'Unknown Warehouse',
-            floor: warehouseLocation.floor,
-            zone: warehouseLocation.zone || ''
-          }
-        };
-      });
-    } catch (err: any) {
-      console.error('Error fetching processed items:', err);
-      toast.error('Failed to load processed items');
-      return [];
+  // Get status variant for badge styling
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "success" => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'success';
+      case 'processing':
+      case 'pending':
+        return 'secondary';
+      case 'cancelled':
+      case 'rejected':
+        return 'destructive';
+      default:
+        return 'outline';
     }
   };
 
@@ -390,19 +251,7 @@ const StockOutHistoryPage: React.FC = () => {
     }
   };
   
-  // Get badge variant based on status
-  const getStatusVariant = (status: string): 'default' | 'outline' | 'secondary' | 'destructive' => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return 'default';
-      case 'pending':
-        return 'secondary';
-      case 'rejected':
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
+  // Format date already defined above, no need for duplicate function
   
   // Handle search
   const handleSearch = (e: React.FormEvent) => {
@@ -549,52 +398,12 @@ const StockOutHistoryPage: React.FC = () => {
                         <TableCell>
                           <div className="relative group">
                             <Button 
-                              variant="outline" 
+                              variant={stockOut.status === 'completed' ? 'outline' : 'ghost'} 
                               size="sm"
-                              onClick={async () => {
-                                if (stockOut.status === 'completed') {
-                                  // Show loading state
-                                  const loadingToast = toast.loading('Loading detailed information...');
-                                  
-                                  try {
-                                    // Fetch detailed processed items
-                                    const processedItems = await fetchProcessedItems(stockOut.id);
-                                    
-                                    // Update the stock-out with the fetched items
-                                    setSelectedStockOut({
-                                      ...stockOut,
-                                      processed_items: processedItems
-                                    });
-                                    
-                                    // Show success toast if items were found
-                                    if (processedItems.length > 0) {
-                                      toast.success(`Loaded ${processedItems.length} processed items`);
-                                    } else {
-                                      toast.info('No processed items found for this order');
-                                    }
-                                  } catch (error) {
-                                    console.error('Error loading details:', error);
-                                    toast.error('Failed to load detailed information');
-                                  } finally {
-                                    // Dismiss loading toast
-                                    toast.dismiss(loadingToast);
-                                  }
-                                } else {
-                                  // For non-completed orders, show a toast message
-                                  toast.info(`Order ${stockOut.reference_number} is still ${stockOut.status}. Detailed information will be available when completed.`);
-                                }
-                              }}
-                              className="relative group w-[120px] justify-center"
+                              onClick={() => setSelectedStockOut(stockOut)}
+                              aria-label={`View details for stock-out ${stockOut.reference_number}`}
                             >
-                              <div className="flex items-center">
-                                <Eye className="mr-1 h-4 w-4" />
-                                View Details
-                              </div>
-                              {stockOut.status !== 'completed' && (
-                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs rounded py-1 px-2 whitespace-nowrap z-50">
-                                  Only completed orders have detailed item information
-                                </div>
-                              )}
+                              View Details
                             </Button>
                           </div>
                         </TableCell>
@@ -665,106 +474,73 @@ const StockOutHistoryPage: React.FC = () => {
             {/* Stock-out details dialog */}
             {selectedStockOut && (
               <Dialog open={!!selectedStockOut} onOpenChange={() => setSelectedStockOut(null)}>
-                <DialogContent className="max-w-4xl p-6">
-                  <DialogHeader className="pb-4">
-                    <DialogTitle className="text-xl font-semibold">Stock-Out Details - {selectedStockOut.reference_number}</DialogTitle>
-                    <DialogDescription>
-                      View detailed information about this stock-out order
-                    </DialogDescription>
+                <DialogContent className="max-w-4xl p-6 overflow-visible">
+                  <DialogHeader className="pb-4 flex justify-between items-start">
+                    <div>
+                      <DialogTitle className="text-xl font-semibold">Stock-Out Details - {selectedStockOut.reference_number}</DialogTitle>
+                      <DialogDescription>
+                        View detailed information about this stock-out order
+                      </DialogDescription>
+                    </div>
                   </DialogHeader>
                   
-                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Reference Number</h3>
-                        <p className="font-medium">{selectedStockOut.reference_number}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                        <Badge variant={getStatusVariant(selectedStockOut.status)} className="mt-1">
-                          {selectedStockOut.status}
-                        </Badge>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Created Date</h3>
-                        <p className="font-medium">{formatDate(selectedStockOut.created_at)}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Processed Date</h3>
-                        <p className="font-medium">{selectedStockOut.processed_at ? formatDate(selectedStockOut.processed_at) : 'Not processed yet'}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <h3 className="text-lg font-medium mb-3">Processed Items</h3>
-                    {selectedStockOut.status === 'completed' ? (
-                      selectedStockOut.processed_items && selectedStockOut.processed_items.length > 0 ? (
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                            <TableHeader className="bg-gray-50">
-                              <TableRow>
-                                <TableHead className="font-medium">Product</TableHead>
-                                <TableHead className="font-medium">Barcode</TableHead>
-                                <TableHead className="font-medium">Quantity</TableHead>
-                                <TableHead className="font-medium">Processed By</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {selectedStockOut.processed_items.map((item) => (
-                                <TableRow key={item.id}>
-                                  <TableCell>
-                                    <div>
-                                      <p className="font-medium">{item.product_name || 'Unknown Product'}</p>
-                                      <p className="text-sm text-gray-500">{item.product_sku || 'No SKU'}</p>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">{item.barcode || 'N/A'}</Badge>
-                                  </TableCell>
-                                  <TableCell className="font-medium">{item.quantity}</TableCell>
-                                  <TableCell>
-                                    <div>
-                                      <p className="font-medium">{item.user_name || 'Unknown'}</p>
-                                      <p className="text-sm text-gray-500">{item.user_role || 'Staff'}</p>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      ) : (
-                        <div className="text-center p-6 border rounded-lg bg-gray-50">
-                          <div className="mb-4">
-                            <p className="text-lg font-medium">No processed items found</p>
-                            <p className="text-sm text-gray-500">This order is marked as completed but no detailed item information was found.</p>
-                          </div>
-                        </div>
-                      )
-                    ) : (
+                  {selectedStockOut.status.toLowerCase() === 'completed' ? (
+                    <ErrorBoundary fallback={(
                       <div className="text-center p-6 border rounded-lg bg-gray-50">
-                        <div className="mb-4">
-                          <p className="text-lg font-medium">Detailed information unavailable</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            This order has a status of <Badge variant={getStatusVariant(selectedStockOut.status)}>{selectedStockOut.status}</Badge> and cannot be viewed in detail.
-                          </p>
-                          <p className="text-sm text-gray-500 mt-2">
-                            Only completed orders have detailed item information.
-                          </p>
+                        <div className="rounded-full bg-amber-100 p-3 inline-flex mb-4">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium">Connection Error</p>
+                        <p className="text-sm text-gray-500 mt-1 mb-4">
+                          Unable to load stock-out details. This may be due to a connection issue.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setSelectedStockOut(null)}
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    )}>
+                      <StockOutDetailsView stockOutId={selectedStockOut.id} />
+                    </ErrorBoundary>
+                  ) : (
+                    <div className="text-center p-6 border rounded-lg bg-gray-50">
+                      <div className="mb-4">
+                        <p className="text-lg font-medium">Detailed information unavailable</p>
+                        <div className="text-sm text-gray-500 mt-1">
+                          This order has a status of{' '}
+                          <Badge variant={getStatusVariant(selectedStockOut.status)}>
+                            {selectedStockOut.status}
+                          </Badge>
+                          {' '}and has not been fully processed yet.
                         </div>
                       </div>
-                    )}
-                  </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => toast.info('This is not a completed order', {
+                                description: 'Detailed information is only available for completed orders.'
+                              })}
+                            >
+                              Request Details
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Only completed orders have detailed information</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
                   
-                  <DialogFooter className="pt-2 border-t">
-                    <Button onClick={() => setSelectedStockOut(null)}>
-                      Close
-                    </Button>
-                  </DialogFooter>
+
                 </DialogContent>
               </Dialog>
             )}
