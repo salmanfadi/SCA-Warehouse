@@ -1,7 +1,6 @@
- import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { executeQuery } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { createPaginationQueryKey, getPaginationMeta } from '@/lib/pagination';
 
 // Define stock out detail type
 type StockOutDetail = {
@@ -64,50 +63,20 @@ export interface StockOutRequestsFilter {
   date_to?: string;
 }
 
-interface UseStockOutRequestsOptions {
-  filter?: StockOutRequestsFilter;
-  page?: number;
-  pageSize?: number;
-  enabled?: boolean;
-  refetchInterval?: number;
-}
-
-export const useStockOutRequests = ({
-  filter = {},
-  page = 1,
-  pageSize = 20,
+export const useStockOutRequests = (
+  filter: StockOutRequestsFilter = {},
+  page: number = 1,
+  pageSize: number = 20,
   enabled = true,
-  refetchInterval = 1000 * 60
-}: UseStockOutRequestsOptions = {}) => {
-  // Convert filter to a plain object to satisfy the type checker
-  const filterObject = {
-    ...filter,
-    status: Array.isArray(filter.status) ? filter.status.join(',') : filter.status,
-    priority: Array.isArray(filter.priority) ? filter.priority.join(',') : filter.priority
-  };
-
-  const queryKey = createPaginationQueryKey(
-    'stock-out-requests',
-    page,
-    pageSize,
-    filterObject
-  );
-
-  return useQuery({
-    queryKey,
+  refetchInterval?: number
+) => {
+  return useQuery<{ data: StockOutRequestData[]; totalCount: number }, Error>({
+    queryKey: ['stock-out-requests', filter, page, pageSize],
     enabled,
-    refetchInterval,
-    queryFn: async (): Promise<{ 
-      data: StockOutRequestData[]; 
-      pagination: {
-        total: number;
-        page: number;
-        pageSize: number;
-        totalPages: number;
-      };
-    }> => {
+    refetchInterval: refetchInterval || 1000 * 60,
+    queryFn: async (): Promise<{ data: StockOutRequestData[]; totalCount: number }> => {
       try {
-        const { data, error, count } = await executeQuery('stock_out', async (supabase: any) => {
+        const { data, error, count } = await executeQuery('stock_out', async (supabase) => {
           // Use the new view with all joins already included for better performance
           let query = supabase
             .from('stock_out_requests_detailed')
@@ -160,34 +129,15 @@ export const useStockOutRequests = ({
         if (error) {
           console.error('Error fetching stock out requests:', error);
           toast.error('Failed to fetch stock out requests');
-          return { 
-            data: [], 
-            pagination: {
-              total: 0,
-              page: 1,
-              pageSize,
-              totalPages: 0
-            }
-          } as const;
+          return { data: [], totalCount: 0 };
         }
         
-        const total = count || 0;
-        const meta = getPaginationMeta(total, page, pageSize);
-        
         if (!data || data.length === 0) {
-          return { 
-            data: [], 
-            pagination: {
-              total,
-              page: meta.currentPage,
-              pageSize,
-              totalPages: meta.totalPages
-            }
-          };
+          return { data: [], totalCount: count || 0 };
         }
 
         // Process the data from our optimized view with joins
-        const processedData = (data as any[]).map((stockOut) => {
+        const processedData = data.map((stockOut: any) => {
           // Parse the details JSON array from our view
           const details = stockOut.details || [];
           
@@ -240,33 +190,16 @@ export const useStockOutRequests = ({
           };
         });
 
-        return { 
-          data: processedData, 
-          pagination: {
-            total: count ?? 0,
-            page: meta.currentPage,
-            pageSize,
-            totalPages: meta.totalPages
-          }
-        };
+        return { data: processedData, totalCount: count ?? 0 };
       } catch (error) {
         console.error('Failed to fetch stock out requests:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         toast.error('Failed to load stock out requests', {
           description: errorMessage
         });
-        return { 
-          data: [], 
-          pagination: {
-            total: 0,
-            page: 1,
-            pageSize,
-            totalPages: 0
-          }
-        } as const;
+        return { data: [], totalCount: 0 };
       }
     },
-    staleTime: 1000 * 30,
-    keepPreviousData: true
+    staleTime: 1000 * 30
   });
 };
