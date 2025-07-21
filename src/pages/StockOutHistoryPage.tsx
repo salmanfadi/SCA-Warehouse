@@ -8,7 +8,7 @@
  * @lastModified 2025-07-16
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import {
@@ -99,6 +99,7 @@ interface StockOutHistory {
   customer_name: string;
   user_name: string;
   processed_items?: ProcessedItem[];
+  sales_order_number?: string; // <-- Add this field
 }
 
 interface DateRange {
@@ -121,6 +122,7 @@ const StockOutHistoryPage: React.FC = () => {
   const [dateRange, setDateRange] = useState<DateRange>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedStockOut, setSelectedStockOut] = useState<StockOutHistory | null>(null);
+  const [salesOrderMap, setSalesOrderMap] = useState<Record<string, string>>({});
   
   // Get status variant for badge styling
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "success" => {
@@ -174,45 +176,34 @@ const StockOutHistoryPage: React.FC = () => {
         }
         
         // Now get the actual data
-        const { data, error } = await executeQuery('stock-out-history', async (supabase) => {
-          // Direct query with minimal joins to avoid foreign key issues
+        const { data, error } = await executeQuery('stock_out', async (supabase) => {
           let query = supabase
-            .from('stock_out')
-            .select(`
-              id,
-              reference_number,
-              customer_inquiry_id,
-              status,
-              created_at,
-              processed_at,
-              processed_by
-            `)
-            .order('created_at', { ascending: false })
-            .range((page - 1) * pageSize, page * pageSize - 1);
-          
+            .from('stock_out_requests_detailed')
+            .select('*', { count: 'exact' })
+            .order('created_at', { ascending: false });
+
           // Apply filters
           if (searchTerm) {
-            query = query.or(`reference_number.ilike.%${searchTerm}%`);
+            query = query.or(`reference_number.ilike.%${searchTerm}%,requester_name.ilike.%${searchTerm}%`);
           }
-          
           if (dateRange.start) {
             query = query.gte('created_at', dateRange.start);
           }
-          
           if (dateRange.end) {
             query = query.lte('created_at', dateRange.end);
           }
-          
           if (statusFilter !== 'all') {
             query = query.eq('status', statusFilter);
           }
-          
-          return await query;
+
+          // Pagination
+          const from = (page - 1) * pageSize;
+          const to = from + pageSize - 1;
+          return query.range(from, to);
         });
         
         if (error) throw new Error(error.message);
         
-        // Create a simplified version of the data
         const stockOutsWithDetails = (data || []).map((stockOut: any) => {
           return {
             id: stockOut.id,
@@ -222,14 +213,15 @@ const StockOutHistoryPage: React.FC = () => {
             created_at: stockOut.created_at || '',
             processed_at: stockOut.processed_at || null,
             processed_by: stockOut.processed_by || null,
-            customer_name: '',  // Will be populated in UI if needed
-            user_name: '',      // Will be populated in UI if needed
-            processed_items: [] // Will be loaded on demand if needed
+            customer_name: stockOut.customer_name || '',
+            user_name: stockOut.requester_full_name || stockOut.requester_name || '',
+            processed_items: [],
+            sales_order_number: stockOut.sales_order_number || '', // Use the field from the view
           };
         });
         
         return {
-          stock_outs: stockOutsWithDetails as StockOutHistory[],
+          stock_outs: stockOutsWithDetails,
           total_count: count || stockOutsWithDetails.length
         };
       } catch (err: any) {
@@ -303,6 +295,39 @@ const StockOutHistoryPage: React.FC = () => {
       });
     }
   };
+
+  // Fetch sales order numbers for stock-outs with customer_inquiry_id
+  useEffect(() => {
+    if (!data?.stock_outs) return;
+    const missing = data.stock_outs.filter(
+      s => s.customer_inquiry_id && !salesOrderMap[s.customer_inquiry_id]
+    );
+    if (missing.length === 0) return;
+    // Fetch all missing sales order numbers in parallel
+    Promise.all(
+      missing.map(async (stockOut) => {
+        // Replace this with your MCP server fetch logic
+        // Example: fetch(`/mcp-api/inquiries/${stockOut.customer_inquiry_id}`)
+        // Here, we use fetch as a placeholder
+        try {
+          const res = await fetch(`/mcp-api/inquiries/${stockOut.customer_inquiry_id}`);
+          if (!res.ok) return null;
+          const inquiry = await res.json();
+          return { id: stockOut.customer_inquiry_id, salesOrderNumber: inquiry.sales_order_number || '' };
+        } catch {
+          return null;
+        }
+      })
+    ).then(results => {
+      const newMap: Record<string, string> = {};
+      results.forEach(r => {
+        if (r && r.id) newMap[r.id] = r.salesOrderNumber;
+      });
+      if (Object.keys(newMap).length > 0) {
+        setSalesOrderMap(prev => ({ ...prev, ...newMap }));
+      }
+    });
+  }, [data?.stock_outs]);
   
   return (
       <div className="flex-1 w-full h-full bg-white px-6 py-6">
@@ -378,7 +403,7 @@ const StockOutHistoryPage: React.FC = () => {
               <Table className="w-full border-collapse table-auto">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Reference</TableHead>
+                    <TableHead>Sales Order</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Actions</TableHead>
@@ -386,29 +411,32 @@ const StockOutHistoryPage: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {data?.stock_outs?.length ? (
-                    data.stock_outs.map((stockOut) => (
-                      <TableRow key={stockOut.id}>
-                        <TableCell className="font-medium">{stockOut.reference_number}</TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusVariant(stockOut.status)}>
-                            {stockOut.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatDate(stockOut.created_at)}</TableCell>
-                        <TableCell>
-                          <div className="relative group">
-                            <Button 
-                              variant={stockOut.status === 'completed' ? 'outline' : 'ghost'} 
-                              size="sm"
-                              onClick={() => setSelectedStockOut(stockOut)}
-                              aria-label={`View details for stock-out ${stockOut.reference_number}`}
-                            >
-                              View Details
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    data.stock_outs.map((stockOut) => {
+                      const salesOrderNumber = stockOut.sales_order_number || 'N/A';
+                      return (
+                        <TableRow key={stockOut.id}>
+                          <TableCell className="font-medium">{salesOrderNumber}</TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusVariant(stockOut.status)}>
+                              {stockOut.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{formatDate(stockOut.created_at)}</TableCell>
+                          <TableCell>
+                            <div className="relative group">
+                              <Button 
+                                variant={stockOut.status === 'completed' ? 'outline' : 'ghost'} 
+                                size="sm"
+                                onClick={() => setSelectedStockOut({ ...stockOut, sales_order_number: salesOrderNumber })}
+                                aria-label={`View details for stock-out ${salesOrderNumber}`}
+                              >
+                                View Details
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8">
@@ -477,7 +505,7 @@ const StockOutHistoryPage: React.FC = () => {
                 <DialogContent className="max-w-4xl p-6 overflow-visible">
                   <DialogHeader className="pb-4 flex justify-between items-start">
                     <div>
-                      <DialogTitle className="text-xl font-semibold">Stock-Out Details - {selectedStockOut.reference_number}</DialogTitle>
+                      <DialogTitle className="text-xl font-semibold">Stock-Out Details - {selectedStockOut.sales_order_number || 'N/A'}</DialogTitle>
                       <DialogDescription>
                         View detailed information about this stock-out order
                       </DialogDescription>

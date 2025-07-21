@@ -745,16 +745,17 @@ export const StockOutDetailsView: React.FC<StockOutDetailsViewProps> = ({
         <CardTitle className="text-xl font-bold">Stock-Out Details</CardTitle>
         <CardDescription>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
-            <span className="flex items-center gap-1">
-              <span className="font-medium text-sm">Reference:</span> 
-              <span>{data.reference_number || 'N/A'}</span>
-            </span>
+            {/* Remove Reference number, show Sales Order number if available */}
+            {data.sales_order_number && (
+              <span className="flex items-center gap-1">
+                <span className="font-medium text-sm">Sales Order #:</span>
+                <span>{data.sales_order_number}</span>
+              </span>
+            )}
             <span className="hidden sm:inline text-muted-foreground">|</span>
             <div className="flex items-center gap-1">
               <span className="font-medium text-sm">Status:</span> 
-              <Badge variant="outline" className={`${data.status?.toLowerCase() === 'completed' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
-                {data.status}
-              </Badge>
+              <Badge variant="outline" className={`${data.status?.toLowerCase() === 'completed' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>{data.status}</Badge>
             </div>
             {data.processed_at && (
               <>
