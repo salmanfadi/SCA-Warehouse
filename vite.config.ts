@@ -14,7 +14,7 @@ export default defineConfig({
     // Added vite-plugin-pwa for PWA support. This enables offline capability, service worker, and manifest integration.
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.svg', 'robots.txt'],
       manifest: require('./public/manifest.json'),
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],

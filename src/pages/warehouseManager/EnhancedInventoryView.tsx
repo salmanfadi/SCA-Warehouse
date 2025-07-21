@@ -469,23 +469,6 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Available Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {metricsLoading ? (
-              <div className="h-8 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
-            ) : (
-              <div className="text-2xl font-bold text-green-600">{availableItems}</div>
-            )}
-            <div className="text-xs text-gray-500">Ready for shipment</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center">
               <BarChart3 className="w-4 h-4 mr-2" />
               Warehouses
             </CardTitle>
@@ -553,33 +536,48 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle>Recent Batch Activity</CardTitle>
                 <CardDescription>Latest processed batches</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {batches.slice(0, 5).map((batch) => (
-                    <div key={batch.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Package className="w-4 h-4 text-gray-500" />
-                        <div>
-                          <p className="font-medium">{batch.product?.name || 'Unknown Product'}</p>
-                          <p className="text-sm text-gray-500">{batch.totalBoxes} items</p>
+                {processedBatchesQuery.isLoading ? (
+                  <div className="space-y-3">
+                    {Array(5).fill(0).map((_, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg animate-pulse">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-4 h-4 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                          <div>
+                            <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
+                            <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                          </div>
                         </div>
+                        <div className="h-5 w-16 bg-slate-200 dark:bg-slate-700 rounded"></div>
                       </div>
-                      <Badge variant={batch.status === 'completed' ? 'default' : 'secondary'}>
-                        {batch.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {batches.slice(0, 5).map((batch) => (
+                      <div key={batch.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <Package className="w-4 h-4 text-gray-500" />
+                          <div>
+                            <p className="font-medium">{batch.product?.name || 'Unknown Product'}</p>
+                            <p className="text-sm text-gray-500">{batch.totalBoxes} items</p>
+                          </div>
+                        </div>
+                        <Badge variant={batch.status === 'completed' ? 'default' : 'secondary'}>
+                          {batch.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-
-            
           </div>
         </TabsContent>
 
@@ -592,24 +590,38 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Debug logging for batches data */}
+              {processedBatchesQuery.data?.batches && (
+                <div className="hidden">
+                  {console.log('EnhancedInventoryView batches data:', 
+                    processedBatchesQuery.data.batches.map(b => ({ 
+                      id: b.id, 
+                      sno: b.sno, 
+                      type: typeof b.sno 
+                    })))
+                  }
+                </div>
+              )}
+              
               {processedBatchesQuery.isLoading ? (
                 <LoadingState message="Loading processed batches..." />
               ) : (
                 <ProcessedBatchesTable
-                  filters={{
-                    searchTerm,
-                    status: statusFilter,
-                    warehouseId: warehouseFilter
-                  }}
-                  page={currentPage}
-                  pageSize={10}
-                  onPageChange={setCurrentPage}
-                  onViewDetails={handleViewDetails}
-                  highlightBatchIds={recentlyAddedBatchIds}
-                  batches={processedBatchesQuery.data?.batches}
-                  isLoading={processedBatchesQuery.isLoading}
-                />
-              )}
+                    filters={{
+                      searchTerm,
+                      status: statusFilter,
+                      warehouseId: warehouseFilter
+                    }}
+                    page={currentPage}
+                    pageSize={10}
+                    onPageChange={setCurrentPage}
+                    onViewDetails={handleViewDetails}
+                    highlightBatchIds={recentlyAddedBatchIds}
+                    batches={processedBatchesQuery.data?.batches}
+                    isLoading={processedBatchesQuery.isLoading}
+                  />
+                )
+              }
               <EnhancedBatchDetailsDialog 
                 open={showDetails} 
                 onOpenChange={setShowDetails} 

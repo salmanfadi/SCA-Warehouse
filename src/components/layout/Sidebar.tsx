@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { 
@@ -13,9 +13,51 @@ import { cn } from '@/lib/utils';
 export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (open: boolean) => void }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const [isMobile, setIsMobile] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  // Detect if we're on mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
   
   const handleToggleSidebar = () => {
-    setIsOpen(!isOpen);
+    // Only toggle sidebar on desktop
+    if (!isMobile) {
+      setIsOpen(!isOpen);
+    }
+  };
+
+  // Handle long press start
+  const handleTouchStart = (label: string) => {
+    if (isMobile) {
+      const timer = setTimeout(() => {
+        setActiveTooltip(label);
+      }, 500); // 500ms for long press
+      setLongPressTimer(timer);
+    }
+  };
+
+  // Handle touch end
+  const handleTouchEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+    // Keep tooltip visible for a moment before hiding
+    setTimeout(() => {
+      setActiveTooltip(null);
+    }, 1000);
   };
 
   // Helper function to render nav items with proper collapsed state handling
@@ -27,6 +69,8 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
         ? location.pathname === to
         : location.pathname.startsWith(to);
 
+    const showTooltip = !isOpen && (activeTooltip === label || (!isMobile && false)); // Only show on hover for desktop
+
     return (
       <div className="relative">
         <NavLink 
@@ -35,11 +79,14 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
             "flex items-center px-2 py-2 rounded-md group",
             isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
           )}
+          onTouchStart={() => handleTouchStart(label)}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
         >
           <div className="flex items-center justify-center w-8">
             {icon}
           </div>
-          {isOpen && (
+          {isOpen && !isMobile && (
             <span className="ml-4 transition-all duration-300">
               {label}
             </span>
@@ -47,7 +94,13 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
         </NavLink>
         {/* Text for collapsed state - positioned outside sidebar */}
         {!isOpen && (
-          <div className="fixed left-16 ml-2 bg-white dark:bg-slate-800 shadow-lg rounded-md py-2 px-3 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-[60] top-1/2 -translate-y-1/2">
+          <div className={cn(
+            "fixed left-16 ml-2 bg-white dark:bg-slate-800 shadow-lg rounded-md py-2 px-3 whitespace-nowrap z-[60] top-1/2 -translate-y-1/2 transition-opacity duration-200",
+            // Show on hover for desktop, show on long press for mobile
+            isMobile 
+              ? activeTooltip === label ? "opacity-100" : "opacity-0" 
+              : "opacity-0 group-hover:opacity-100 pointer-events-none"
+          )}>
             <span>{label}</span>
           </div>
         )}
@@ -57,9 +110,9 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
   
   return (
     <>
-      {/* Mobile Overlay - Moved to top level and increased z-index */}
-      {/* Overlay for mobile */}
-      {isOpen && (
+      {/* Mobile Overlay - Only shown when sidebar is expanded on desktop */}
+      {/* We don't need this overlay for mobile since sidebar is always collapsed */}
+      {isOpen && !isMobile && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-[45] lg:hidden"
           aria-label="Sidebar overlay"
@@ -73,12 +126,12 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-[50] transform transition-all duration-300 ease-in-out bg-slate-50 dark:bg-slate-900 border-r shadow-sm",
-          // Width based on open state
-          isOpen ? "w-64" : "w-16",
+          // Width based on device and open state
+          isMobile ? "w-16" : (isOpen ? "w-64" : "w-16"),
           // On desktop (lg), maintain width based on open state
           "lg:w-auto lg:min-w-[4rem]",
-          // On mobile, use transform to show/hide
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          // On mobile, always show collapsed sidebar
+          isMobile ? "translate-x-0" : (isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"),
           // Make sidebar relative on desktop
           "lg:relative lg:inset-0"
         )}
@@ -90,15 +143,18 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
             "h-16 flex items-center border-b px-4 relative",
             !isOpen && "px-2"
           )}>
-            <button
-              onClick={handleToggleSidebar}
-              className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-200 transition-colors shrink-0"
-            >
-              <PanelLeft className={cn(
-                "h-5 w-5 transition-transform duration-300",
-                !isOpen && "transform rotate-180"
-              )} />
-            </button>
+            {/* Only show toggle button on desktop */}
+            {!isMobile && (
+              <button
+                onClick={handleToggleSidebar}
+                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-200 transition-colors shrink-0"
+              >
+                <PanelLeft className={cn(
+                  "h-5 w-5 transition-transform duration-300",
+                  !isOpen && "transform rotate-180"
+                )} />
+              </button>
+            )}
           </div>
           
           <div className="flex-1 overflow-y-auto py-2">

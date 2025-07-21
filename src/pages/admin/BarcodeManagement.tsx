@@ -166,11 +166,7 @@ const BarcodeManagement: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="mt-4 pt-4 border-t">
-                  <Button variant="outline" size="sm">
-                    Edit Barcode
-                  </Button>
-                </div>
+                {/* Edit barcode button removed */}
               </CardContent>
             </Card>
           ))

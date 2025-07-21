@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Loader2, X, QrCode } from 'lucide-react';
@@ -320,64 +320,76 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
   };
 
   return (
-    <div className="container mx-auto py-4">
+    <div className="w-full">
       <div className="relative">
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex justify-between items-center">
-              <span>{title}</span>
-              <Button 
-                onClick={() => setShowScanner(!showScanner)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                {showScanner ? (
-                  <>
-                    <X className="h-4 w-4" />
-                    Close Camera
-                  </>
-                ) : (
-                  <>
-                    <QrCode className="h-4 w-4" />
-                    Open Camera
-                  </>
-                )}
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {title && (
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold">{title}</h2>
+          </div>
+        )}
+        
+        <Card className="mb-6 border border-border/40 shadow-sm">
+          <CardContent className="pt-6 pb-6">
             {showScanner ? (
-              <MobileBarcodeScanner
-                onBarcodeScanned={handleBarcodeScanned}
-                allowManualEntry={true}
-                inputValue={barcode}
-                onInputChange={(e) => setBarcode(e.target.value)}
-                scanButtonLabel="Scan Barcode"
-              />
-            ) : (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="text"
-                  placeholder="Enter barcode manually"
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  className="flex-1"
+              <div className="space-y-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-medium">Camera Scanner</h3>
+                  <Button 
+                    onClick={() => setShowScanner(false)}
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                    Close
+                  </Button>
+                </div>
+                <MobileBarcodeScanner
+                  onBarcodeScanned={handleBarcodeScanned}
+                  allowManualEntry={true}
+                  inputValue={barcode}
+                  onInputChange={(e) => setBarcode(e.target.value)}
+                  scanButtonLabel="Scan Barcode"
                 />
-                <Button 
-                  onClick={() => handleBarcodeSubmit(barcode)}
-                  disabled={!barcode.trim() || isLoading}
-                >
-                  Submit
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowScanner(true)}
-                  className="flex items-center gap-2"
-                >
-                  <QrCode className="h-4 w-4" />
-                  Scan
-                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="relative flex-1 w-full">
+                    <Input
+                      type="text"
+                      placeholder="Enter barcode manually"
+                      value={barcode}
+                      onChange={(e) => setBarcode(e.target.value)}
+                      className="pr-10 w-full"
+                    />
+                    {barcode && (
+                      <button 
+                        onClick={() => setBarcode('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button 
+                      onClick={() => handleBarcodeSubmit(barcode)}
+                      disabled={!barcode.trim() || isLoading}
+                      className="flex-1 sm:flex-none"
+                    >
+                      Submit
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowScanner(true)}
+                      className="flex items-center gap-2 flex-1 sm:flex-none"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      Scan
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
@@ -385,100 +397,107 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({
       </div>
 
       {isLoading && (
-        <div className="flex justify-center my-8">
+        <div className="flex flex-col items-center justify-center my-8 space-y-2">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Searching for barcode...</p>
         </div>
       )}
 
       {batchItem && !isLoading && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex justify-between items-center">
+        <Card className="overflow-hidden border border-border/40 shadow">
+          <CardHeader className="bg-muted/30 pb-4">
+            <CardTitle className="flex justify-between items-center text-lg">
               <span>Item Details</span>
-              <Badge variant="outline" className="ml-2">
-                {batchItem.barcode}
-              </Badge>
+              <div>
+                <Badge variant="outline" className="ml-2">
+                  {batchItem.barcode}
+                </Badge>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-5 bg-card p-4 rounded-lg border border-border/20">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Product</Label>
+                  <Label className="text-sm font-medium text-muted-foreground block mb-1">Product</Label>
                   <div className="text-lg font-semibold">{batchItem.product_name}</div>
                 </div>
                 
                 {batchItem.product_sku && (
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">SKU</Label>
+                    <Label className="text-sm font-medium text-muted-foreground block mb-1">SKU</Label>
                     <div>{batchItem.product_sku}</div>
                   </div>
                 )}
                 
                 {batchItem.product_description && (
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                    <Label className="text-sm font-medium text-muted-foreground block mb-1">Description</Label>
                     <div className="text-sm">{batchItem.product_description}</div>
                   </div>
                 )}
                 
-                <div className="flex gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {batchItem.color && (
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Color</Label>
+                      <Label className="text-sm font-medium text-muted-foreground block mb-1">Color</Label>
                       <div>{batchItem.color}</div>
                     </div>
                   )}
                   
                   {batchItem.size && (
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Size</Label>
+                      <Label className="text-sm font-medium text-muted-foreground block mb-1">Size</Label>
                       <div>{batchItem.size}</div>
                     </div>
                   )}
                 </div>
                 
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Quantity</Label>
+                  <Label className="text-sm font-medium text-muted-foreground block mb-1">Quantity</Label>
                   <div className="text-lg font-semibold">{batchItem.quantity}</div>
                 </div>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-5 bg-card p-4 rounded-lg border border-border/20">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Batch</Label>
-                  <div>{batchItem.batch_number || `BATCH-${batchItem.batch_id?.substring(0, 6)}`}</div>
+                  <Label className="text-sm font-medium text-muted-foreground block mb-1">Batch</Label>
+                  <div className="font-medium">{batchItem.batch_number || `BATCH-${batchItem.batch_id?.substring(0, 6) || 'Unknown'}`}</div>
                 </div>
                 
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Warehouse</Label>
+                  <Label className="text-sm font-medium text-muted-foreground block mb-1">Warehouse</Label>
                   <div>{batchItem.warehouse_name}</div>
                 </div>
                 
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Location</Label>
+                  <Label className="text-sm font-medium text-muted-foreground block mb-1">Location</Label>
                   <div>{batchItem.location_name}</div>
                 </div>
                 
                 {batchItem.status && (
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                    <Label className="text-sm font-medium text-muted-foreground block mb-1">Status</Label>
                     <div>
-                      <Badge variant="outline" className="capitalize">
-                        {batchItem.status}
-                      </Badge>
+                      <div className="inline-block">
+                        <Badge variant={batchItem.status === 'active' ? 'default' : 'outline'} className="capitalize">
+                          {batchItem.status}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 )}
                 
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Created</Label>
-                  <div className="text-sm">{formatDate(batchItem.created_at)}</div>
-                </div>
-                
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Last Updated</Label>
-                  <div className="text-sm">{formatDate(batchItem.updated_at)}</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground block mb-1">Created</Label>
+                    <div className="text-sm">{formatDate(batchItem.created_at)}</div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground block mb-1">Last Updated</Label>
+                    <div className="text-sm">{formatDate(batchItem.updated_at)}</div>
+                  </div>
                 </div>
               </div>
             </div>

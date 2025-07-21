@@ -141,13 +141,12 @@ export const useSalesOrders = () => {
             message: inquiry.message || '',
             notes: '', // Not in DB, but needed for UI
             created_at: inquiry.created_at,
-            items: items,
             // Include the is_reserved field from the inquiry
             is_reserved: inquiry.is_reserved || false,
             // Required fields for the UI
-
             order_date: inquiry.created_at,
             total_amount: 0, // This would be calculated based on items
+            // Use items if available, otherwise create a default item from inquiry data
             items: items.length > 0 ? items : [
               {
                 product_id: inquiry.product_id || '',
