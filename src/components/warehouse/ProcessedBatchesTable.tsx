@@ -59,6 +59,13 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
   const batches = propBatches || hookData.data?.data || [];
   const isLoading = propIsLoading !== undefined ? propIsLoading : hookData.isLoading;
   const error = propError !== undefined ? propError : hookData.error;
+  
+  // Debug: Log the batches data received by the component
+  React.useEffect(() => {
+    if (batches && batches.length > 0) {
+      console.log('ProcessedBatchesTable received batches:', batches.map(b => ({ id: b.id, sno: b.sno, type: typeof b.sno })));
+    }
+  }, [batches]);
   const totalCount = hookData.data?.count || 0;
   const calculatedTotalPages = Math.ceil(totalCount / pageSize);
   const finalTotalPages = totalPages > 1 ? totalPages : calculatedTotalPages;
@@ -101,11 +108,11 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Batch ID</TableHead>
+                <TableHead>S.No</TableHead>
                 <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
                 <TableHead>Quantity</TableHead>
                 <TableHead>Boxes</TableHead>
-                <TableHead>Submitted By</TableHead>
                 <TableHead>Processed By</TableHead>
                 <TableHead>Processed Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -178,8 +185,9 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
               <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="whitespace-nowrap">Batch ID</TableHead>
+                    <TableHead className="whitespace-nowrap">S.No</TableHead>
                     <TableHead className="whitespace-nowrap">Product</TableHead>
+                    <TableHead className="whitespace-nowrap">SKU</TableHead>
                     <TableHead className="whitespace-nowrap text-center">Quantity</TableHead>
                     <TableHead className="whitespace-nowrap text-center hidden md:table-cell">Boxes</TableHead>
                     <TableHead className="whitespace-nowrap hidden lg:table-cell">Processed By</TableHead>
@@ -193,15 +201,19 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
                       key={batch.id} 
                       className={highlightBatchIds.includes(batch.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
                     >
-                      <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
+                      <TableCell className="font-medium">
+                        {batch.sno !== null ? batch.sno : 'N/A'}
+                      </TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium truncate max-w-[150px] lg:max-w-xs" title={batch.product?.name || batch.product_name || 'Unknown Product'}>
                             {batch.product?.name || batch.product_name || 'Unknown Product'}
                           </div>
-                          <div className="text-sm text-muted-foreground truncate max-w-[150px]" title={batch.product?.sku || batch.product_sku || 'N/A'}>
-                            SKU: {batch.product?.sku || batch.product_sku || 'N/A'}
-                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm truncate max-w-[100px]" title={batch.product?.sku || batch.product_sku || 'N/A'}>
+                          {batch.product?.sku || batch.product_sku || 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell className="text-center font-semibold">
@@ -244,7 +256,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
             className={`rounded-lg border p-4 shadow-sm bg-white dark:bg-gray-900 ${highlightBatchIds.includes(batch.id) ? 'ring-2 ring-blue-400' : ''}`}
           >
             <div className="flex items-center justify-between mb-3">
-              <div className="font-bold text-base">Batch #{batch.id.slice(0, 8)}</div>
+              <div className="font-bold text-base">Batch #{batch.sno !== null ? batch.sno : 'N/A'}</div>
               <Badge className="text-xs">{batch.status || 'N/A'}</Badge>
             </div>
             

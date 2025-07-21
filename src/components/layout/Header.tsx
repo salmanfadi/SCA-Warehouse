@@ -47,19 +47,49 @@ export const Header: React.FC<HeaderProps> = () => {
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Check if we're on mobile
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
   return (
     <header className={cn(
-      "bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 transition-opacity duration-300 z-50 sticky top-0 w-full left-0 right-0",
-      scrolled ? "opacity-0 pointer-events-none" : "opacity-100"
+      "bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-3 transition-opacity duration-300 z-50 sticky top-0 w-full left-0 right-0",
+      scrolled ? "opacity-0 pointer-events-none" : "opacity-100",
+      // Add padding based on device type
+      isMobile ? "px-24" : "px-4"
     )}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
+      <div className={cn(
+        "flex items-center",
+        // On mobile, use justify-between to push icons to the right
+        isMobile ? "justify-between w-full" : "justify-between"
+      )}>
+        <div className={cn(
+          "flex items-center",
+          // Add margin on mobile to prevent overlap with sidebar
+          isMobile ? "ml-0" : ""
+        )}>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white transition-opacity duration-300" style={{ opacity: scrolled ? 0 : 1 }}>
             Warehouse Management
           </h1>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className={cn(
+          "flex items-center",
+          // On mobile, add negative margin to push icons to extreme right
+          isMobile ? "space-x-2 -mr-2" : "space-x-4"
+        )}>
           {/* Theme Toggle */}
           <ModeToggle />
           
