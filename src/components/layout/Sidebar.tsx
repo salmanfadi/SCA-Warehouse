@@ -42,6 +42,9 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
   // Long-press logic for mobile
   const handleTouchStart = (label: string) => {
     if (isMobile) {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+      }
       const timer = setTimeout(() => {
         setActiveTooltip(label);
       }, 500); // 500ms for long press
@@ -54,15 +57,13 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
     }
-    // Hide label after a short delay
     setTimeout(() => {
       setActiveTooltip(null);
-    }, 1000);
+    }, 500); // Hide label after 0.5s
   };
 
   // Helper function to render nav items with proper collapsed state handling
   const renderNavItem = (to: string, icon: React.ReactNode, label: string) => {
-    // Check if current path matches exactly or if it's a sub-path (but not for dashboard)
     const isActive = to === '/' 
       ? location.pathname === to
       : to === `/${user?.role}`
@@ -103,8 +104,8 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
         )}
         {/* Mobile: Custom long-press label */}
         {isMobile && (
-          <NavLink 
-            to={to} 
+          <NavLink
+            to={to}
             className={cn(
               "flex items-center px-2 py-2 rounded-md group",
               isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
