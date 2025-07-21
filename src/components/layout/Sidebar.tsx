@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { 
@@ -70,6 +70,19 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
         ? location.pathname === to
         : location.pathname.startsWith(to);
 
+    // Ref for the icon container
+    const iconRef = useRef<HTMLDivElement>(null);
+    // State for floating label position
+    const [labelTop, setLabelTop] = useState<number | null>(null);
+
+    // When activeTooltip changes, update label position
+    useEffect(() => {
+      if (activeTooltip === label && iconRef.current) {
+        const rect = iconRef.current.getBoundingClientRect();
+        setLabelTop(rect.top + rect.height / 2);
+      }
+    }, [activeTooltip, label]);
+
     return (
       <div className="relative">
         {/* Desktop: Radix Tooltip */}
@@ -113,11 +126,11 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
             onTouchStart={() => handleTouchStart(label)}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}
-            onContextMenu={e => e.preventDefault()} // Prevent system preview
+            onContextMenu={e => e.preventDefault()}
             draggable={false}
             tabIndex={-1}
           >
-            <div className="sidebar-icon flex items-center justify-center w-8">
+            <div ref={iconRef} className="sidebar-icon flex items-center justify-center w-8">
               {icon}
             </div>
             {isOpen && (
@@ -126,8 +139,11 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
               </span>
             )}
             {/* Floating label for collapsed sidebar */}
-            {!isOpen && activeTooltip === label && (
-              <div className="fixed left-16 ml-2 bg-white dark:bg-slate-800 shadow-lg rounded-md py-2 px-3 whitespace-nowrap z-[60] top-1/2 -translate-y-1/2 transition-opacity duration-200">
+            {!isOpen && activeTooltip === label && labelTop !== null && (
+              <div
+                className="fixed left-16 ml-2 bg-white dark:bg-slate-800 shadow-lg rounded-md py-2 px-3 whitespace-nowrap z-[60] transition-opacity duration-200"
+                style={{ top: `${labelTop}px`, transform: 'translateY(-50%)' }}
+              >
                 <span>{label}</span>
               </div>
             )}
