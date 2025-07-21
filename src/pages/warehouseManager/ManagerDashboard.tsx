@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,8 +92,8 @@ const ManagerDashboard: React.FC = () => {
           </CardContent>
           <CardFooter>
             <Button asChild variant="default" className="w-full">
-              <Link to="/manager/stock-out-approval">
-                <Truck className="mr-2 h-4 w-4" />
+              <Link to="/manager/stock-out">
+                <ArrowUpFromLine className="mr-2 h-4 w-4" />
                 Approve Stock Out
               </Link>
             </Button>
@@ -123,7 +122,7 @@ const ManagerDashboard: React.FC = () => {
 
         <Card className="border-l-4 border-l-indigo-500 transition-shadow hover:shadow-md">
           <CardHeader>
-            <CardTitle>Barcode Scanner</CardTitle>
+            <CardTitle>Barcode Lookup</CardTitle>
             <CardDescription>Scan product barcodes</CardDescription>
           </CardHeader>
           <CardContent>
@@ -133,9 +132,9 @@ const ManagerDashboard: React.FC = () => {
           </CardContent>
           <CardFooter>
             <Button asChild variant="default" className="w-full">
-              <Link to="/scan">
+              <Link to="/manager/barcode">
                 <Barcode className="mr-2 h-4 w-4" />
-                Open Scanner
+                Barcode Lookup
               </Link>
             </Button>
           </CardFooter>

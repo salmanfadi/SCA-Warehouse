@@ -39,7 +39,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
     }
   };
 
-  // Handle long press start
+  // Long-press logic for mobile
   const handleTouchStart = (label: string) => {
     if (isMobile) {
       const timer = setTimeout(() => {
@@ -49,13 +49,12 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
     }
   };
 
-  // Handle touch end
   const handleTouchEnd = () => {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
     }
-    // Keep tooltip visible for a moment before hiding
+    // Hide label after a short delay
     setTimeout(() => {
       setActiveTooltip(null);
     }, 1000);
@@ -72,36 +71,64 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
 
     return (
       <div className="relative">
-        <TooltipProvider>
-          <Tooltip delayDuration={isMobile ? 500 : 0}>
-            <TooltipTrigger asChild>
-              <NavLink 
-                to={to} 
-                className={cn(
-                  "flex items-center px-2 py-2 rounded-md group",
-                  isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
-                )}
-                onTouchStart={() => handleTouchStart(label)}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchEnd}
-              >
-                <div className="flex items-center justify-center w-8">
-                  {icon}
-                </div>
-                {isOpen && !isMobile && (
-                  <span className="ml-4 transition-all duration-300">
-                    {label}
-                  </span>
-                )}
-              </NavLink>
-            </TooltipTrigger>
-            {!isOpen && (
-              <TooltipContent side="right" align="center">
-                {label}
-              </TooltipContent>
+        {/* Desktop: Radix Tooltip */}
+        {!isMobile && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <NavLink 
+                  to={to} 
+                  className={cn(
+                    "flex items-center px-2 py-2 rounded-md group",
+                    isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
+                  )}
+                >
+                  <div className="flex items-center justify-center w-8">
+                    {icon}
+                  </div>
+                  {isOpen && (
+                    <span className="ml-4 transition-all duration-300">
+                      {label}
+                    </span>
+                  )}
+                </NavLink>
+              </TooltipTrigger>
+              {!isOpen && (
+                <TooltipContent side="right" align="center">
+                  {label}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {/* Mobile: Custom long-press label */}
+        {isMobile && (
+          <NavLink 
+            to={to} 
+            className={cn(
+              "flex items-center px-2 py-2 rounded-md group",
+              isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
             )}
-          </Tooltip>
-        </TooltipProvider>
+            onTouchStart={() => handleTouchStart(label)}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
+          >
+            <div className="flex items-center justify-center w-8">
+              {icon}
+            </div>
+            {isOpen && (
+              <span className="ml-4 transition-all duration-300">
+                {label}
+              </span>
+            )}
+            {/* Floating label for collapsed sidebar */}
+            {!isOpen && activeTooltip === label && (
+              <div className="fixed left-16 ml-2 bg-white dark:bg-slate-800 shadow-lg rounded-md py-2 px-3 whitespace-nowrap z-[60] top-1/2 -translate-y-1/2 transition-opacity duration-200">
+                <span>{label}</span>
+              </div>
+            )}
+          </NavLink>
+        )}
       </div>
     );
   };
