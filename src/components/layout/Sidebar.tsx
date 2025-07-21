@@ -9,6 +9,7 @@ import {
   History, Home, Database, Barcode, Search, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (open: boolean) => void }) => {
   const { user } = useAuth();
@@ -69,41 +70,38 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
         ? location.pathname === to
         : location.pathname.startsWith(to);
 
-    const showTooltip = !isOpen && (activeTooltip === label || (!isMobile && false)); // Only show on hover for desktop
-
     return (
       <div className="relative">
-        <NavLink 
-          to={to} 
-          className={cn(
-            "flex items-center px-2 py-2 rounded-md group",
-            isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
-          )}
-          onTouchStart={() => handleTouchStart(label)}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-        >
-          <div className="flex items-center justify-center w-8">
-            {icon}
-          </div>
-          {isOpen && !isMobile && (
-            <span className="ml-4 transition-all duration-300">
-              {label}
-            </span>
-          )}
-        </NavLink>
-        {/* Text for collapsed state - positioned outside sidebar */}
-        {!isOpen && (
-          <div className={cn(
-            "fixed left-16 ml-2 bg-white dark:bg-slate-800 shadow-lg rounded-md py-2 px-3 whitespace-nowrap z-[60] top-1/2 -translate-y-1/2 transition-opacity duration-200",
-            // Show on hover for desktop, show on long press for mobile
-            isMobile 
-              ? activeTooltip === label ? "opacity-100" : "opacity-0" 
-              : "opacity-0 group-hover:opacity-100 pointer-events-none"
-          )}>
-            <span>{label}</span>
-          </div>
-        )}
+        <TooltipProvider>
+          <Tooltip delayDuration={isMobile ? 500 : 0}>
+            <TooltipTrigger asChild>
+              <NavLink 
+                to={to} 
+                className={cn(
+                  "flex items-center px-2 py-2 rounded-md group",
+                  isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
+                )}
+                onTouchStart={() => handleTouchStart(label)}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+              >
+                <div className="flex items-center justify-center w-8">
+                  {icon}
+                </div>
+                {isOpen && !isMobile && (
+                  <span className="ml-4 transition-all duration-300">
+                    {label}
+                  </span>
+                )}
+              </NavLink>
+            </TooltipTrigger>
+            {!isOpen && (
+              <TooltipContent side="right" align="center">
+                {label}
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
     );
   };
