@@ -107,14 +107,17 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
           <NavLink
             to={to}
             className={cn(
-              "flex items-center px-2 py-2 rounded-md group",
+              "sidebar-link flex items-center px-2 py-2 rounded-md group",
               isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200"
             )}
             onTouchStart={() => handleTouchStart(label)}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}
+            onContextMenu={e => e.preventDefault()} // Prevent system preview
+            draggable={false}
+            tabIndex={-1}
           >
-            <div className="flex items-center justify-center w-8">
+            <div className="sidebar-icon flex items-center justify-center w-8">
               {icon}
             </div>
             {isOpen && (
