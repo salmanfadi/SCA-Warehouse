@@ -9,11 +9,21 @@ const urlsToCache = [
   '/index.html',
   '/offline.html',
   '/manifest.json',
-  '/favicon.svg',
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
   '/apple-touch-icon.png',
-  '/pwa-192x192.png',
-  '/pwa-512x512.png',
-  '/mask-icon.svg'
+  // Icons in the root (for backward compatibility)
+  '/android-chrome-192x192.png',
+  '/android-chrome-512x512.png',
+  // New icons in /icons directory
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  // Other assets
+  '/mask-icon.svg',
+  // Add any other critical assets here
+  '/src/assets/logo.svg',
+  '/src/assets/logo.png'
 ];
 
 // Install event - cache core assets
@@ -143,8 +153,8 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   const options = {
     body: 'New warehouse notification',
-    icon: '/pwa-192x192.png',
-    badge: '/pwa-192x192.png',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
