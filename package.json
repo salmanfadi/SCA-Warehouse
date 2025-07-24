@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "node test-runner.js",
     "find-unused": "ts-unused-exports ./tsconfig.json",
+    "prebuild": "node copy-icons.js",
     "detect-unused": "node --loader ts-node/esm detect_unused.ts"
   },
   "jest": {

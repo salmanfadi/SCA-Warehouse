@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
@@ -6,6 +6,7 @@ import { RequireAuth } from '@/components/auth/RequireAuth';
 import { MainLayout } from '@/layouts/MainLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { toast } from 'sonner';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 
 // Public pages
 import Login from './pages/Login';
@@ -78,6 +79,20 @@ import AdminUnifiedBatchProcessingPage from '@/pages/admin/UnifiedBatchProcessin
 import BatchBarcodesPage from '@/pages/warehouseManager/BatchBarcodesPage';
 
 function App() {
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+
+  useEffect(() => {
+    if (isPWA) {
+      document.body.classList.add('pwa-mode');
+    } else {
+      document.body.classList.remove('pwa-mode');
+    }
+    
+    return () => {
+      document.body.classList.remove('pwa-mode');
+    };
+  }, [isPWA]);
+
   React.useEffect(() => {
     // Show a demo toast on first load to confirm sonner is working in production/PWA
     // toast.success('PWA & Sonner toast are working!');
@@ -85,6 +100,7 @@ function App() {
 
   return (
     <ThemeProvider>
+      <PWAInstallPrompt />
       <AuthProvider>
         <Router>
           <Routes>
