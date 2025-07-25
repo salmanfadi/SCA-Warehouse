@@ -15,7 +15,7 @@ import {
   Boxes
 } from 'lucide-react';
 import { LoadingState } from '@/components/warehouse/LoadingState';
-import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
+import { useProcessedBatchesWithItemsOptimized } from '@/hooks/useProcessedBatchesWithItemsOptimized';
 import { useInventoryMetrics } from '@/hooks/useInventoryMetrics';
 import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
@@ -193,7 +193,7 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
   };
 
   // Fetch processed batches data with optimized query
-  const processedBatchesQuery = useProcessedBatchesWithItems({
+  const processedBatchesQuery = useProcessedBatchesWithItemsOptimized({
     limit: 10,
     page: currentPage,
     searchTerm: searchTerm || undefined,
@@ -591,17 +591,16 @@ const EnhancedInventoryView: React.FC<EnhancedInventoryViewProps> = ({
             </CardHeader>
             <CardContent>
               {/* Debug logging for batches data */}
-              {processedBatchesQuery.data?.batches && (
-                <div className="hidden">
-                  {console.log('EnhancedInventoryView batches data:', 
-                    processedBatchesQuery.data.batches.map(b => ({ 
-                      id: b.id, 
-                      sno: b.sno, 
-                      type: typeof b.sno 
-                    })))
-                  }
-                </div>
-              )}
+              {processedBatchesQuery.data?.batches && (() => {
+                console.log('EnhancedInventoryView batches data:', 
+                  processedBatchesQuery.data.batches.map(b => ({ 
+                    id: b.id, 
+                    sno: b.sno, 
+                    type: typeof b.sno 
+                  }))
+                );
+                return null;
+              })()}
               
               {processedBatchesQuery.isLoading ? (
                 <LoadingState message="Loading processed batches..." />
